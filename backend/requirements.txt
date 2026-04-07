@@ -1,0 +1,24 @@
+# ── Framework ──────────────────────────────────────────────────
+fastapi==0.115.12
+uvicorn[standard]==0.43.0
+python-multipart==0.0.20
+
+# ── Base de Datos ──────────────────────────────────────────────
+sqlalchemy[asyncio]==2.0.49
+asyncpg==0.30.0
+geoalchemy2==0.17.1
+
+# ── Migraciones ────────────────────────────────────────────────
+alembic==1.15.2
+
+# ── Validación y Config ───────────────────────────────────────
+pydantic==2.12.5
+pydantic-settings==2.9.1
+
+# ── Seguridad (preparado) ─────────────────────────────────────
+python-jose[cryptography]==3.4.0
+passlib[bcrypt]==1.7.4
+bcrypt==4.3.0
+
+# ── Utilidades ─────────────────────────────────────────────────
+python-dotenv==1.2.2

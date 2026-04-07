@@ -1,0 +1,105 @@
+# Archivos y directorios generales
+node_modules/
+dist/
+build/
+.env
+.env.*
+*.log
+coverage/
+.nyc_output/
+
+# Archivos del sistema operativo
+.DS_Store
+Thumbs.db
+
+# Configuración de IDEs y Editores
+.idea/
+.vscode/
+*.swp
+*.swo
+.project
+.settings/
+.claasspath
+
+# -----------------
+# Backend (Python)
+# -----------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Entornos virtuales
+env/
+venv/
+.env/
+.venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Testing y dependencias
+.pytest_cache/
+.coverage
+htmlcov/
+# Si usas Poetry
+# poetry.lock
+# Si usas Pipenv
+# Pipfile.lock
+
+# -----------------
+# Frontend (Node.js / Angular / React)
+# -----------------
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Angular
+.angular/
+
+# Caché general
+.cache/
+
+# -----------------
+# Bases de datos
+# -----------------
+*.sqlite3
+*.db
+
+# -----------------
+# Docker
+# -----------------
+# Archivos y volúmenes de datos donde se guarden datos persistentes localmente
+docker-data/
+postgres-data/
+mysql-data/
+mongo-data/
+*.rdb
+
+# -----------------
+# Móvil (Flutter / Dart)
+# -----------------
+# Entorno y paquetes
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+
+# Dependencias generadas de plugins
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# Directorio de compilación local
+/movil/build/
+
+# Archivos de certificados y claves Android (Muy importante no subirlos)
+android/key.properties
+*.jks
+*.keystore
+
+# Gestor de paquetes y configs de iOS
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec

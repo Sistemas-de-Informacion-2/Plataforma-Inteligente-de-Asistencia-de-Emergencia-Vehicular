@@ -1,0 +1,89 @@
+"""
+Repositorio: SolicitudEmergencia.
+Filtros por estado y cliente.
+"""
+
+from typing import Sequence
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from app.models.solicitud_emergencia import SolicitudEmergencia, EstadoSolicitud
+from app.repositories.base import BaseRepository
+
+
+class SolicitudRepository(BaseRepository[SolicitudEmergencia]):
+    def __init__(self, session: AsyncSession):
+        super().__init__(SolicitudEmergencia, session)
+
+    async def get_by_cliente(
+        self,
+        cliente_id: int,
+        *,
+        skip: int = 0,
+        limit: int = 100,
+    ) -> Sequence[SolicitudEmergencia]:
+        """Obtiene todas las solicitudes de un cliente."""
+        stmt = (
+            select(SolicitudEmergencia)
+            .where(SolicitudEmergencia.cliente_id == cliente_id)
+            .order_by(SolicitudEmergencia.fecha_creacion.desc())
+            .offset(skip)
+            .limit(limit)
+        )
+        result = await self.session.execute(stmt)
+        return result.scalars().all()
+
+    async def get_by_estado(
+        self,
+        estado: EstadoSolicitud,
+        *,
+        skip: int = 0,
+        limit: int = 100,
+    ) -> Sequence[SolicitudEmergencia]:
+        """Obtiene solicitudes filtradas por estado."""
+        stmt = (
+            select(SolicitudEmergencia)
+            .where(SolicitudEmergencia.estado == estado)
+            .order_by(SolicitudEmergencia.fecha_creacion.desc())
+            .offset(skip)
+            .limit(limit)
+        )
+        result = await self.session.execute(stmt)
+        return result.scalars().all()
+
+    async def get_pendientes(
+        self,
+        *,
+        skip: int = 0,
+        limit: int = 100,
+    ) -> Sequence[SolicitudEmergencia]:
+        """Atajo: obtiene solicitudes pendientes (las que los talleres ven)."""
+        return await self.get_by_estado(
+            EstadoSolicitud.PENDIENTE, skip=skip, limit=limit
+        )
+
+    async def get_detallada(self, solicitud_id: int) -> SolicitudEmergencia | None:
+        """
+        Obtiene una solicitud con evidencias y diagnóstico IA precargados.
+        Ideal para la vista detallada del taller.
+        """
+        stmt = (
+            select(SolicitudEmergencia)
+            .options(
+                selectinload(SolicitudEmergencia.evidencias),
+                selectinload(SolicitudEmergencia.diagnostico),
+            )
+            .where(SolicitudEmergencia.id == solicitud_id)
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def actualizar_estado(
+        self,
+        solicitud_id: int,
+        nuevo_estado: EstadoSolicitud,
+    ) -> SolicitudEmergencia | None:
+        """Actualiza el estado de una solicitud."""
+        return await self.update(solicitud_id, {"estado": nuevo_estado})
