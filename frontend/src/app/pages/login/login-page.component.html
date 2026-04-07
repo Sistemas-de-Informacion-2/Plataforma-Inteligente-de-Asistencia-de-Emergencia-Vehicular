@@ -1,0 +1,27 @@
+<!-- Layout Principal de la Página Contenedora. No tiene lógica de negocio. -->
+<main class="min-h-screen flex items-center justify-center relative bg-zinc-50 dark:bg-zinc-950 font-sans overflow-hidden">
+  
+  <!-- Background Art Premium: Luces y Blobs sutiles -->
+  <div class="fixed inset-0 pointer-events-none z-0">
+    <div class="absolute top-[-15%] left-[-10%] w-[500px] h-[500px] rounded-full bg-gradient-to-tr from-indigo-500/20 to-purple-500/10 dark:from-indigo-600/10 dark:to-purple-900/10 blur-3xl"></div>
+    <div class="absolute bottom-[-10%] right-[-5%] w-[400px] h-[400px] rounded-full bg-gradient-to-bl from-blue-500/20 to-indigo-500/10 dark:from-blue-700/10 dark:to-indigo-500/5 blur-3xl"></div>
+    <div class="absolute top-[40%] left-[60%] w-[600px] h-[600px] rounded-full bg-gradient-to-tl from-pink-500/10 to-transparent dark:from-pink-900/5 blur-3xl"></div>
+  </div>
+
+  <!-- Aislamiento de capas. Renderizado del Dumb Component FSD (UI) -->
+  <section class="relative z-10 w-full px-4 sm:px-6">
+
+    <!-- Instancia del componente UI exportado del Slice 'Auth' -->
+    <app-login-form
+      [isLoading]="isLoading()"
+      [errorMsg]="errorMsg()"
+      (loginSubmit)="handleLogin($event)"
+    />
+    
+    <!-- Aviso opcional inferior -->
+    <div class="mt-8 text-center text-sm font-medium text-gray-400 dark:text-zinc-600">
+      &copy; 2026 Portal Financiero Seguro. Todos los derechos reservados.
+    </div>
+  </section>
+
+</main>
