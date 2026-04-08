@@ -38,11 +38,36 @@ async def crear_solicitud(
             auto_asignar=auto_asignar
         )
         
+        from app.schemas.diagnostico_ia import DiagnosticoIAOut
+        from app.schemas.taller import SucursalOut
+
+        diag_out = None
+        if resultado.get("diagnostico"):
+            diag_out = DiagnosticoIAOut.model_validate(resultado["diagnostico"])
+
+        asignacion_out = None
+        asignacion_res = resultado.get("asignacion_resultado")
+        if asignacion_res:
+            tecnico = asignacion_res.get("tecnico_asignado")
+            tecnico_out = None
+            if tecnico:
+                tecnico_out = {
+                    "id": tecnico.id,
+                    "usuario_id": tecnico.usuario_id,
+                    "especialidad": tecnico.especialidad
+                }
+
+            asignacion_out = {
+                "sucursal": SucursalOut.model_validate(asignacion_res["sucursal"]) if "sucursal" in asignacion_res else None,
+                "distancia_km": asignacion_res.get("distancia_km"),
+                "tecnico_asignado": tecnico_out
+            }
+
         # Formatear la salida para que sea compatible con JSON
         return {
             "solicitud": SolicitudOut.model_validate(resultado["solicitud"]),
-            "diagnostico": resultado["diagnostico"],
-            "asignacion": resultado["asignacion_resultado"]
+            "diagnostico": diag_out,
+            "asignacion": asignacion_out
         }
     except Exception as e:
         raise HTTPException(

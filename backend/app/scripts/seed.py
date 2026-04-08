@@ -5,7 +5,7 @@ Pobla la BD con datos iniciales para pruebas, ubicados en Santa Cruz de la Sierr
 
 import asyncio
 from sqlalchemy import select
-from geoalchemy2.functions import ST_SetSRID, ST_MakePoint
+from geoalchemy2.elements import WKTElement
 
 from app.core.database import AsyncSessionLocal
 from app.core.security import hash_password
@@ -148,7 +148,7 @@ async def seed_data():
                 longitud=lng_uagrm,
                 telefono="3334455",
                 taller_id=taller1.id,
-                ubicacion=ST_SetSRID(ST_MakePoint(lng_uagrm, lat_uagrm), 4326)
+                ubicacion=WKTElement(f"POINT({lng_uagrm} {lat_uagrm})", srid=4326)
             )
 
             suc2 = Sucursal(
@@ -158,7 +158,7 @@ async def seed_data():
                 longitud=lng_villa,
                 telefono="3337788",
                 taller_id=taller2.id,
-                ubicacion=ST_SetSRID(ST_MakePoint(lng_villa, lat_villa), 4326)
+                ubicacion=WKTElement(f"POINT({lng_villa} {lat_villa})", srid=4326)
             )
 
             suc3 = Sucursal(
@@ -168,7 +168,7 @@ async def seed_data():
                 longitud=lng_norte,
                 telefono="3339900",
                 taller_id=taller1.id,
-                ubicacion=ST_SetSRID(ST_MakePoint(lng_norte, lat_norte), 4326)
+                ubicacion=WKTElement(f"POINT({lng_norte} {lat_norte})", srid=4326)
             )
             session.add_all([suc1, suc2, suc3])
             await session.flush()

@@ -8,7 +8,8 @@ from typing import Any, Sequence
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-from geoalchemy2.functions import ST_DWithin, ST_Distance, ST_SetSRID, ST_MakePoint
+from geoalchemy2.functions import ST_DWithin, ST_Distance
+from geoalchemy2.elements import WKTElement
 
 from app.models.taller import Taller, Sucursal
 from app.repositories.base import BaseRepository
@@ -81,22 +82,22 @@ class SucursalRepository(BaseRepository[Sucursal]):
         """
         radio_metros = radio_km * 1000
 
-        # Crear punto de referencia con SRID 4326
-        punto_ref = ST_SetSRID(ST_MakePoint(longitud, latitud), 4326)
+        from sqlalchemy import cast
+        from geoalchemy2 import Geography
 
-        # Calcular distancia en metros (cast a geography para precisión real)
+        # Crear punto de referencia con WKTElement y SRID 4326
+        punto_ref = WKTElement(f"POINT({longitud} {latitud})", srid=4326)
+
+        # Calcular distancia (usando cast correcto a TypeEngine Geography)
         distancia_expr = func.ST_Distance(
-            func.cast(Sucursal.ubicacion, func.Geography),
-            func.cast(punto_ref, func.Geography),
+            cast(Sucursal.ubicacion, Geography),
+            cast(punto_ref, Geography),
         )
 
         stmt = (
             select(Sucursal, distancia_expr.label("distancia_m"))
             .where(
-                func.cast(Sucursal.ubicacion, func.Geography).ST_DWithin(
-                    func.cast(punto_ref, func.Geography),
-                    radio_metros,
-                )
+                Sucursal.ubicacion.ST_DWithin(punto_ref, radio_metros)
             )
             .where(Sucursal.ubicacion.isnot(None))
             .order_by(distancia_expr)

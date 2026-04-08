@@ -6,7 +6,7 @@ CRUD + gestión de sucursales con geolocalización.
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from geoalchemy2.functions import ST_SetSRID, ST_MakePoint
+from geoalchemy2.elements import WKTElement
 
 from app.models.taller import Taller, Sucursal
 from app.repositories.taller_repository import TallerRepository, SucursalRepository
@@ -61,8 +61,8 @@ class SucursalService:
         sucursal_data = data.model_dump()
 
         # Generar geometría PostGIS a partir de lat/lng
-        sucursal_data["ubicacion"] = ST_SetSRID(
-            ST_MakePoint(data.longitud, data.latitud), 4326
+        sucursal_data["ubicacion"] = WKTElement(
+            f"POINT({data.longitud} {data.latitud})", srid=4326
         )
 
         return await self.repo.create(sucursal_data)
@@ -106,8 +106,8 @@ class SucursalService:
             if sucursal:
                 lat = update_data.get("latitud", sucursal.latitud)
                 lng = update_data.get("longitud", sucursal.longitud)
-                update_data["ubicacion"] = ST_SetSRID(
-                    ST_MakePoint(lng, lat), 4326
+                update_data["ubicacion"] = WKTElement(
+                    f"POINT({lng} {lat})", srid=4326
                 )
 
         if not update_data:

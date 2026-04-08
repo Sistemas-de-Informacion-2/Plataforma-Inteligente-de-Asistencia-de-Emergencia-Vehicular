@@ -15,7 +15,7 @@ Es el punto central del flujo de negocio.
 import logging
 from typing import Any
 
-from geoalchemy2.functions import ST_SetSRID, ST_MakePoint
+from geoalchemy2.elements import WKTElement
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.diagnostico_ia import DiagnosticoIA
@@ -90,8 +90,8 @@ class SolicitudService:
         solicitud_data["estado"] = EstadoSolicitud.PENDIENTE
 
         # Generar geometría PostGIS
-        solicitud_data["ubicacion"] = ST_SetSRID(
-            ST_MakePoint(data.longitud, data.latitud), 4326
+        solicitud_data["ubicacion"] = WKTElement(
+            f"POINT({data.longitud} {data.latitud})", srid=4326
         )
 
         solicitud = await self.repo.create(solicitud_data)
@@ -137,6 +137,21 @@ class SolicitudService:
                 await self.repo.actualizar_estado(
                     solicitud.id, EstadoSolicitud.EN_PROCESO
                 )
+
+                # ── Emisión de Eventos WebSocket ──
+                tecnico = asignacion_resultado.get("tecnico_asignado")
+                if tecnico:
+                    from app.api.v1.endpoints.notificaciones_ws import manager
+                    evento_ws = {
+                        "type": "NUEVA_ASIGNACION",
+                        "solicitud_id": solicitud.id,
+                        "distancia": asignacion_resultado.get("distancia_km"),
+                        "eta": asignacion_resultado.get("tiempo_estimado")
+                    }
+                    # Notificar al Técnico asignado
+                    await manager.send_personal_message(evento_ws, str(tecnico.usuario_id))
+                    # Notificar al Cliente
+                    await manager.send_personal_message(evento_ws, str(solicitud.cliente_id))
 
         # ── Paso 5: Notificar al cliente ──────────────────────
         await self.notificacion_service.enviar_a_usuario(

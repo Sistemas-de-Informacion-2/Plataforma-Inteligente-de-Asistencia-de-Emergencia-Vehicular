@@ -41,8 +41,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:4200",   # Angular frontend
-        "http://localhost:3000",   # Alternativo
-        "*",                       # Dev: permitir todo (restringir en prod)
+        "http://localhost",        # Alternativo
     ],
     allow_credentials=True,
     allow_methods=["*"],

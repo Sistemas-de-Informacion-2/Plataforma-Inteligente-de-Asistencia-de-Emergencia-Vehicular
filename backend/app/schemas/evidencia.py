@@ -14,7 +14,7 @@ class EvidenciaBase(BaseModel):
 
 class EvidenciaCreate(EvidenciaBase):
     """Requiere el ID de la solicitud a la que pertenece."""
-    solicitud_id: int
+    solicitud_id: int | None = None
 
 
 class EvidenciaOut(EvidenciaBase):

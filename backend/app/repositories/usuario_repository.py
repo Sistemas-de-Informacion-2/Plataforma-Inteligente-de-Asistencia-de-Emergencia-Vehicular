@@ -3,6 +3,7 @@ Repositorio: Usuario.
 Búsquedas específicas por email y CI.
 """
 
+from typing import Sequence
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -14,6 +15,22 @@ from app.repositories.base import BaseRepository
 class UsuarioRepository(BaseRepository[Usuario]):
     def __init__(self, session: AsyncSession):
         super().__init__(Usuario, session)
+
+    async def get_all(
+        self,
+        *,
+        skip: int = 0,
+        limit: int = 100,
+    ) -> Sequence[Usuario]:
+        """Obtiene usuarios con perfil precargado."""
+        stmt = (
+            select(Usuario)
+            .options(selectinload(Usuario.perfil))
+            .offset(skip)
+            .limit(limit)
+        )
+        result = await self.session.execute(stmt)
+        return result.scalars().all()
 
     async def get_by_email(self, email: str) -> Usuario | None:
         """Busca un usuario por su email."""
@@ -38,10 +55,13 @@ class UsuarioRepository(BaseRepository[Usuario]):
         return result.scalar_one_or_none()
 
     async def get_with_roles(self, usuario_id: int) -> Usuario | None:
-        """Obtiene un usuario con sus roles precargados."""
+        """Obtiene un usuario con sus roles y perfil precargados."""
         stmt = (
             select(Usuario)
-            .options(selectinload(Usuario.roles))
+            .options(
+                selectinload(Usuario.roles),
+                selectinload(Usuario.perfil)
+            )
             .where(Usuario.id == usuario_id)
         )
         result = await self.session.execute(stmt)
