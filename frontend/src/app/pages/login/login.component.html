@@ -1,0 +1,92 @@
+<div class="min-h-screen flex items-center justify-center bg-surface-dark px-4 sm:px-6 lg:px-8">
+  <div class="max-w-md w-full space-y-8 bg-surface-light p-8 md:p-10 rounded-2xl shadow-xl shadow-gray-200/50 border border-gray-100">
+    
+    <!-- Encabezado / Logo mock -->
+    <div class="text-center">
+      <div class="mx-auto h-14 w-14 bg-primary-50 rounded-2xl flex items-center justify-center ring-1 ring-primary-100 mb-6 drop-shadow-sm">
+        <svg class="w-8 h-8 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4"></path>
+        </svg>
+      </div>
+      <h2 class="text-3xl font-extrabold text-text-main tracking-tight">
+        Bienvenido
+      </h2>
+      <p class="mt-2 text-sm text-text-muted">
+        Accede al panel administrativo de tu taller
+      </p>
+    </div>
+
+    <!-- Formulario Reactive -->
+    <form class="mt-8 space-y-6" [formGroup]="loginForm" (ngSubmit)="onSubmit()">
+      
+      <!-- Mensaje de Error (si falla login) -->
+      <div *ngIf="errorMessage" class="p-3 bg-alert bg-opacity-10 rounded-lg text-sm text-alert text-center font-medium border border-alert border-opacity-20 animate-fade-in">
+        {{ errorMessage }}
+      </div>
+
+      <div class="space-y-5">
+        <!-- Campo Correo -->
+        <div>
+          <label for="email" class="block text-sm font-medium text-text-main mb-1.5 shadow-sm">
+            Correo electrónico
+          </label>
+          <div>
+            <input id="email" type="email" formControlName="email"
+              class="appearance-none block w-full px-4 py-3 border border-gray-200 rounded-xl bg-surface-dark text-text-main placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition duration-200"
+              placeholder="tu@taller.com">
+          </div>
+          <div *ngIf="loginForm.get('email')?.touched && loginForm.get('email')?.invalid" class="mt-1 text-sm text-alert font-medium animate-fade-in pl-1">
+            <span *ngIf="loginForm.get('email')?.errors?.['required']">El correo es requerido.</span>
+            <span *ngIf="loginForm.get('email')?.errors?.['email']">Debes ingresar un correo válido.</span>
+          </div>
+        </div>
+
+        <!-- Campo Contraseña -->
+        <div>
+          <label for="password" class="block text-sm font-medium text-text-main mb-1.5 shadow-sm">
+            Contraseña
+          </label>
+          <div>
+            <input id="password" type="password" formControlName="password"
+              class="appearance-none block w-full px-4 py-3 border border-gray-200 rounded-xl bg-surface-dark text-text-main placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition duration-200"
+              placeholder="••••••••">
+          </div>
+           <div *ngIf="loginForm.get('password')?.touched && loginForm.get('password')?.invalid" class="mt-1 text-sm text-alert font-medium animate-fade-in pl-1">
+            <span *ngIf="loginForm.get('password')?.errors?.['required']">La contraseña es requerida.</span>
+            <span *ngIf="loginForm.get('password')?.errors?.['minlength']">Mínimo 4 caracteres.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Button -->
+      <div class="pt-2">
+        <button type="submit" 
+          [disabled]="isLoading"
+          class="w-full flex justify-center items-center py-3.5 px-4 border border-transparent rounded-xl shadow-md text-sm font-semibold text-white bg-primary-600 hover:bg-primary-500 focus:outline-none focus:ring-2 focus:ring-offset-2 hover:shadow-lg focus:ring-primary-500 transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed">
+          
+          <!-- Loader SVG si isLoading = true -->
+          <span *ngIf="isLoading" class="flex items-center">
+            <svg class="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Ingresando...
+          </span>
+          <!-- Texto Normal -->
+          <span *ngIf="!isLoading">Iniciar Sesión</span>
+          
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<style>
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-out;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-5px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+</style>

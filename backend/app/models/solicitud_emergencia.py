@@ -12,6 +12,7 @@ from sqlalchemy.sql import func
 from geoalchemy2 import Geometry
 
 from app.core.database import Base
+from app.models.auditable import AuditableMixin
 
 
 class EstadoSolicitud(str, enum.Enum):
@@ -22,7 +23,7 @@ class EstadoSolicitud(str, enum.Enum):
     CANCELADO = "CANCELADO"
 
 
-class SolicitudEmergencia(Base):
+class SolicitudEmergencia(AuditableMixin, Base):
     __tablename__ = "solicitudes_emergencia"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
@@ -33,9 +34,6 @@ class SolicitudEmergencia(Base):
         SAEnum(EstadoSolicitud, name="estado_solicitud", create_constraint=True),
         default=EstadoSolicitud.PENDIENTE,
         nullable=False,
-    )
-    fecha_creacion: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
     )
 
     # Columna PostGIS para queries espaciales

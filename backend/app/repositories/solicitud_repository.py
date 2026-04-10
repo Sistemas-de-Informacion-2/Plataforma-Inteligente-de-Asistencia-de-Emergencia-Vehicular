@@ -27,7 +27,10 @@ class SolicitudRepository(BaseRepository[SolicitudEmergencia]):
         """Obtiene todas las solicitudes de un cliente."""
         stmt = (
             select(SolicitudEmergencia)
-            .where(SolicitudEmergencia.cliente_id == cliente_id)
+            .where(
+                SolicitudEmergencia.cliente_id == cliente_id,
+                SolicitudEmergencia.es_eliminado == False
+            )
             .order_by(SolicitudEmergencia.fecha_creacion.desc())
             .offset(skip)
             .limit(limit)
@@ -45,7 +48,10 @@ class SolicitudRepository(BaseRepository[SolicitudEmergencia]):
         """Obtiene solicitudes filtradas por estado."""
         stmt = (
             select(SolicitudEmergencia)
-            .where(SolicitudEmergencia.estado == estado)
+            .where(
+                SolicitudEmergencia.estado == estado,
+                SolicitudEmergencia.es_eliminado == False
+            )
             .order_by(SolicitudEmergencia.fecha_creacion.desc())
             .offset(skip)
             .limit(limit)
@@ -75,7 +81,10 @@ class SolicitudRepository(BaseRepository[SolicitudEmergencia]):
                 selectinload(SolicitudEmergencia.evidencias),
                 selectinload(SolicitudEmergencia.diagnostico),
             )
-            .where(SolicitudEmergencia.id == solicitud_id)
+            .where(
+                SolicitudEmergencia.id == solicitud_id,
+                SolicitudEmergencia.es_eliminado == False
+            )
         )
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()

@@ -24,14 +24,14 @@ class TallerRepository(BaseRepository[Taller]):
         stmt = (
             select(Taller)
             .options(selectinload(Taller.sucursales))
-            .where(Taller.id == taller_id)
+            .where(Taller.id == taller_id, Taller.es_eliminado == False)
         )
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
     async def get_by_admin(self, admin_id: int) -> Sequence[Taller]:
         """Obtiene todos los talleres administrados por un admin."""
-        stmt = select(Taller).where(Taller.admin_id == admin_id)
+        stmt = select(Taller).where(Taller.admin_id == admin_id, Taller.es_eliminado == False)
         result = await self.session.execute(stmt)
         return result.scalars().all()
 
@@ -50,7 +50,7 @@ class SucursalRepository(BaseRepository[Sucursal]):
         """Obtiene todas las sucursales de un taller."""
         stmt = (
             select(Sucursal)
-            .where(Sucursal.taller_id == taller_id)
+            .where(Sucursal.taller_id == taller_id, Sucursal.es_eliminado == False)
             .offset(skip)
             .limit(limit)
         )
@@ -99,7 +99,7 @@ class SucursalRepository(BaseRepository[Sucursal]):
             .where(
                 Sucursal.ubicacion.ST_DWithin(punto_ref, radio_metros)
             )
-            .where(Sucursal.ubicacion.isnot(None))
+            .where(Sucursal.ubicacion.isnot(None), Sucursal.es_eliminado == False)
             .order_by(distancia_expr)
             .limit(limit)
             .execution_options(skip_user_space_cache=True)
@@ -121,7 +121,7 @@ class SucursalRepository(BaseRepository[Sucursal]):
         stmt = (
             select(Sucursal)
             .options(selectinload(Sucursal.servicios))
-            .where(Sucursal.id == sucursal_id)
+            .where(Sucursal.id == sucursal_id, Sucursal.es_eliminado == False)
         )
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()

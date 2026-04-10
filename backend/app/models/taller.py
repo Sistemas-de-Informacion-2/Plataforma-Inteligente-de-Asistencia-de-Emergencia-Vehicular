@@ -8,9 +8,10 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from geoalchemy2 import Geometry
 
 from app.core.database import Base
+from app.models.auditable import AuditableMixin
 
 
-class Taller(Base):
+class Taller(AuditableMixin, Base):
     __tablename__ = "talleres"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
@@ -32,7 +33,7 @@ class Taller(Base):
         return f"<Taller(id={self.id}, nombre='{self.nombre}')>"
 
 
-class Sucursal(Base):
+class Sucursal(AuditableMixin, Base):
     __tablename__ = "sucursales"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)

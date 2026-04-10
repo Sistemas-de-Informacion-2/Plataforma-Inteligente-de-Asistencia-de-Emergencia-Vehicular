@@ -1,0 +1,66 @@
+<div class="flex h-screen bg-surface-dark overflow-hidden">
+  
+  <!-- Sidebar -->
+  <aside 
+    class="bg-surface-light border-r border-gray-200 text-text-main w-64 flex-shrink-0 transition-all duration-300 ease-in-out absolute z-20 h-full md:relative md:translate-x-0"
+    [ngClass]="{'translate-x-0': isSidebarOpen, '-translate-x-full': !isSidebarOpen}">
+    <div class="p-6">
+      <h2 class="text-xl font-bold text-primary-600 tracking-tight">Admin Taller</h2>
+      <p class="text-xs text-text-muted mt-1 uppercase tracking-wider font-semibold">Rescate Vehicular</p>
+    </div>
+    <nav class="mt-6 px-4 space-y-1">
+      <a href="#" class="block py-2.5 px-4 rounded transition duration-200 bg-primary-50 text-primary-600 font-medium">
+        Dashboard
+      </a>
+      <a href="#" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-primary-50 hover:text-primary-600 text-text-main">
+        Solicitudes
+      </a>
+      <a href="#" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-primary-50 hover:text-primary-600 text-text-main">
+        Gestión Técnicos
+      </a>
+      <a href="#" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-primary-50 hover:text-primary-600 text-text-main">
+        Configuración
+      </a>
+    </nav>
+  </aside>
+
+  <!-- Overlay para móviles (Cierra el sidebar con tap) -->
+  <div 
+    *ngIf="isSidebarOpen" 
+    (click)="toggleSidebar()"
+    class="fixed inset-0 bg-black/40 backdrop-blur-sm z-10 md:hidden transition-opacity">
+  </div>
+
+  <!-- Contenido Principal -->
+  <div class="flex-1 flex flex-col min-w-0">
+    
+    <!-- Navbar Superior -->
+    <header class="bg-surface-light border-b border-gray-200 h-16 flex items-center justify-between px-4 sm:px-6 z-10">
+      <div class="flex items-center">
+        <button 
+          (click)="toggleSidebar()" 
+          class="text-text-muted hover:text-primary-600 focus:outline-none md:hidden p-1 mr-3 rounded-md hover:bg-primary-50 transition">
+          <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="flex items-center space-x-4">
+        <button class="text-text-muted hover:text-primary-600 p-2 rounded-full hover:bg-surface-dark transition-colors relative">
+           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+           <span class="absolute top-1.5 right-1.5 block h-2 w-2 rounded-full bg-alert ring-2 ring-surface-light"></span>
+        </button>
+        <div class="w-9 h-9 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 font-bold border border-primary-200 shadow-sm cursor-pointer hover:bg-primary-200 transition">
+          T
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Body Dinámico donde se rutean las pages -->
+    <main class="flex-1 overflow-x-hidden overflow-y-auto bg-surface-dark p-4 md:p-6 lg:p-8">
+      <router-outlet></router-outlet>
+    </main>
+
+  </div>
+</div>

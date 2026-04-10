@@ -7,9 +7,10 @@ from sqlalchemy import String, Integer, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
+from app.models.auditable import AuditableMixin
 
 
-class Vehiculo(Base):
+class Vehiculo(AuditableMixin, Base):
     __tablename__ = "vehiculos"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)

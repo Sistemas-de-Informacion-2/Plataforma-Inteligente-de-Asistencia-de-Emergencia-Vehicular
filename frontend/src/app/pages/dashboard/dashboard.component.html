@@ -1,0 +1,148 @@
+<div class="max-w-7xl mx-auto space-y-6 lg:space-y-8 animate-fade-in">
+  
+  <!-- Encabezado de Página -->
+  <div>
+    <h1 class="text-2xl md:text-3xl font-bold text-text-main tracking-tight">Dashboard Operativo</h1>
+    <p class="text-text-muted mt-1 text-sm md:text-base">Resumen en tiempo real y asignación de requerimientos vehiculares.</p>
+  </div>
+
+  <!-- Banner de Notificación Entrante (WebSocket) -->
+  <div *ngIf="latestNotification" 
+       class="relative rounded-xl border p-4 shadow-md transition-all duration-300 ease-out transform animate-fade-in"
+       [ngClass]="{
+         'bg-alert bg-opacity-10 border-alert text-alert': latestNotification.priority === 'high',
+         'bg-primary-50 border-primary-200 text-primary-600': latestNotification.priority !== 'high'
+       }">
+    <div class="flex items-start">
+      <div class="flex-shrink-0 mt-0.5">
+        <svg class="w-6 h-6 text-current" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      </div>
+      <div class="ml-4 w-full">
+        <h3 class="text-base font-semibold capitalize tracking-tight">{{ latestNotification.type }}</h3>
+        <div class="mt-1 text-sm text-current opacity-90 leading-relaxed">
+          <p>{{ latestNotification.message }}</p>
+        </div>
+      </div>
+      <button (click)="clearNotification()" class="absolute top-4 right-4 text-current opacity-60 hover:opacity-100 p-1 rounded-md hover:bg-current hover:bg-opacity-10 transition">
+        <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Contenedor Principal Tabular -->
+  <div class="bg-surface-light shadow-sm border border-gray-100 rounded-2xl overflow-hidden">
+    
+    <!-- Encabezado de la Tabla -->
+    <div class="px-6 py-5 border-b border-gray-100 flex items-center justify-between bg-white bg-opacity-50">
+      <h2 class="text-lg font-semibold text-text-main flex items-center gap-2">
+        <span>Servicios Pendientes</span>
+        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-primary-100 text-primary-600">
+          {{ pendientes().length }}
+        </span>
+      </h2>
+      <button (click)="cargarPendientes()" class="text-sm text-text-muted hover:text-primary-600 font-medium transition flex items-center gap-1.5 focus:outline-none focus:ring-2 focus:ring-primary-500 rounded px-1">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+        Actualizar
+      </button>
+    </div>
+
+    <!-- Contenido de Solicitudes -->
+    <div class="divide-y divide-gray-100">
+      
+      <!-- Estado de Carga -->
+      <div *ngIf="isLoading()" class="p-12 text-center text-text-muted flex flex-col items-center justify-center animate-pulse">
+        <svg class="animate-spin h-8 w-8 text-primary-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <span class="font-medium">Consultando flota y requerimientos...</span>
+      </div>
+
+      <!-- Estado Vacío -->
+      <div *ngIf="!isLoading() && pendientes().length === 0" class="p-16 text-center text-text-muted animate-fade-in">
+        <div class="mx-auto h-14 w-14 bg-gray-50 rounded-full flex items-center justify-center mb-4 ring-1 ring-gray-100 shadow-inner">
+          <svg class="w-7 h-7 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        </div>
+        <p class="font-semibold text-text-main text-lg">Tu taller está libre</p>
+        <p class="text-sm mt-1 max-w-xs mx-auto">No hay emergencias vehiculares pendientes en tu rango de cobertura en este momento.</p>
+      </div>
+
+      <!-- Grid de Rows (Tarjetas horizontales) -->
+      <div *ngFor="let sol of pendientes()" class="p-4 md:px-6 md:py-5 hover:bg-primary-50 hover:bg-opacity-30 transition-all duration-200 group flex flex-col md:flex-row md:items-center justify-between gap-5 animate-fade-in">
+        
+        <!-- Bloque Izquierdo de Info -->
+        <div class="flex-1 min-w-0 flex items-start gap-4">
+          <!-- Dot Indicador Prioridad -->
+          <div class="flex-shrink-0 mt-1.5 relative">
+             <span class="flex h-3 w-3 relative">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full opacity-30"
+                    [ngClass]="{'bg-alert': sol.prioridad === 'ALTA', 'bg-orange-500': sol.prioridad === 'MEDIA', 'bg-success': sol.prioridad === 'BAJA'}"></span>
+              <span class="relative inline-flex rounded-full h-3 w-3 shadow-sm"
+                    [ngClass]="{'bg-alert': sol.prioridad === 'ALTA', 'bg-orange-500': sol.prioridad === 'MEDIA', 'bg-success': sol.prioridad === 'BAJA'}"></span>
+            </span>
+          </div>
+
+          <!-- Textos principales -->
+          <div>
+            <div class="flex items-center gap-2.5 flex-wrap">
+              <h4 class="text-base font-bold text-text-main capitalize">
+                {{ sol.tipo_incidente }}
+              </h4>
+              <!-- Badge Dinámico -->
+              <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold tracking-wider uppercase border"
+                [ngClass]="{
+                  'bg-red-50 text-alert border-red-100': sol.prioridad === 'ALTA',
+                  'bg-orange-50 text-orange-600 border-orange-100': sol.prioridad === 'MEDIA',
+                  'bg-green-50 text-success border-green-100': sol.prioridad === 'BAJA'
+                }">
+                {{ sol.prioridad }}
+              </span>
+            </div>
+            
+            <p class="text-sm text-text-muted mt-1 leading-relaxed">
+              {{ sol.descripcion }}
+            </p>
+            
+            <!-- Metadata Adicional (Iconos) -->
+            <div class="flex items-center gap-4 mt-2.5 text-[13px] text-text-muted font-medium">
+              <span class="flex items-center gap-1.5 text-text-main opacity-80">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                Ubicación del cliente
+              </span>
+              <span class="flex items-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                {{ sol.id ? '#' + sol.id : 'Reciente' }}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Botones de Acción -->
+        <div class="flex items-center gap-3 shrink-0 border-t border-gray-100 md:border-0 pt-4 md:pt-0 pl-7 md:pl-0">
+           <button class="flex-1 md:flex-none justify-center px-4 py-2.5 text-sm font-semibold rounded-lg text-text-muted hover:text-text-main bg-white border border-gray-200 shadow-sm transition hover:bg-gray-50 focus:ring-2 focus:ring-primary-500">
+             Revisar
+           </button>
+           <button (click)="aceptar(sol.id)" class="flex-1 md:flex-none justify-center inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-semibold rounded-lg text-white bg-primary-600 hover:bg-primary-500 shadow-sm border border-transparent transition focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+             Aceptar
+           </button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .animate-fade-in {
+    animation: fadeIn 0.4s ease-out;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-3px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+</style>

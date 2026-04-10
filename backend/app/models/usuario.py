@@ -5,14 +5,15 @@ Relaciones: Usuario 1:1 UsuarioPerfil, 1:N Vehiculos, M:N Roles (via UsuarioRol)
 
 from datetime import datetime, date
 
-from sqlalchemy import String, DateTime, Date, ForeignKey, Text
+from sqlalchemy import String, Integer, DateTime, Date, ForeignKey, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
 from app.core.database import Base
+from app.models.auditable import AuditableMixin
 
 
-class Usuario(Base):
+class Usuario(AuditableMixin, Base):
     __tablename__ = "usuarios"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
@@ -24,9 +25,6 @@ class Usuario(Base):
     telefono: Mapped[str | None] = mapped_column(String(20))
     ci: Mapped[str] = mapped_column(
         String(20), unique=True, index=True, nullable=False
-    )
-    fecha_creacion: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
     )
 
     # ── Relaciones ────────────────────────────────────────────

@@ -10,6 +10,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
 from app.core.database import Base
+from app.models.auditable import AuditableMixin
 
 
 class EstadoOrden(str, enum.Enum):
@@ -20,7 +21,7 @@ class EstadoOrden(str, enum.Enum):
     CANCELADA = "CANCELADA"
 
 
-class OrdenTrabajo(Base):
+class OrdenTrabajo(AuditableMixin, Base):
     __tablename__ = "ordenes_trabajo"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)

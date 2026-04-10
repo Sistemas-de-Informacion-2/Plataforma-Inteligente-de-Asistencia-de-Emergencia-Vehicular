@@ -22,10 +22,11 @@ class UsuarioRepository(BaseRepository[Usuario]):
         skip: int = 0,
         limit: int = 100,
     ) -> Sequence[Usuario]:
-        """Obtiene usuarios con perfil precargado."""
+        """Obtiene usuarios con perfil precargado. Excluye eliminados."""
         stmt = (
             select(Usuario)
             .options(selectinload(Usuario.perfil))
+            .where(Usuario.es_eliminado == False)
             .offset(skip)
             .limit(limit)
         )
@@ -34,13 +35,13 @@ class UsuarioRepository(BaseRepository[Usuario]):
 
     async def get_by_email(self, email: str) -> Usuario | None:
         """Busca un usuario por su email."""
-        stmt = select(Usuario).where(Usuario.email == email)
+        stmt = select(Usuario).where(Usuario.email == email, Usuario.es_eliminado == False)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
     async def get_by_ci(self, ci: str) -> Usuario | None:
         """Busca un usuario por su cédula de identidad."""
-        stmt = select(Usuario).where(Usuario.ci == ci)
+        stmt = select(Usuario).where(Usuario.ci == ci, Usuario.es_eliminado == False)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
@@ -49,7 +50,7 @@ class UsuarioRepository(BaseRepository[Usuario]):
         stmt = (
             select(Usuario)
             .options(selectinload(Usuario.perfil))
-            .where(Usuario.id == usuario_id)
+            .where(Usuario.id == usuario_id, Usuario.es_eliminado == False)
         )
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
@@ -62,7 +63,7 @@ class UsuarioRepository(BaseRepository[Usuario]):
                 selectinload(Usuario.roles),
                 selectinload(Usuario.perfil)
             )
-            .where(Usuario.id == usuario_id)
+            .where(Usuario.id == usuario_id, Usuario.es_eliminado == False)
         )
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()

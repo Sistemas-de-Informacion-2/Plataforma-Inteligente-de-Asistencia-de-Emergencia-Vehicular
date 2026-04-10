@@ -31,8 +31,10 @@ class BaseRepository(Generic[T]):
     # ── READ ──────────────────────────────────────────────────
 
     async def get_by_id(self, id: int) -> T | None:
-        """Obtiene un registro por su ID primario."""
+        """Obtiene un registro por su ID primario. Excluye soft deletes."""
         stmt = select(self.model).where(self.model.id == id)
+        if hasattr(self.model, "es_eliminado"):
+            stmt = stmt.where(self.model.es_eliminado == False)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
@@ -42,8 +44,10 @@ class BaseRepository(Generic[T]):
         skip: int = 0,
         limit: int = 100,
     ) -> Sequence[T]:
-        """Obtiene todos los registros con paginación."""
+        """Obtiene todos los registros con paginación. Excluye soft deletes."""
         stmt = select(self.model).offset(skip).limit(limit)
+        if hasattr(self.model, "es_eliminado"):
+            stmt = stmt.where(self.model.es_eliminado == False)
         result = await self.session.execute(stmt)
         return result.scalars().all()
 
@@ -57,6 +61,8 @@ class BaseRepository(Generic[T]):
         if column is None:
             raise ValueError(f"El modelo {self.model.__name__} no tiene el campo '{field_name}'")
         stmt = select(self.model).where(column == value)
+        if hasattr(self.model, "es_eliminado"):
+            stmt = stmt.where(self.model.es_eliminado == False)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
@@ -78,6 +84,8 @@ class BaseRepository(Generic[T]):
             .offset(skip)
             .limit(limit)
         )
+        if hasattr(self.model, "es_eliminado"):
+            stmt = stmt.where(self.model.es_eliminado == False)
         result = await self.session.execute(stmt)
         return result.scalars().all()
 
@@ -123,16 +131,27 @@ class BaseRepository(Generic[T]):
     # ── DELETE ────────────────────────────────────────────────
 
     async def delete(self, id: int) -> bool:
-        """Elimina un registro por ID. Retorna True si se eliminó."""
-        stmt = delete(self.model).where(self.model.id == id)
+        """Elimina un registro (lógico si tiene es_eliminado, físico de lo contrario). Retorna True si se afectó."""
+        if hasattr(self.model, "es_eliminado"):
+            from sqlalchemy.sql import func
+            stmt = (
+                update(self.model)
+                .where(self.model.id == id)
+                .values(es_eliminado=True, fecha_eliminacion=func.now())
+            )
+        else:
+            stmt = delete(self.model).where(self.model.id == id)
+            
         result = await self.session.execute(stmt)
         return result.rowcount > 0
 
     # ── COUNT ─────────────────────────────────────────────────
 
     async def count(self) -> int:
-        """Cuenta el total de registros."""
+        """Cuenta el total de registros vivos."""
         from sqlalchemy import func
         stmt = select(func.count()).select_from(self.model)
+        if hasattr(self.model, "es_eliminado"):
+            stmt = stmt.where(self.model.es_eliminado == False)
         result = await self.session.execute(stmt)
         return result.scalar_one()
