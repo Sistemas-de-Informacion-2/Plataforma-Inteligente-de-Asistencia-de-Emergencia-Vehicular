@@ -1,3 +1,4 @@
+# backend/app/schemas/asignacion.py
 """
 Schemas Pydantic: Asignacion.
 """

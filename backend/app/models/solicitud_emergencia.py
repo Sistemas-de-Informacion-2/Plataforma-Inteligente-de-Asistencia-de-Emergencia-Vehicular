@@ -1,3 +1,4 @@
+# backend/app/models/solicitud_emergencia.py
 """
 Modelo: SolicitudEmergencia.
 Enum de estados. Usa GeoAlchemy2 para ubicación del incidente.

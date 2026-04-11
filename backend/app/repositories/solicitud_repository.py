@@ -1,3 +1,4 @@
+# backend/app/repositories/solicitud_repository.py
 """
 Repositorio: SolicitudEmergencia.
 Filtros por estado y cliente.

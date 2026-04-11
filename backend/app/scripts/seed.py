@@ -1,3 +1,4 @@
+# backend/app/scripts/seed.py
 """
 Script de Semilla (Seed) para la Base de Datos.
 Pobla la BD con datos iniciales para pruebas, ubicados en Santa Cruz de la Sierra.

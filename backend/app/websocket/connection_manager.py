@@ -1,3 +1,4 @@
+# backend/app/websocket/connection_manager.py
 from fastapi import WebSocket
 import logging
 

@@ -1,3 +1,4 @@
+# backend/app/schemas/auth.py
 """
 Schemas Pydantic: Autenticación.
 """

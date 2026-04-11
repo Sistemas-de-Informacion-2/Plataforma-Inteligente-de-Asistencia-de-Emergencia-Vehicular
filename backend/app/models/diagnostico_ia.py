@@ -1,3 +1,4 @@
+# backend/app/models/diagnostico_ia.py
 """
 Modelo: DiagnosticoIA.
 Resultado del análisis automático de un incidente.

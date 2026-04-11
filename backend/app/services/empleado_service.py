@@ -1,28 +1,113 @@
+# backend/app/services/empleado_service.py
 """
 Servicio: Empleado (Técnico).
-CRUD + gestión de disponibilidad.
+CRUD + gestión de disponibilidad + creación transaccional Usuario→Empleado.
 """
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from geoalchemy2.elements import WKTElement
 
+from app.core.security import hash_password
 from app.models.empleado import Empleado
+from app.models.usuario import Usuario
+from app.models.rol import Rol, UsuarioRol
 from app.repositories.empleado_repository import EmpleadoRepository
-from app.schemas.empleado import EmpleadoCreate, EmpleadoUpdate
+from app.repositories.usuario_repository import UsuarioRepository
+from app.schemas.empleado import EmpleadoCreate, EmpleadoCreateFull, EmpleadoUpdate
 
 
 class EmpleadoService:
     def __init__(self, session: AsyncSession):
         self.session = session
         self.repo = EmpleadoRepository(session)
+        self.usuario_repo = UsuarioRepository(session)
 
+    # ── Crear empleado simple (sin usuario) ───────────────────
     async def crear(self, data: EmpleadoCreate) -> Empleado:
-        return await self.repo.create(data.model_dump())
+        empleado_data = data.model_dump()
+
+        # Generar geometría PostGIS si hay coordenadas
+        if data.latitud is not None and data.longitud is not None:
+            empleado_data["ubicacion"] = WKTElement(
+                f"POINT({data.longitud} {data.latitud})", srid=4326
+            )
+
+        return await self.repo.create(empleado_data)
+
+    # ── Crear Usuario + Empleado en una sola transacción ──────
+    async def crear_con_usuario(self, data: EmpleadoCreateFull) -> Empleado:
+        """
+        Transacción atómica:
+          1. Validar unicidad email/CI
+          2. Hash password → crear Usuario
+          3. Asignar rol TECNICO
+          4. Crear Empleado vinculado al usuario y sucursal
+          5. flush() entre pasos, commit() lo hace get_db()
+        """
+        # ── Paso 1: Validar unicidad ──────────────────────────
+        if await self.usuario_repo.email_exists(data.email):
+            raise ValueError(f"El email '{data.email}' ya está registrado")
+        if await self.usuario_repo.ci_exists(data.ci):
+            raise ValueError(f"El CI '{data.ci}' ya está registrado")
+
+        # ── Paso 2: Crear Usuario ─────────────────────────────
+        hashed_pw = hash_password(data.password)
+        usuario = Usuario(
+            nombre=data.nombre,
+            email=data.email,
+            password=hashed_pw,
+            ci=data.ci,
+            telefono=data.telefono,
+        )
+        self.session.add(usuario)
+        await self.session.flush()  # Obtener usuario.id
+
+        # ── Paso 3: Asignar rol TECNICO ───────────────────────
+        stmt = select(Rol).where(Rol.nombre == "TECNICO")
+        result = await self.session.execute(stmt)
+        rol_tecnico = result.scalar_one_or_none()
+
+        if not rol_tecnico:
+            raise ValueError("Rol 'TECNICO' no encontrado en la base de datos. Ejecute el seeder.")
+
+        usuario_rol = UsuarioRol(
+            usuario_id=usuario.id,
+            rol_id=rol_tecnico.id,
+        )
+        self.session.add(usuario_rol)
+        await self.session.flush()
+
+        # ── Paso 4: Crear Empleado ────────────────────────────
+        empleado_data = {
+            "usuario_id": usuario.id,
+            "sucursal_id": data.sucursal_id,
+            "especialidad": data.especialidad,
+            "disponible": True,
+            "latitud": data.latitud,
+            "longitud": data.longitud,
+        }
+
+        # Generar geometría PostGIS si hay coordenadas
+        if data.latitud is not None and data.longitud is not None:
+            empleado_data["ubicacion"] = WKTElement(
+                f"POINT({data.longitud} {data.latitud})", srid=4326
+            )
+
+        empleado = await self.repo.create(empleado_data)
+
+        return empleado
+
+    # ── Consultas ─────────────────────────────────────────────
 
     async def obtener_por_id(self, empleado_id: int) -> Empleado | None:
         return await self.repo.get_by_id(empleado_id)
 
     async def obtener_por_usuario(self, usuario_id: int) -> Empleado | None:
         return await self.repo.get_by_usuario(usuario_id)
+
+    async def listar(self, skip: int = 0, limit: int = 100) -> list[Empleado]:
+        return list(await self.repo.get_all(skip=skip, limit=limit))
 
     async def listar_por_sucursal(
         self,
@@ -46,10 +131,24 @@ class EmpleadoService:
             )
         )
 
+    # ── Actualización ─────────────────────────────────────────
+
     async def actualizar(
         self, empleado_id: int, data: EmpleadoUpdate
     ) -> Empleado | None:
         update_data = data.model_dump(exclude_unset=True)
+
+        # Si se actualizan coordenadas, regenerar la geometría PostGIS
+        if "latitud" in update_data or "longitud" in update_data:
+            empleado = await self.repo.get_by_id(empleado_id)
+            if empleado:
+                lat = update_data.get("latitud", empleado.latitud)
+                lng = update_data.get("longitud", empleado.longitud)
+                if lat is not None and lng is not None:
+                    update_data["ubicacion"] = WKTElement(
+                        f"POINT({lng} {lat})", srid=4326
+                    )
+
         if not update_data:
             return await self.repo.get_by_id(empleado_id)
         return await self.repo.update(empleado_id, update_data)
@@ -63,10 +162,17 @@ class EmpleadoService:
     async def actualizar_ubicacion(
         self, empleado_id: int, latitud: float, longitud: float
     ) -> Empleado | None:
-        """Actualiza la ubicación GPS del técnico en movimiento."""
-        return await self.repo.update(
-            empleado_id, {"latitud": latitud, "longitud": longitud}
-        )
+        """Actualiza la ubicación GPS del técnico en movimiento (Float + PostGIS)."""
+        update_data = {
+            "latitud": latitud,
+            "longitud": longitud,
+            "ubicacion": WKTElement(
+                f"POINT({longitud} {latitud})", srid=4326
+            ),
+        }
+        return await self.repo.update(empleado_id, update_data)
+
+    # ── Eliminación ───────────────────────────────────────────
 
     async def eliminar(self, empleado_id: int) -> bool:
         return await self.repo.delete(empleado_id)

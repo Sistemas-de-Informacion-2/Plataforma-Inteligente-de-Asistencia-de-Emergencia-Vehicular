@@ -1,3 +1,4 @@
+# backend/app/models/vehiculo.py
 """
 Modelo: Vehiculo.
 Relación: Usuario 1:N Vehiculos.

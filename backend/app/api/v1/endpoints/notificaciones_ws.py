@@ -1,3 +1,4 @@
+# backend/app/api/v1/endpoints/notificaciones_ws.py
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status
 import logging
 

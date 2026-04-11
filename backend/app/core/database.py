@@ -1,3 +1,4 @@
+# backend/app/core/database.py
 """
 Configuración de la base de datos con SQLAlchemy Async.
 PostGIS en Docker (puerto 5433).

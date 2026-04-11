@@ -1,3 +1,4 @@
+# backend/alembic/versions/de04d65feb22_initial_schema.py
 """initial_schema
 
 Revision ID: de04d65feb22

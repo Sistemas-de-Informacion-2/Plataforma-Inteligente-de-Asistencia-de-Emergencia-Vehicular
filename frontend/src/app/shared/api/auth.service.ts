@@ -1,6 +1,7 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, signal, inject } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
-import { Observable, tap, catchError, throwError } from 'rxjs';
+import { Router } from '@angular/router';
+import { Observable, tap } from 'rxjs';
 
 export interface LoginResponse {
   access_token: string;
@@ -11,15 +12,16 @@ export interface LoginResponse {
   providedIn: 'root'
 })
 export class AuthService {
-  private readonly API_URL = 'http://localhost:8000/api/v1/auth/login';
+  private http = inject(HttpClient);
+  private router = inject(Router);
+
+  // Endpoint base de FastAPI
+  private readonly API_URL = 'http://localhost:8000/api/v1';
   
-  // Usamos Signals para manejar el estado de autenticación de forma reactiva sincronizada
+  // Signals para manejar el estado de autenticación (isAuthenticated)
   public isAuthenticated = signal<boolean>(this.hasToken());
 
-  constructor(private http: HttpClient) {}
-
   login(username: string, password: string): Observable<LoginResponse> {
-    // FastAPI (OAuth2PasswordRequestForm) requiere application/x-www-form-urlencoded
     const body = new HttpParams()
       .set('username', username)
       .set('password', password);
@@ -28,27 +30,29 @@ export class AuthService {
       'Content-Type': 'application/x-www-form-urlencoded'
     });
 
-    return this.http.post<LoginResponse>(this.API_URL, body.toString(), { headers }).pipe(
+    return this.http.post<LoginResponse>(`${this.API_URL}/auth/login`, body.toString(), { headers }).pipe(
       tap((response) => {
         if (response && response.access_token) {
           localStorage.setItem('access_token', response.access_token);
-          this.isAuthenticated.set(true); // Actualizamos el signal exitosamente
+          this.isAuthenticated.set(true);
         }
-      }),
-      catchError(error => {
-        // En una app real, aquí se enviarían métricas o logs globales
-        return throwError(() => error);
       })
     );
   }
 
+  registroOnboarding(data: any): Observable<any> {
+    // Hace POST /api/v1/talleres/onboarding
+    return this.http.post(`${this.API_URL}/talleres/onboarding`, data);
+  }
+
   logout(): void {
+    // Limpia localStorage, apaga las Signals y redirige a login
     localStorage.removeItem('access_token');
     this.isAuthenticated.set(false);
+    this.router.navigate(['/login']);
   }
 
   private hasToken(): boolean {
-    // Aquí podríamos agregar además lógica de verificación de expiración del JWT (jwt-decode)
     return typeof localStorage !== 'undefined' && !!localStorage.getItem('access_token');
   }
 }

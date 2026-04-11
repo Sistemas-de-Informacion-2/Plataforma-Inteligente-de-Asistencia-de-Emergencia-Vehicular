@@ -1,3 +1,4 @@
+# backend/app/repositories/notificacion_repository.py
 """
 Repositorio: Notificacion.
 Filtrado por usuario y estado de lectura.

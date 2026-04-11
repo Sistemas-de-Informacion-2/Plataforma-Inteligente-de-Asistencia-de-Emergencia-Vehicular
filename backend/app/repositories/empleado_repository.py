@@ -1,3 +1,4 @@
+# backend/app/repositories/empleado_repository.py
 """
 Repositorio: Empleado.
 Filtrado por sucursal, disponibilidad y especialidad.

@@ -1,3 +1,4 @@
+# backend/app/repositories/taller_repository.py
 """
 Repositorio: Taller y Sucursal.
 Incluye búsqueda geoespacial con PostGIS (ST_DWithin).

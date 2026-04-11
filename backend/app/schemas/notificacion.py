@@ -1,3 +1,4 @@
+# backend/app/schemas/notificacion.py
 """
 Schemas Pydantic: Notificacion.
 """

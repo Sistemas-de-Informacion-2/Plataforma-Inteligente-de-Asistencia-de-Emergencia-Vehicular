@@ -1,3 +1,4 @@
+# backend/app/services/notificacion_service.py
 """
 Servicio: Notificación.
 Creación, lectura y gestión de notificaciones push.

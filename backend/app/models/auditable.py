@@ -1,3 +1,4 @@
+# backend/app/models/auditable.py
 """
 Patrón Mixin de Auditoría (Soft Delete).
 Se aplica a modelos principales para evitar borrados físicos.

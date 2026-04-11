@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "leaflet/dist/leaflet.css";
 
 @theme {
   --color-primary-50: var(--primary-50);
@@ -8,10 +9,10 @@
 
   --color-surface-light: var(--surface-light);
   --color-surface-dark: var(--surface-dark);
-  
+
   --color-text-main: var(--text-main);
   --color-text-muted: var(--text-muted);
-  
+
   --color-alert: var(--alert);
   --color-success: var(--success);
 }
@@ -23,15 +24,20 @@
     --primary-100: #dbeafe;
     --primary-500: #3b82f6;
     --primary-600: #2563eb;
-    
+
     --surface-light: #ffffff;
-    --surface-dark: #f8fafc; /* Gris claro/off-white */
-    
-    --text-main: #0f172a; /* Slate 900 */
-    --text-muted: #475569; /* Slate 600 */
-    
-    --alert: #ef4444; /* Red 500 */
-    --success: #22c55e; /* Green 500 */
+    --surface-dark: #f8fafc;
+    /* Gris claro/off-white */
+
+    --text-main: #0f172a;
+    /* Slate 900 */
+    --text-muted: #475569;
+    /* Slate 600 */
+
+    --alert: #ef4444;
+    /* Red 500 */
+    --success: #22c55e;
+    /* Green 500 */
   }
 
   /* Si decidimos alternar temas dinámicamente con clases (.theme-dark por ejemplo) */
@@ -40,10 +46,10 @@
     --primary-100: #1e3a8a;
     --primary-500: #3b82f6;
     --primary-600: #60a5fa;
-    
+
     --surface-light: #1e293b;
     --surface-dark: #0f172a;
-    
+
     --text-main: #f8fafc;
     --text-muted: #cbd5e1;
   }

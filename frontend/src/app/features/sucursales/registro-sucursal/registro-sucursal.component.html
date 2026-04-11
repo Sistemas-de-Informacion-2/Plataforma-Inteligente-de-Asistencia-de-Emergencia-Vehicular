@@ -1,0 +1,97 @@
+<div class="max-w-6xl mx-auto space-y-8 animate-fade-in pb-10">
+  
+  <!-- Header Paginación / Título -->
+  <div class="flex items-center gap-4 border-b border-gray-100 pb-5">
+    <button class="p-2 bg-surface-light border border-gray-200 rounded-lg text-text-muted hover:text-primary-600 transition shadow-sm"
+      (click)="form.reset()">
+       <!-- Icono Atrás -->
+       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+    </button>
+    <div>
+      <h1 class="text-2xl font-bold text-text-main tracking-tight">Registar Nueva Sucursal</h1>
+      <p class="text-sm text-text-muted mt-1">Configura la ubicación exacta para habilitar asignaciones geo-espaciales de emergencia.</p>
+    </div>
+  </div>
+
+  <form [formGroup]="form" (ngSubmit)="onSubmit()" class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+    
+    <!-- Columna 1: Formulario Textual -->
+    <div class="space-y-6 bg-surface-light p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100">
+      
+      <h3 class="text-lg font-semibold text-text-main flex items-center gap-2 mb-2">
+        <svg class="w-5 h-5 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
+        Datos del Taller / Sucursal
+      </h3>
+
+      <!-- Nombre -->
+      <div>
+        <label for="nombre" class="block text-sm font-medium text-text-main mb-1.5">Nombre Oficial</label>
+        <input id="nombre" type="text" formControlName="nombre"
+          class="block w-full px-4 py-2.5 bg-surface-dark border border-gray-200 rounded-xl text-text-main placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition"
+          placeholder="Ej: Taller Central Motor SRL">
+        <div *ngIf="form.get('nombre')?.touched && form.get('nombre')?.invalid" class="mt-1 text-sm text-alert pl-1">
+          El nombre es requerido.
+        </div>
+      </div>
+
+      <!-- Dirección -->
+      <div>
+        <label for="direccion" class="block text-sm font-medium text-text-main mb-1.5">Dirección Descriptiva</label>
+        <textarea id="direccion" rows="2" formControlName="direccion"
+          class="block w-full px-4 py-2.5 bg-surface-dark border border-gray-200 rounded-xl text-text-main placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition resize-none"
+          placeholder="Avenida Radial 26, Cuarto Anillo..."></textarea>
+      </div>
+
+      <!-- Teléfono -->
+      <div>
+        <label for="telefono" class="block text-sm font-medium text-text-main mb-1.5">Teléfono de Base</label>
+        <input id="telefono" type="tel" formControlName="telefono"
+          class="block w-full px-4 py-2.5 bg-surface-dark border border-gray-200 rounded-xl text-text-main placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition"
+          placeholder="+591 7XXXXXXX">
+      </div>
+
+      <!-- Disclaimer visual de coordenadas capturadas -->
+      <div class="pt-4 border-t border-gray-100 flex items-center justify-between">
+        <span class="text-sm font-medium text-text-muted">Estado de Ubicación:</span>
+        <span *ngIf="form.get('latitud')?.value" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-green-50 border border-green-200 text-success text-xs font-bold uppercase tracking-wider">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+          Marcada ({{form.get('latitud')?.value | number:'1.2-4'}}, {{form.get('longitud')?.value | number:'1.2-4'}})
+        </span>
+        <span *ngIf="!form.get('latitud')?.value" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-red-50 border border-red-200 text-alert text-xs font-bold uppercase tracking-wider">
+          Pendiente en Mapa
+        </span>
+      </div>
+      <div *ngIf="form.get('latitud')?.touched && form.get('latitud')?.invalid" class="mt-2 text-sm text-alert font-medium bg-alert bg-opacity-10 py-2 px-3 rounded-md border border-alert border-opacity-20 animate-fade-in flex items-center gap-2">
+         <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+         Debes seleccionar un punto en el mapa.
+      </div>
+    </div>
+
+    <!-- Columna 2: Map Selector UI -->
+    <div class="space-y-4">
+      <h3 class="text-base font-semibold text-text-main flex items-center gap-2 ml-1">
+        <svg class="w-5 h-5 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+        Ubicación Geográfica (PostGIS)
+      </h3>
+      
+      <!-- Componente Wrapper Wrapper (FSD) -->
+      <app-map-selector (locationSelected)="onLocationSelected($event)"></app-map-selector>
+
+      <div class="pt-6">
+        <button type="submit" 
+          [disabled]="isSubmitting"
+          class="w-full flex justify-center py-3.5 px-4 rounded-xl shadow-md text-sm font-bold text-white bg-primary-600 hover:bg-primary-500 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition disabled:opacity-70">
+          <span *ngIf="!isSubmitting">Crear y Guardar Sucursal</span>
+          <span *ngIf="isSubmitting" class="flex items-center gap-2">
+            <svg class="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Sincronizando...
+          </span>
+        </button>
+      </div>
+    </div>
+    
+  </form>
+</div>

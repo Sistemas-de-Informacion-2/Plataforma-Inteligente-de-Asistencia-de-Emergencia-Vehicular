@@ -1,3 +1,4 @@
+# backend/app/services/usuario_service.py
 """
 Servicio: Usuario.
 Registro, consulta y actualización de usuarios.

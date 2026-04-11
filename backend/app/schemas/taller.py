@@ -1,14 +1,11 @@
+# backend/app/schemas/taller.py
 """
 Schemas Pydantic: Taller y Sucursal.
 """
-
 from pydantic import BaseModel, ConfigDict, Field
 
 
-# ═══════════════════════════════════════════════════════════════
 #  SUCURSAL
-# ═══════════════════════════════════════════════════════════════
-
 class SucursalBase(BaseModel):
     nombre: str = Field(..., max_length=150)
     direccion: str | None = Field(None, max_length=300)
@@ -42,10 +39,7 @@ class SucursalConDistancia(SucursalOut):
     distancia_km: float | None = None
 
 
-# ═══════════════════════════════════════════════════════════════
 #  TALLER
-# ═══════════════════════════════════════════════════════════════
-
 class TallerBase(BaseModel):
     nombre: str = Field(..., max_length=150)
     descripcion: str | None = None

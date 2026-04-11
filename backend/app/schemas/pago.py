@@ -1,18 +1,13 @@
+# backend/app/schemas/pago.py
 """
 Schemas Pydantic: Pago y MetodoPago.
 """
 
 from datetime import datetime
-
 from pydantic import BaseModel, ConfigDict, Field
-
 from app.models.pago import EstadoPago
 
-
-# ═══════════════════════════════════════════════════════════════
 #  MÉTODO DE PAGO
-# ═══════════════════════════════════════════════════════════════
-
 class MetodoPagoBase(BaseModel):
     nombre: str = Field(..., max_length=100)
 
@@ -27,10 +22,7 @@ class MetodoPagoOut(MetodoPagoBase):
     id: int
 
 
-# ═══════════════════════════════════════════════════════════════
 #  PAGO
-# ═══════════════════════════════════════════════════════════════
-
 class PagoBase(BaseModel):
     monto_total: float = Field(..., gt=0)
 

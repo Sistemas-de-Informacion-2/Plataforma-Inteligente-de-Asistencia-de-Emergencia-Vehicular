@@ -1,20 +1,17 @@
+# backend/app/schemas/usuario.py
 """
 Schemas Pydantic: Usuario y UsuarioPerfil.
 """
-
 from datetime import datetime, date
-
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
-# ═══════════════════════════════════════════════════════════════
 #  USUARIO PERFIL
-# ═══════════════════════════════════════════════════════════════
-
 class UsuarioPerfilBase(BaseModel):
     segundo_nombre: str | None = None
-    apellidos: str | None = None
-    foto: str | None = None
+    apellido_paterno: str
+    apellido_materno: str | None = None
+    foto_perfil: str | None = None
     fecha_nacimiento: date | None = None
 
 
@@ -24,8 +21,9 @@ class UsuarioPerfilCreate(UsuarioPerfilBase):
 
 class UsuarioPerfilUpdate(BaseModel):
     segundo_nombre: str | None = None
-    apellidos: str | None = None
-    foto: str | None = None
+    apellido_paterno: str | None = None
+    apellido_materno: str | None = None
+    foto_perfil: str | None = None
     fecha_nacimiento: date | None = None
 
 
@@ -36,10 +34,7 @@ class UsuarioPerfilOut(UsuarioPerfilBase):
     usuario_id: int
 
 
-# ═══════════════════════════════════════════════════════════════
 #  USUARIO
-# ═══════════════════════════════════════════════════════════════
-
 class UsuarioBase(BaseModel):
     nombre: str = Field(..., min_length=1, max_length=100)
     email: str = Field(..., max_length=150)
@@ -77,10 +72,7 @@ class UsuarioConRoles(UsuarioOut):
     roles: list["UsuarioRolOut"] = []
 
 
-# ═══════════════════════════════════════════════════════════════
 #  USUARIO ROL  (schema ligero para embeber en UsuarioConRoles)
-# ═══════════════════════════════════════════════════════════════
-
 class UsuarioRolOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

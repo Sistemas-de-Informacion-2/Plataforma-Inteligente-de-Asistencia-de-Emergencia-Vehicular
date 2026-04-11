@@ -1,3 +1,4 @@
+# backend/app/models/servicio.py
 """
 Modelos: Servicio (Especialidad) y SucursalServicio (M:N).
 """

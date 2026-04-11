@@ -1,3 +1,4 @@
+# backend/app/schemas/servicio.py
 """
 Schemas Pydantic: Servicio (Especialidad) y SucursalServicio.
 """
@@ -26,7 +27,6 @@ class ServicioOut(ServicioBase):
 
 
 # ── Vinculación Sucursal ↔ Servicio ──────────────────────────
-
 class SucursalServicioCreate(BaseModel):
     sucursal_id: int
     servicio_id: int

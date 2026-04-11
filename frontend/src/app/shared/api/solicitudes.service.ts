@@ -8,8 +8,12 @@ export interface SolicitudEmergencia {
   descripcion: string;
   prioridad: 'ALTA' | 'MEDIA' | 'BAJA';
   estado: string;
+  latitud?: number;
+  longitud?: number;
   ubicacion?: string;
   fecha?: string;
+  resumen_ia?: string;
+  clasificacion_ia?: string;
 }
 
 @Injectable({
@@ -26,5 +30,9 @@ export class SolicitudesService {
 
   aceptarSolicitud(id: number): Observable<any> {
     return this.http.patch(`${this.API_URL}/${id}/estado?estado=EN_PROCESO`, {});
+  }
+
+  rechazarSolicitud(id: number): Observable<any> {
+    return this.http.patch(`${this.API_URL}/${id}/estado?estado=RECHAZADO`, {});
   }
 }

@@ -1,3 +1,4 @@
+# backend/app/schemas/diagnostico_ia.py
 """
 Schemas Pydantic: DiagnosticoIA.
 Los diagnósticos los genera la IA, por eso el Create incluye todos los campos

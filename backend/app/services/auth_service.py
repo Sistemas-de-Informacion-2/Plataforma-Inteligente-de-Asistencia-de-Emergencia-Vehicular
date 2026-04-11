@@ -1,3 +1,4 @@
+# backend/app/services/auth_service.py
 """
 Servicio de Autenticación.
 """

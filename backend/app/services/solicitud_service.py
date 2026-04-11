@@ -1,3 +1,4 @@
+# backend/app/services/solicitud_service.py
 """
 Servicio: SolicitudEmergencia — EL ORQUESTADOR.
 

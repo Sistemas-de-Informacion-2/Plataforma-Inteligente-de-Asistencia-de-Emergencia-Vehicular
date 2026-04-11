@@ -1,3 +1,4 @@
+# backend/alembic/env.py
 """
 Configuración de Alembic para migraciones async con PostGIS.
 Lee la URL de la base de datos desde nuestro Settings (Pydantic).

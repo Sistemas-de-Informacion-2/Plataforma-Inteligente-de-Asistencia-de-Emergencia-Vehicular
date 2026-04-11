@@ -1,0 +1,192 @@
+<div class="max-w-7xl mx-auto space-y-6 lg:space-y-8 animate-fade-in pb-12">
+  
+  <!-- Header -->
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-5">
+    <div>
+      <h1 class="text-2xl md:text-3xl font-bold text-text-main tracking-tight">Gestión de Técnicos</h1>
+      <p class="text-text-muted mt-1 text-sm md:text-base">Administra a tus especialistas y su disponibilidad operativa.</p>
+    </div>
+    <button (click)="abrirModalNuevo()" class="inline-flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-xl text-white bg-primary-600 hover:bg-primary-500 shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-all transform hover:-translate-y-0.5">
+       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+       Agregar Técnico
+    </button>
+  </div>
+
+  <!-- Contenedor Principal (Tabla FSD) -->
+  <div class="bg-surface-light shadow-sm border border-gray-100 rounded-2xl overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-gray-100">
+        <thead class="bg-gray-50 bg-opacity-50">
+          <tr>
+            <th scope="col" class="py-4 pl-6 pr-3 text-left text-xs font-bold text-text-muted uppercase tracking-wider">Mecánico Identificado</th>
+            <th scope="col" class="px-3 py-4 text-left text-xs font-bold text-text-muted uppercase tracking-wider hidden sm:table-cell">Línea Telefónica</th>
+            <th scope="col" class="px-3 py-4 text-left text-xs font-bold text-text-muted uppercase tracking-wider">Especialidad Principal</th>
+            <th scope="col" class="px-3 py-4 text-left text-xs font-bold text-text-muted uppercase tracking-wider">Estado Actual</th>
+            <th scope="col" class="relative py-4 pl-3 pr-6">
+              <span class="sr-only">Acciones</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody class="bg-surface-light divide-y divide-gray-50">
+          
+          <tr *ngIf="isLoading()">
+            <td colspan="5" class="px-6 py-12 text-center text-text-muted font-bold text-sm tracking-widest uppercase animate-pulse">
+              Extrayendo Base de Datos...
+            </td>
+          </tr>
+
+          <tr *ngIf="!isLoading() && tecnicos().length === 0">
+            <td colspan="5" class="px-6 py-16 text-center text-text-muted">
+               <div class="mx-auto h-14 w-14 bg-gray-50 rounded-full flex items-center justify-center mb-4 ring-1 ring-gray-100 shadow-inner">
+                 <svg class="w-7 h-7 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+               </div>
+               <p class="font-semibold text-text-main text-lg mb-1">Tu equipo está vacío</p>
+               <p class="text-sm px-4">Sin mecánicos registrados en la plataforma. Agrega uno nuevo para delegar servicios de emergencia.</p>
+            </td>
+          </tr>
+
+          <!-- Entity Rows -->
+          <tr *ngFor="let tec of tecnicos()" class="hover:bg-gray-50/50 transition-colors duration-200 group">
+            
+            <td class="whitespace-nowrap py-4 pl-6 pr-3">
+              <div class="flex items-center gap-3.5">
+                <div class="h-10 w-10 shrink-0 rounded-xl bg-primary-50 flex items-center justify-center text-primary-600 font-bold border border-primary-100">
+                  {{ tec.nombre.charAt(0) | uppercase }}
+                </div>
+                <div>
+                  <div class="font-bold text-text-main text-sm">{{ tec.nombre }}</div>
+                  <div class="text-[12px] text-text-muted font-medium mt-0.5">Licencia / ID: #{{ tec.id }}</div>
+                </div>
+              </div>
+            </td>
+            
+            <td class="whitespace-nowrap px-3 py-4 text-sm text-text-muted font-medium flex-col hidden sm:table-cell">
+               {{ tec.telefono }}
+            </td>
+            
+            <td class="whitespace-nowrap px-3 py-4">
+               <span class="inline-flex items-center px-3 py-1 rounded-md text-xs font-bold uppercase tracking-wider bg-indigo-50 border border-indigo-100/70 text-indigo-700">
+                 {{ tec.especialidad }}
+               </span>
+            </td>
+            
+            <td class="whitespace-nowrap px-3 py-4">
+              <div class="flex items-center gap-2">
+                <span class="flex h-3 w-3 relative">
+                  <span class="absolute inline-flex h-full w-full rounded-full opacity-60 animate-ping" [ngClass]="{'bg-success': tec.estado === 'DISPONIBLE', 'bg-alert': tec.estado === 'OCUPADO', 'bg-gray-400': tec.estado === 'INACTIVO'}"></span>
+                  <span class="relative inline-flex rounded-full h-3 w-3 shadow-sm" [ngClass]="{'bg-success': tec.estado === 'DISPONIBLE', 'bg-alert': tec.estado === 'OCUPADO', 'bg-gray-400': tec.estado === 'INACTIVO'}"></span>
+                </span>
+                <span class="text-[11px] font-bold tracking-widest uppercase" [ngClass]="{'text-success': tec.estado === 'DISPONIBLE', 'text-alert': tec.estado === 'OCUPADO', 'text-gray-500': tec.estado === 'INACTIVO'}">
+                  {{ tec.estado }}
+                </span>
+              </div>
+            </td>
+            
+            <td class="relative whitespace-nowrap py-4 pl-3 pr-6 text-right text-sm font-medium">
+              <div class="flex items-center justify-end gap-1.5 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
+                <!-- Icono de Edición -->
+                <button (click)="abrirModalEditar(tec)" class="p-2 text-text-muted hover:text-primary-600 hover:bg-primary-50 rounded-lg transition" title="Editar Operario">
+                  <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                </button>
+                <!-- Icono de Eliminar con Danger Zone -->
+                <button (click)="eliminar(tec.id)" class="p-2 text-text-muted hover:text-white hover:bg-alert hover:border-transparent border border-transparent rounded-lg transition shadow-sm hover:shadow" title="Revocar Accesos del Técnico">
+                   <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                </button>
+              </div>
+            </td>
+
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ======================= -->
+<!-- MODAL DE GUARDAR / EDIT -->
+<!-- ======================= -->
+<div *ngIf="isModalOpen()" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 sm:p-6 animate-fade-in transition-all">
+  <div class="bg-surface-light w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col transform">
+    
+    <!-- Modal Header -->
+    <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-surface-dark">
+      <h3 class="text-lg font-bold text-text-main flex items-center gap-2">
+         <svg class="w-5 h-5 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2"></path></svg>
+        {{ isEditing() ? 'Actualizar Ficha Técnica' : 'Integrar Nuevo Mecánico' }}
+      </h3>
+      <button (click)="cerrarModal()" class="text-text-muted hover:bg-gray-200 p-1.5 rounded-lg transition focus:outline-none">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+      </button>
+    </div>
+
+    <!-- Modal Form Body -->
+    <form [formGroup]="form" (ngSubmit)="guardar()" class="flex flex-col flex-1">
+      <div class="p-6 space-y-5 flex-1 bg-white">
+        
+        <!-- Field -->
+        <div>
+          <label class="block text-sm font-semibold text-text-main mb-1.5 opacity-90">Nombre Completo del Operario</label>
+          <input type="text" formControlName="nombre" class="w-full px-4 py-3 bg-surface-dark border border-gray-200 rounded-xl text-text-main focus:ring-2 focus:ring-primary-500 focus:outline-none transition shadow-sm">
+           <div *ngIf="form.get('nombre')?.touched && form.get('nombre')?.invalid" class="text-xs text-alert font-bold mt-1.5 pl-1">El nombre oficial es imperativo.</div>
+        </div>
+
+        <!-- Field -->
+        <div>
+          <label class="block text-sm font-semibold text-text-main mb-1.5 opacity-90">Canal de Comunicación Válido (WhatsApp / App)</label>
+          <input type="tel" formControlName="telefono" placeholder="+591 7XXXXXXX" class="w-full px-4 py-3 bg-surface-dark border border-gray-200 rounded-xl text-text-main focus:ring-2 focus:ring-primary-500 focus:outline-none transition shadow-sm">
+           <div *ngIf="form.get('telefono')?.touched && form.get('telefono')?.invalid" class="text-xs text-alert font-bold mt-1.5 pl-1">Por favor inscribe un número activo.</div>
+        </div>
+
+        <!-- Field -->
+        <div>
+          <label class="block text-sm font-semibold text-text-main mb-1.5 opacity-90">Especialidad Certificada Principal</label>
+          <select formControlName="especialidad" class="w-full px-4 py-3 bg-surface-dark border border-gray-200 rounded-xl text-text-main focus:ring-2 focus:ring-primary-500 focus:outline-none transition appearance-none shadow-sm font-medium">
+            <option value="" disabled hidden>Selecciona su fuerte en mecánica...</option>
+            <option *ngFor="let esp of especialidades" [value]="esp">{{ esp }}</option>
+          </select>
+           <div *ngIf="form.get('especialidad')?.touched && form.get('especialidad')?.invalid" class="text-xs text-alert font-bold mt-1.5 pl-1">Clasificar a tu mecánico ayuda a nuestra IA a delegar mejor.</div>
+        </div>
+
+        <!-- Custom Buttons Toggles (State) -->
+        <div>
+          <label class="block text-sm font-semibold text-text-main mb-2 opacity-90">Control Override Transitorio (Disponibilidad)</label>
+          <div class="grid grid-cols-3 gap-2 bg-gray-50 p-2 rounded-xl border border-gray-100">
+            <button type="button" (click)="form.get('estado')?.setValue('DISPONIBLE')" class="px-2 py-2 border rounded-lg text-xs font-bold transition flex flex-col items-center gap-1.5 shadow-sm" [ngClass]="form.get('estado')?.value === 'DISPONIBLE' ? 'bg-white border-green-200 text-success ring-1 ring-success' : 'bg-transparent border-transparent text-text-muted'">
+              <span class="h-2.5 w-2.5 rounded-full shadow-inner" [ngClass]="form.get('estado')?.value === 'DISPONIBLE' ? 'bg-success' : 'bg-gray-300'"></span>
+              DISPONIBLE
+            </button>
+            <button type="button" (click)="form.get('estado')?.setValue('OCUPADO')" class="px-2 py-2 border rounded-lg text-[11px] font-bold transition flex flex-col items-center gap-1.5 shadow-sm" [ngClass]="form.get('estado')?.value === 'OCUPADO' ? 'bg-white border-red-200 text-alert ring-1 ring-alert' : 'bg-transparent border-transparent text-text-muted'">
+              <span class="h-2.5 w-2.5 rounded-full shadow-inner" [ngClass]="form.get('estado')?.value === 'OCUPADO' ? 'bg-alert' : 'bg-gray-300'"></span>
+              OCUPADO
+            </button>
+            <button type="button" (click)="form.get('estado')?.setValue('INACTIVO')" class="px-2 py-2 border rounded-lg text-xs font-bold transition flex flex-col items-center gap-1.5 shadow-sm" [ngClass]="form.get('estado')?.value === 'INACTIVO' ? 'bg-white border-gray-300 text-gray-700 ring-1 ring-gray-400' : 'bg-transparent border-transparent text-text-muted'">
+               <span class="h-2.5 w-2.5 rounded-full shadow-inner" [ngClass]="form.get('estado')?.value === 'INACTIVO' ? 'bg-gray-500' : 'bg-gray-300'"></span>
+              INACTIVO
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="px-6 py-4 bg-surface-dark border-t border-gray-100 flex justify-end gap-3 rounded-b-2xl">
+        <button type="button" (click)="cerrarModal()" class="px-5 py-2.5 text-sm font-semibold rounded-lg text-text-main bg-white border border-gray-200 shadow-sm hover:bg-gray-50 hover:text-alert transition focus:outline-none">
+          Cancelar Acción
+        </button>
+        <button type="submit" [disabled]="isSubmitting()" class="inline-flex justify-center items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-lg text-white bg-primary-600 hover:bg-primary-500 shadow-md transition disabled:opacity-70 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+           <svg *ngIf="isSubmitting()" class="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+           </svg>
+          {{ isEditing() ? 'Fijar Actualización' : 'Incorporar a la Flota' }}
+        </button>
+      </div>
+    </form>
+
+  </div>
+</div>
+
+<style>
+  .animate-fade-in { animation: fadeIn 0.25s ease-out; }
+  @keyframes fadeIn { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: scale(1); } }
+</style>

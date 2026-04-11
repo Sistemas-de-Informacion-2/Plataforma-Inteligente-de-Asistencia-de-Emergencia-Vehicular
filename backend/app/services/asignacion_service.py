@@ -1,3 +1,4 @@
+# backend/app/services/asignacion_service.py
 """
 Servicio: Asignación Inteligente.
 

@@ -1,3 +1,4 @@
+# backend/app/schemas/orden_trabajo.py
 """
 Schemas Pydantic: OrdenTrabajo y DetalleOrden.
 """

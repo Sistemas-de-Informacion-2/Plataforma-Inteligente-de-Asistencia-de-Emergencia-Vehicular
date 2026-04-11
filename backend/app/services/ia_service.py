@@ -1,3 +1,4 @@
+# backend/app/services/ia_service.py
 """
 Servicio: Inteligencia Artificial (Mock).
 
@@ -16,10 +17,7 @@ from typing import Any
 from app.models.diagnostico_ia import NivelGravedad, Prioridad
 
 
-# ═══════════════════════════════════════════════════════════════
 #  Catálogos de problemas simulados
-# ═══════════════════════════════════════════════════════════════
-
 CLASIFICACIONES = {
     "bateria": {
         "problema_detectado": "Problema de batería — Vehículo no enciende, posible batería descargada o terminales sulfatados",
@@ -250,10 +248,7 @@ class IAService:
             "_servicio_requerido": datos["servicio_requerido"],
         }
 
-    # ═══════════════════════════════════════════════════════════
     #  Métodos internos
-    # ═══════════════════════════════════════════════════════════
-
     def _determinar_categoria(
         self,
         descripcion: str | None,

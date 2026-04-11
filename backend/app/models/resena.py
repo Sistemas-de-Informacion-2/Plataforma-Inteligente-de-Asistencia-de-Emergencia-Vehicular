@@ -1,3 +1,4 @@
+# backend/app/models/resena.py
 """
 Modelo: ResenaForo.
 Reseñas y calificaciones de sucursales por parte de los usuarios.

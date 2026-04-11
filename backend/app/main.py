@@ -1,3 +1,4 @@
+# backend/app/main.py
 """
 Punto de entrada principal de la aplicación FastAPI.
 Configura CORS, lifespan y routers.

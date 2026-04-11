@@ -1,3 +1,4 @@
+# backend/app/schemas/rol.py
 """
 Schemas Pydantic: Rol y Permiso.
 """
@@ -5,10 +6,7 @@ Schemas Pydantic: Rol y Permiso.
 from pydantic import BaseModel, ConfigDict, Field
 
 
-# ═══════════════════════════════════════════════════════════════
 #  PERMISO
-# ═══════════════════════════════════════════════════════════════
-
 class PermisoBase(BaseModel):
     nombre: str = Field(..., max_length=100)
     descripcion: str | None = Field(None, max_length=255)
@@ -24,10 +22,7 @@ class PermisoOut(PermisoBase):
     id: int
 
 
-# ═══════════════════════════════════════════════════════════════
 #  ROL
-# ═══════════════════════════════════════════════════════════════
-
 class RolBase(BaseModel):
     nombre: str = Field(..., max_length=50)
 
@@ -49,10 +44,7 @@ class RolConPermisos(RolOut):
     permisos: list[PermisoOut] = []
 
 
-# ═══════════════════════════════════════════════════════════════
 #  Asignación de Rol a Usuario
-# ═══════════════════════════════════════════════════════════════
-
 class UsuarioRolCreate(BaseModel):
     usuario_id: int
     rol_id: int

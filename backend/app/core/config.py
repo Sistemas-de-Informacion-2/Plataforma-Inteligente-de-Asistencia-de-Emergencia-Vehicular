@@ -1,3 +1,4 @@
+# backend/app/core/config.py
 """
 Configuración centralizada de la aplicación.
 Usa Pydantic Settings para leer variables de entorno desde .env

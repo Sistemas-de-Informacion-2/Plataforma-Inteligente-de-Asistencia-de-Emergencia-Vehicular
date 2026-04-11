@@ -1,3 +1,4 @@
+# backend/app/models/usuario.py
 """
 Modelo: Usuario y UsuarioPerfil.
 Relaciones: Usuario 1:1 UsuarioPerfil, 1:N Vehiculos, M:N Roles (via UsuarioRol).
@@ -56,8 +57,9 @@ class UsuarioPerfil(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     segundo_nombre: Mapped[str | None] = mapped_column(String(100))
-    apellidos: Mapped[str | None] = mapped_column(String(150))
-    foto: Mapped[str | None] = mapped_column(Text)  # URL de la foto
+    apellido_paterno: Mapped[str] = mapped_column(String(100))
+    apellido_materno: Mapped[str | None] = mapped_column(String(100))
+    foto_perfil: Mapped[str | None] = mapped_column(Text)  # URL de la foto
     fecha_nacimiento: Mapped[date | None] = mapped_column(Date)
 
     # FK

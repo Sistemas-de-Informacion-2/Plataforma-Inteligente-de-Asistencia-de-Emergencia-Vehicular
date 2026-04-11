@@ -1,3 +1,4 @@
+# backend/app/models/taller.py
 """
 Modelos: Taller y Sucursal.
 Sucursal usa GeoAlchemy2 para columna PostGIS de ubicación.

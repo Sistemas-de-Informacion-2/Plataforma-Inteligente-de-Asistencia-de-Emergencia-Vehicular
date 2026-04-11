@@ -1,3 +1,4 @@
+# backend/app/repositories/base.py
 """
 Repositorio base genérico CRUD.
 Usa SQLAlchemy 2.0 (select, session.execute) con async.

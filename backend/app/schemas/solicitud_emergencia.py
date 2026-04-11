@@ -1,3 +1,4 @@
+# backend/app/schemas/solicitud_emergencia.py
 """
 Schemas Pydantic: SolicitudEmergencia.
 """

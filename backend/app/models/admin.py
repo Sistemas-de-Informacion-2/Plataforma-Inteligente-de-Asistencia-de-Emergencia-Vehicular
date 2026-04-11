@@ -1,3 +1,4 @@
+# backend/app/models/admin.py
 """
 Modelo: Admin.
 Extiende Usuario via FK 1:1. Administra uno o más talleres.

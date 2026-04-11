@@ -1,3 +1,4 @@
+# backend/app/models/asignacion.py
 """
 Modelo: Asignacion.
 Vincula una SolicitudEmergencia con un Empleado y una Sucursal.

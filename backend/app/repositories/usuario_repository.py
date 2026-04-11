@@ -1,3 +1,4 @@
+# backend/app/repositories/usuario_repository.py
 """
 Repositorio: Usuario.
 Búsquedas específicas por email y CI.

@@ -1,3 +1,4 @@
+# backend/app/models/rol.py
 """
 Modelos: Rol, Permiso, RolPermiso (M:N) y UsuarioRol (M:N).
 """

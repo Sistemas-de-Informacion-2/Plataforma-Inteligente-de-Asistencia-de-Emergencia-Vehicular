@@ -1,3 +1,4 @@
+# backend/app/models/orden_trabajo.py
 """
 Modelos: OrdenTrabajo y DetalleOrden.
 """

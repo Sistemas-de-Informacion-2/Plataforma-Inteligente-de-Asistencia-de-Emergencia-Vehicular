@@ -1,3 +1,4 @@
+# backend/app/models/empleado.py
 """
 Modelo: Empleado (Técnico).
 Extiende Usuario via FK 1:1. Tiene ubicación GPS y pertenece a una Sucursal.
@@ -5,6 +6,7 @@ Extiende Usuario via FK 1:1. Tiene ubicación GPS y pertenece a una Sucursal.
 
 from sqlalchemy import String, Boolean, Float, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from geoalchemy2 import Geometry
 
 from app.core.database import Base
 from app.models.auditable import AuditableMixin
@@ -18,6 +20,11 @@ class Empleado(AuditableMixin, Base):
     disponible: Mapped[bool] = mapped_column(Boolean, default=True)
     latitud: Mapped[float | None] = mapped_column(Float)
     longitud: Mapped[float | None] = mapped_column(Float)
+
+    # Columna PostGIS para queries espaciales (idéntico al patrón de Sucursal)
+    ubicacion = mapped_column(
+        Geometry(geometry_type="POINT", srid=4326), nullable=True
+    )
 
     # FK — vincula al usuario base
     usuario_id: Mapped[int] = mapped_column(

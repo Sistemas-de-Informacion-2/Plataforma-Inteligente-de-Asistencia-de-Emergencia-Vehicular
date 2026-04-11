@@ -1,3 +1,4 @@
+# backend/app/core/security.py
 """
 Módulo de seguridad — Preparado para JWT.
 No se aplica a endpoints todavía; se activará en un sprint posterior.

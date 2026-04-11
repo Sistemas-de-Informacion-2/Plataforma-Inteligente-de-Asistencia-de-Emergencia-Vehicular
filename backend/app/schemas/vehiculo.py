@@ -1,7 +1,7 @@
+# backend/app/schemas/vehiculo.py
 """
 Schemas Pydantic: Vehiculo.
 """
-
 from pydantic import BaseModel, ConfigDict, Field
 
 

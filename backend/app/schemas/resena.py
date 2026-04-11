@@ -1,9 +1,9 @@
+# backend/app/schemas/resena.py
 """
 Schemas Pydantic: ResenaForo.
 """
 
 from datetime import datetime
-
 from pydantic import BaseModel, ConfigDict, Field
 
 

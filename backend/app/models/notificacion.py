@@ -1,3 +1,4 @@
+# backend/app/models/notificacion.py
 """
 Modelo: Notificacion.
 Notificaciones push dirigidas a un usuario específico.

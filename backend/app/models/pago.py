@@ -1,3 +1,4 @@
+# backend/app/models/pago.py
 """
 Modelos: Pago y MetodoPago.
 El taller paga 10% de comisión a la plataforma.
