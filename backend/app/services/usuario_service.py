@@ -79,3 +79,40 @@ class UsuarioService:
 
     async def eliminar(self, usuario_id: int) -> bool:
         return await self.repo.delete(usuario_id)
+
+    async def actualizar_perfil_completo(self, usuario_id: int, data) -> Usuario | None:
+        """
+        Actualiza tanto los campos del Usuario (nombre, telefono) 
+        como los del UsuarioPerfil (segundo_nombre, apellidos, fechas, etc).
+        """
+        usuario = await self.repo.get_with_perfil(usuario_id)
+        if not usuario:
+            return None
+
+        update_data = data.model_dump(exclude_unset=True)
+        
+        # 1. Update campos en el modelo Usuario
+        usuario_fields = ["nombre", "telefono"]
+        ha_cambiado_usuario = False
+        for field in usuario_fields:
+            if field in update_data:
+                setattr(usuario, field, update_data[field])
+                ha_cambiado_usuario = True
+        
+        # 2. Update campos en el modelo UsuarioPerfil
+        perfil_fields = ["segundo_nombre", "apellido_paterno", "apellido_materno", "foto_perfil", "fecha_nacimiento"]
+        if not usuario.perfil:
+            # Crear si no existe
+            perfil = UsuarioPerfil(usuario_id=usuario_id)
+            for field in perfil_fields:
+                if field in update_data:
+                    setattr(perfil, field, update_data[field])
+            self.session.add(perfil)
+        else:
+            for field in perfil_fields:
+                if field in update_data:
+                    setattr(usuario.perfil, field, update_data[field])
+
+        await self.session.flush()
+        await self.session.refresh(usuario)
+        return usuario

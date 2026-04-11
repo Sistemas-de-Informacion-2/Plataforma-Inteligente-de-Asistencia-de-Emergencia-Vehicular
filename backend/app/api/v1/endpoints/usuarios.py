@@ -3,7 +3,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.schemas.usuario import UsuarioCreate, UsuarioOut, UsuarioUpdate, UsuarioConRoles
+from app.api.deps import get_current_user
+from app.schemas.usuario import UsuarioCreate, UsuarioOut, UsuarioUpdate, UsuarioConRoles, UsuarioPerfilCompletoUpdate
 from app.services.usuario_service import UsuarioService
 
 router = APIRouter()
@@ -34,6 +35,33 @@ async def listar_usuarios(
     """Obtiene el listado paginado de usuarios."""
     service = UsuarioService(db)
     return await service.listar(skip=skip, limit=limit)
+
+
+@router.get("/me", response_model=UsuarioOut)
+async def leer_usuario_actual(
+    current_user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Obtiene el detalle del usuario autenticado (con su perfil)."""
+    service = UsuarioService(db)
+    usuario = await service.obtener_con_perfil(current_user.id)
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    return usuario
+
+
+@router.patch("/me/perfil", response_model=UsuarioOut)
+async def actualizar_mi_perfil(
+    perfil_in: UsuarioPerfilCompletoUpdate,
+    current_user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Actualiza los datos editables del usuario y su perfil."""
+    service = UsuarioService(db)
+    usuario = await service.actualizar_perfil_completo(current_user.id, perfil_in)
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    return usuario
 
 
 @router.get("/{usuario_id}", response_model=UsuarioConRoles)

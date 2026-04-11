@@ -180,6 +180,26 @@ async def crear_taller(
     return taller
 
 
+@router.get("/mis-talleres", response_model=list[TallerOut])
+async def obtener_mis_talleres(
+    current_user: Usuario = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Obtiene los talleres vinculados al actual Admin logueado.
+    """
+    stmt = select(Admin).where(Admin.usuario_id == current_user.id)
+    result = await db.execute(stmt)
+    admin = result.scalar_one_or_none()
+
+    if not admin:
+        return []
+
+    service = TallerService(db)
+    return await service.listar_por_admin(admin.id)
+
+
+
 @router.get("/", response_model=list[TallerOut])
 async def listar_talleres(
     skip: int = 0,

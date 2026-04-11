@@ -1,11 +1,13 @@
-import { Component, AfterViewInit, OnDestroy, Output, EventEmitter, Inject, PLATFORM_ID, Input } from '@angular/core';
+import { Component, AfterViewInit, OnDestroy, Output, EventEmitter, Inject, PLATFORM_ID, Input, signal, inject } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { HttpClient } from '@angular/common/http';
 import * as L from 'leaflet';
 
 @Component({
   selector: 'app-map-selector',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   templateUrl: './map-selector.component.html',
   styles: [`
     #map {
@@ -24,6 +26,10 @@ export class MapSelectorComponent implements AfterViewInit, OnDestroy {
   private map!: L.Map;
   private currentMarker: L.Marker | null = null;
   private isBrowser: boolean;
+  private http = inject(HttpClient);
+  
+  public searchQuery = signal('');
+  public isSearching = signal(false);
 
   constructor(@Inject(PLATFORM_ID) platformId: Object) {
     this.isBrowser = isPlatformBrowser(platformId);
@@ -121,6 +127,40 @@ export class MapSelectorComponent implements AfterViewInit, OnDestroy {
         }
       );
     }
+  }
+
+  public buscarDireccion(): void {
+    if (this.readonly) return;
+    if (!this.searchQuery().trim()) return;
+
+    this.isSearching.set(true);
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(this.searchQuery())}`;
+
+    this.http.get<any[]>(url).subscribe({
+      next: (res) => {
+        this.isSearching.set(false);
+        if (res && res.length > 0) {
+          const firstResult = res[0];
+          const lat = parseFloat(firstResult.lat);
+          const lon = parseFloat(firstResult.lon);
+          
+          this.map.flyTo([lat, lon], 16, { animate: true, duration: 1.5 });
+          
+          // Solo colocar el pin después de la animación de vuelo de 1.5s
+          setTimeout(() => {
+            this.placeMarker(lat, lon);
+          }, 1500);
+
+        } else {
+          // Mostrar feedback (podría ser un toast, por ahora en consola)
+          console.warn('No se encontraron resultados para la dirección.');
+        }
+      },
+      error: (err) => {
+        this.isSearching.set(false);
+        console.error('Error buscando dirección:', err);
+      }
+    });
   }
 
   private emitLocation(lat: number, lng: number): void {

@@ -34,6 +34,17 @@ class UsuarioPerfilOut(UsuarioPerfilBase):
     usuario_id: int
 
 
+class UsuarioPerfilCompletoUpdate(BaseModel):
+    """Actualiza campos editables del Perfil del usuario (Usuario y UsuarioPerfil)"""
+    nombre: str | None = Field(None, max_length=100)
+    telefono: str | None = Field(None, max_length=20)
+    segundo_nombre: str | None = None
+    apellido_paterno: str | None = None
+    apellido_materno: str | None = None
+    foto_perfil: str | None = None
+    fecha_nacimiento: date | None = None
+
+
 #  USUARIO
 class UsuarioBase(BaseModel):
     nombre: str = Field(..., min_length=1, max_length=100)
