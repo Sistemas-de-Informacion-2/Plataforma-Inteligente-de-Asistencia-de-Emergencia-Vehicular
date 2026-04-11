@@ -277,6 +277,35 @@ async def listar_sucursales_de_taller(
     return await service.listar_por_taller(taller_id, skip=skip, limit=limit)
 
 
+@router.patch("/sucursales/{sucursal_id}", response_model=SucursalOut)
+async def actualizar_sucursal(
+    sucursal_id: int,
+    sucursal_in: SucursalUpdate,
+    current_user: Usuario = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Actualiza datos de una sucursal, regenerando la geometría PostGIS si cambian lat/lng."""
+    service = SucursalService(db)
+    sucursal = await service.actualizar(sucursal_id, sucursal_in)
+    if not sucursal:
+        raise HTTPException(status_code=404, detail="Sucursal no encontrada")
+    return sucursal
+
+
+@router.delete("/sucursales/{sucursal_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def eliminar_sucursal(
+    sucursal_id: int,
+    current_user: Usuario = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Elimina lógicamente una sucursal (si usa SoftDelete) o permanentemente."""
+    service = SucursalService(db)
+    eliminado = await service.eliminar(sucursal_id)
+    if not eliminado:
+        raise HTTPException(status_code=404, detail="Sucursal no encontrada o ya eliminada")
+    return None
+
+
 @router.get("/sucursales/cercanas")
 async def buscar_sucursales_cercanas(
     latitud: float,

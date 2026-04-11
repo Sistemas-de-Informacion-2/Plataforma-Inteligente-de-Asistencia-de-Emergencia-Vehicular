@@ -42,5 +42,11 @@ export class SucursalesService {
     return this.http.post<Sucursal>(`${this.apiTallerUrl}/${tallerId}/sucursales`, payload);
   }
 
-  // TODO: Add Update, Delete methods if needed later
+  actualizarSucursal(sucursalId: number, payload: Partial<SucursalCreatePayload>): Observable<Sucursal> {
+    return this.http.patch<Sucursal>(`${this.apiTallerUrl}/sucursales/${sucursalId}`, payload);
+  }
+
+  eliminarSucursal(sucursalId: number): Observable<void> {
+    return this.http.delete<void>(`${this.apiTallerUrl}/sucursales/${sucursalId}`);
+  }
 }

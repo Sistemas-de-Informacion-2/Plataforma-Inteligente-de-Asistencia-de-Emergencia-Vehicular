@@ -8,6 +8,7 @@ from typing import Sequence
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.models.empleado import Empleado
 from app.repositories.base import BaseRepository
@@ -51,5 +52,26 @@ class EmpleadoRepository(BaseRepository[Empleado]):
             stmt = stmt.where(Empleado.sucursal_id == sucursal_id)
         if especialidad is not None:
             stmt = stmt.where(Empleado.especialidad.ilike(f"%{especialidad}%"))
+        result = await self.session.execute(stmt)
+        return result.scalars().all()
+
+    async def get_all(
+        self,
+        *,
+        skip: int = 0,
+        limit: int = 100,
+    ) -> Sequence[Empleado]:
+        """Obtiene empleados con usuario y sucursal."""
+        stmt = (
+            select(Empleado)
+            .options(
+                selectinload(Empleado.usuario),
+                selectinload(Empleado.sucursal)
+            )
+            .offset(skip)
+            .limit(limit)
+        )
+        if hasattr(Empleado, "es_eliminado"):
+            stmt = stmt.where(Empleado.es_eliminado == False)
         result = await self.session.execute(stmt)
         return result.scalars().all()

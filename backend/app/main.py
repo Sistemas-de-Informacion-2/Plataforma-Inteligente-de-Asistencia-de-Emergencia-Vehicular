@@ -5,10 +5,10 @@ Configura CORS, lifespan y routers.
 """
 
 from contextlib import asynccontextmanager
-
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-
+from fastapi.responses import JSONResponse
+import traceback
 from app.api.v1.router import api_router
 from app.core.config import get_settings
 
@@ -35,7 +35,6 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
-
 
 # ── CORS ──────────────────────────────────────────────────────
 app.add_middleware(

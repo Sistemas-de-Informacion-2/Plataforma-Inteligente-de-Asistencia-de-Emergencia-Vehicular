@@ -4,6 +4,7 @@ Schemas Pydantic: Empleado (Técnico).
 """
 
 from pydantic import BaseModel, ConfigDict, Field
+from typing import Optional
 
 
 class EmpleadoBase(BaseModel):
@@ -54,9 +55,18 @@ class EmpleadoOut(EmpleadoBase):
     sucursal_id: int | None = None
 
 
+class UsuarioBaseInfo(BaseModel):
+    nombre: str
+    email: str
+    telefono: str | None = None
+    ci: str
+
+class SucursalBaseInfo(BaseModel):
+    nombre: str
+
 class EmpleadoConUsuario(EmpleadoOut):
-    """Empleado con datos básicos del usuario que extiende."""
+    """Empleado con datos básicos del usuario y sucursal que extiende."""
     model_config = ConfigDict(from_attributes=True)
 
-    nombre_usuario: str | None = None
-    email_usuario: str | None = None
+    usuario: UsuarioBaseInfo | None = None
+    sucursal: SucursalBaseInfo | None = None

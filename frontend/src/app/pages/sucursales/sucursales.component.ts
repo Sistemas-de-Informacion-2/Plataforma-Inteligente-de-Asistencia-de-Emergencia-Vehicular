@@ -24,6 +24,8 @@ export class SucursalesComponent implements OnInit {
   isLoading = signal(true);
   isModalOpen = signal(false);
   isSubmitting = signal(false);
+  editingId = signal<number | null>(null);
+  viewingSucursal = signal<Sucursal | null>(null);
   
   // Validation error handling para el mapa
   locationError = signal(false);
@@ -40,7 +42,6 @@ export class SucursalesComponent implements OnInit {
       nombre: ['', Validators.required],
       direccion: [''],
       telefono: [''],
-      // Estos campos se actualizan mágicamente vía el evento del mapa
       latitud: [null, Validators.required],
       longitud: [null, Validators.required]
     });
@@ -48,12 +49,9 @@ export class SucursalesComponent implements OnInit {
 
   private loadData(): void {
     this.isLoading.set(true);
-    
-    // Primero, traemos los talleres del usuario actual
     this.sucursalesService.getMisTalleres().subscribe({
       next: (talleres) => {
         if (talleres && talleres.length > 0) {
-          // Asumimos el primer taller, por regla del sistema (Onboarding)
           const tId = talleres[0].id;
           this.tallerId.set(tId);
           this.fetchSucursales(tId);
@@ -82,14 +80,46 @@ export class SucursalesComponent implements OnInit {
     });
   }
 
-  openModal(): void {
-    this.sucursalForm.reset();
+  openModal(sucursal?: Sucursal): void {
     this.locationError.set(false);
+    this.viewingSucursal.set(null);
+
+    if (sucursal) {
+      this.editingId.set(sucursal.id);
+      this.sucursalForm.patchValue({
+        nombre: sucursal.nombre,
+        direccion: sucursal.direccion,
+        telefono: sucursal.telefono,
+        latitud: sucursal.latitud,
+        longitud: sucursal.longitud
+      });
+    } else {
+      this.editingId.set(null);
+      this.sucursalForm.reset();
+    }
+    this.isModalOpen.set(true);
+  }
+
+  openViewModal(sucursal: Sucursal): void {
+    this.viewingSucursal.set(sucursal);
     this.isModalOpen.set(true);
   }
 
   closeModal(): void {
     this.isModalOpen.set(false);
+    this.viewingSucursal.set(null);
+    this.editingId.set(null);
+  }
+
+  eliminarSucursal(id: number): void {
+    if (confirm('¿Estás seguro de que deseas eliminar esta sucursal?')) {
+      this.sucursalesService.eliminarSucursal(id).subscribe({
+        next: () => {
+          this.sucursales.update(current => current.filter(s => s.id !== id));
+        },
+        error: (err) => console.error('Error al eliminar sucursal', err)
+      });
+    }
   }
 
   onLocationSelected(location: {lat: number, lng: number} | null): void {
@@ -98,7 +128,7 @@ export class SucursalesComponent implements OnInit {
         latitud: location.lat,
         longitud: location.lng
       });
-      this.locationError.set(false); // Limpiamos el error si hizo clic
+      this.locationError.set(false);
     } else {
       this.sucursalForm.patchValue({
         latitud: null,
@@ -108,9 +138,10 @@ export class SucursalesComponent implements OnInit {
   }
 
   onSubmit(): void {
+    if (this.viewingSucursal()) return; 
+
     if (this.sucursalForm.invalid) {
       this.sucursalForm.markAllAsTouched();
-      // Verificamos explícitamente si falló por culpa del mapa
       if (!this.sucursalForm.get('latitud')?.value || !this.sucursalForm.get('longitud')?.value) {
         this.locationError.set(true);
       }
@@ -126,17 +157,34 @@ export class SucursalesComponent implements OnInit {
       taller_id: tId
     };
 
-    this.sucursalesService.crearSucursal(tId, payload).subscribe({
-      next: (nuevaSucursal) => {
-        // Actualizamos la tabla anexando la nueva sucursal
-        this.sucursales.update(current => [...current, nuevaSucursal]);
-        this.isSubmitting.set(false);
-        this.closeModal();
-      },
-      error: (err) => {
-        console.error('Error creando sucursal', err);
-        this.isSubmitting.set(false);
-      }
-    });
+    const isEditing = this.editingId() !== null;
+
+    if (isEditing) {
+      this.sucursalesService.actualizarSucursal(this.editingId()!, payload).subscribe({
+        next: (updatedSucursal) => {
+          this.sucursales.update(current => 
+            current.map(s => s.id === updatedSucursal.id ? updatedSucursal : s)
+          );
+          this.isSubmitting.set(false);
+          this.closeModal();
+        },
+        error: (err) => {
+          console.error('Error actualizando sucursal', err);
+          this.isSubmitting.set(false);
+        }
+      });
+    } else {
+      this.sucursalesService.crearSucursal(tId, payload).subscribe({
+        next: (nuevaSucursal) => {
+          this.sucursales.update(current => [...current, nuevaSucursal]);
+          this.isSubmitting.set(false);
+          this.closeModal();
+        },
+        error: (err) => {
+          console.error('Error creando sucursal', err);
+          this.isSubmitting.set(false);
+        }
+      });
+    }
   }
 }

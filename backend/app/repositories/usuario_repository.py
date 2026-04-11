@@ -57,11 +57,14 @@ class UsuarioRepository(BaseRepository[Usuario]):
         return result.scalar_one_or_none()
 
     async def get_with_roles(self, usuario_id: int) -> Usuario | None:
-        """Obtiene un usuario con sus roles y perfil precargados."""
+        """Obtiene un usuario con sus roles (nombre) y perfil precargados."""
+        # Necesario importar UsuarioRol localmente si no está
+        from app.models.rol import UsuarioRol
+        
         stmt = (
             select(Usuario)
             .options(
-                selectinload(Usuario.roles),
+                selectinload(Usuario.roles).selectinload(UsuarioRol.rol),
                 selectinload(Usuario.perfil)
             )
             .where(Usuario.id == usuario_id, Usuario.es_eliminado == False)

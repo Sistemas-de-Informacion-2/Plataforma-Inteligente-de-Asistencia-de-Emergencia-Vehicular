@@ -14,6 +14,7 @@ from app.schemas.empleado import (
     EmpleadoCreateFull,
     EmpleadoOut,
     EmpleadoUpdate,
+    EmpleadoConUsuario,
 )
 from app.services.empleado_service import EmpleadoService
 
@@ -51,7 +52,7 @@ async def crear_empleado(
 #  LISTAR EMPLEADOS
 # ═══════════════════════════════════════════════════════════════
 
-@router.get("/", response_model=list[EmpleadoOut])
+@router.get("/", response_model=list[EmpleadoConUsuario])
 async def listar_empleados(
     skip: int = 0,
     limit: int = 100,
