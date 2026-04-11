@@ -36,6 +36,23 @@ class TallerRepository(BaseRepository[Taller]):
         result = await self.session.execute(stmt)
         return result.scalars().all()
 
+    async def get_sucursal_ids_by_admin(self, admin_id: int) -> list[int]:
+        """
+        Retorna los IDs de TODAS las sucursales que pertenecen a los
+        talleres de este admin. Usado para verificar ownership en PATCH/POST.
+        """
+        stmt = (
+            select(Sucursal.id)
+            .join(Taller, Sucursal.taller_id == Taller.id)
+            .where(
+                Taller.admin_id == admin_id,
+                Taller.es_eliminado == False,
+                Sucursal.es_eliminado == False,
+            )
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
 
 class SucursalRepository(BaseRepository[Sucursal]):
     def __init__(self, session: AsyncSession):

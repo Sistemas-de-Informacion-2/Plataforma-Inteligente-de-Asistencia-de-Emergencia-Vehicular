@@ -1,7 +1,7 @@
 # backend/app/repositories/empleado_repository.py
 """
-Repositorio: Empleado.
-Filtrado por sucursal, disponibilidad y especialidad.
+Repositorio: Empleado (Técnico).
+Filtrado por sucursal, disponibilidad, especialidad y Admin (tenant isolation).
 """
 
 from typing import Sequence
@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.empleado import Empleado
+from app.models.taller import Sucursal, Taller
 from app.repositories.base import BaseRepository
 
 
@@ -55,13 +56,75 @@ class EmpleadoRepository(BaseRepository[Empleado]):
         result = await self.session.execute(stmt)
         return result.scalars().all()
 
+    # ─────────────────────────────────────────────────────────────────
+    # TENANT-SCOPED QUERIES (solo empleados del taller del admin)
+    # ─────────────────────────────────────────────────────────────────
+
+    async def get_by_admin(
+        self,
+        admin_id: int,
+        *,
+        skip: int = 0,
+        limit: int = 100,
+    ) -> Sequence[Empleado]:
+        """
+        Retorna SOLO los empleados que pertenecen a sucursales
+        del taller administrado por admin_id.
+        Previene Data Leaks entre administradores (Tenant Isolation).
+        """
+        stmt = (
+            select(Empleado)
+            .join(Sucursal, Empleado.sucursal_id == Sucursal.id)
+            .join(Taller, Sucursal.taller_id == Taller.id)
+            .where(
+                Taller.admin_id == admin_id,
+                Taller.es_eliminado == False,
+                Sucursal.es_eliminado == False,
+                Empleado.es_eliminado == False,
+            )
+            .options(
+                selectinload(Empleado.usuario),
+                selectinload(Empleado.sucursal),
+            )
+            .offset(skip)
+            .limit(limit)
+        )
+        result = await self.session.execute(stmt)
+        return result.scalars().all()
+
+    async def get_by_id_scoped(
+        self, empleado_id: int, admin_id: int
+    ) -> Empleado | None:
+        """
+        Obtiene un empleado por ID verificando que pertenezca
+        al taller del admin. Devuelve None si no es suyo (403-safe).
+        """
+        stmt = (
+            select(Empleado)
+            .join(Sucursal, Empleado.sucursal_id == Sucursal.id)
+            .join(Taller, Sucursal.taller_id == Taller.id)
+            .where(
+                Empleado.id == empleado_id,
+                Taller.admin_id == admin_id,
+                Taller.es_eliminado == False,
+                Sucursal.es_eliminado == False,
+                Empleado.es_eliminado == False,
+            )
+            .options(
+                selectinload(Empleado.usuario),
+                selectinload(Empleado.sucursal),
+            )
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
     async def get_all(
         self,
         *,
         skip: int = 0,
         limit: int = 100,
     ) -> Sequence[Empleado]:
-        """Obtiene empleados con usuario y sucursal."""
+        """Obtiene empleados con usuario y sucursal. (Uso interno / superadmin)"""
         stmt = (
             select(Empleado)
             .options(

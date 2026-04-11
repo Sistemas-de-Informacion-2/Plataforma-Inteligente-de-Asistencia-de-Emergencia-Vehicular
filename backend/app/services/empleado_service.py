@@ -109,6 +109,21 @@ class EmpleadoService:
     async def listar(self, skip: int = 0, limit: int = 100) -> list[Empleado]:
         return list(await self.repo.get_all(skip=skip, limit=limit))
 
+    async def listar_por_admin(
+        self, admin_id: int, skip: int = 0, limit: int = 100
+    ) -> list[Empleado]:
+        """Retorna solo empleados del taller del admin (Tenant Isolation)."""
+        return list(await self.repo.get_by_admin(admin_id, skip=skip, limit=limit))
+
+    async def obtener_por_id_scoped(
+        self, empleado_id: int, admin_id: int
+    ) -> Empleado | None:
+        """
+        Obtiene un empleado por ID verificando que pertenezca al admin.
+        Devuelve None si no le pertenece (para lanzar 403 en el endpoint).
+        """
+        return await self.repo.get_by_id_scoped(empleado_id, admin_id)
+
     async def listar_por_sucursal(
         self,
         sucursal_id: int,

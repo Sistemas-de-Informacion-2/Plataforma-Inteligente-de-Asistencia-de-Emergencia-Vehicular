@@ -4,14 +4,11 @@ Endpoints: Talleres, Sucursales y Onboarding Todo-en-Uno.
 Nota de seguridad: cada endpoint tiene su propia dependencia de auth.
 El endpoint /onboarding es PÚBLICO (no requiere JWT).
 """
-
 from typing import Any
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from geoalchemy2.elements import WKTElement
-
 from app.core.database import get_db
 from app.core.security import hash_password, create_access_token
 from app.api.deps import get_current_user, get_current_admin
@@ -26,14 +23,12 @@ from app.schemas.taller import (
 from app.schemas.onboarding import TallerOnboardingRequest, TallerOnboardingResponse
 from app.services.taller_service import TallerService, SucursalService
 from app.repositories.usuario_repository import UsuarioRepository
+from app.repositories.taller_repository import TallerRepository
 
 router = APIRouter()
 
 
-# ═══════════════════════════════════════════════════════════════
 #  ONBOARDING TODO-EN-UNO (PÚBLICO — Sin JWT)
-# ═══════════════════════════════════════════════════════════════
-
 @router.post(
     "/onboarding",
     response_model=TallerOnboardingResponse,
@@ -241,10 +236,7 @@ async def actualizar_taller(
     return taller
 
 
-# ═══════════════════════════════════════════════════════════════
 #  SUCURSALES (PROTEGIDOS)
-# ═══════════════════════════════════════════════════════════════
-
 @router.post(
     "/{taller_id}/sucursales",
     response_model=SucursalOut,
@@ -256,9 +248,27 @@ async def crear_sucursal(
     current_user: Usuario = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    """Crea una sucursal para un taller específico. Solo Admin."""
+    """
+    Crea una sucursal para un taller específico.
+    SEGURIDAD: Verifica que el taller_id le pertenece al admin antes de crear.
+    """
     if taller_id != sucursal_in.taller_id:
         raise HTTPException(status_code=400, detail="El ID del taller no coincide")
+
+    # Verificar ownership del taller
+    stmt = select(Admin).where(Admin.usuario_id == current_user.id)
+    result = await db.execute(stmt)
+    admin = result.scalar_one_or_none()
+    if not admin:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No tienes perfil de Admin.")
+
+    taller_service = TallerService(db)
+    talleres_admin = await taller_service.listar_por_admin(admin.id)
+    if taller_id not in [t.id for t in talleres_admin]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Este taller no te pertenece. No puedes crear sucursales aquí.",
+        )
 
     service = SucursalService(db)
     return await service.crear(sucursal_in)
@@ -269,10 +279,29 @@ async def listar_sucursales_de_taller(
     taller_id: int,
     skip: int = 0,
     limit: int = 100,
-    current_user: Usuario = Depends(get_current_user),
+    current_user: Usuario = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    """Lista las sucursales de un taller."""
+    """
+    Lista las sucursales de un taller.
+    SEGURIDAD: Solo retorna sucursales si el taller le pertenece al admin autenticado.
+    """
+    # Verificar ownership del taller
+    stmt = select(Admin).where(Admin.usuario_id == current_user.id)
+    result = await db.execute(stmt)
+    admin = result.scalar_one_or_none()
+    if not admin:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No tienes perfil de Admin.")
+
+    taller_service = TallerService(db)
+    talleres_admin = await taller_service.listar_por_admin(admin.id)
+    ids_talleres = [t.id for t in talleres_admin]
+    if taller_id not in ids_talleres:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Este taller no te pertenece.",
+        )
+
     service = SucursalService(db)
     return await service.listar_por_taller(taller_id, skip=skip, limit=limit)
 
@@ -284,7 +313,25 @@ async def actualizar_sucursal(
     current_user: Usuario = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    """Actualiza datos de una sucursal, regenerando la geometría PostGIS si cambian lat/lng."""
+    """
+    Actualiza datos de una sucursal.
+    SEGURIDAD: Verifica que la sucursal pertenece al taller del admin antes de editar.
+    """
+    # Verificar ownership de la sucursal
+    stmt = select(Admin).where(Admin.usuario_id == current_user.id)
+    result = await db.execute(stmt)
+    admin = result.scalar_one_or_none()
+    if not admin:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No tienes perfil de Admin.")
+
+    taller_repo = TallerRepository(db)
+    sucursales_propias = await taller_repo.get_sucursal_ids_by_admin(admin.id)
+    if sucursal_id not in sucursales_propias:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Esta sucursal no pertenece a ninguno de tus talleres.",
+        )
+
     service = SucursalService(db)
     sucursal = await service.actualizar(sucursal_id, sucursal_in)
     if not sucursal:
@@ -298,7 +345,24 @@ async def eliminar_sucursal(
     current_user: Usuario = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    """Elimina lógicamente una sucursal (si usa SoftDelete) o permanentemente."""
+    """
+    Elimina lógicamente una sucursal.
+    SEGURIDAD: Solo puede eliminar sucursales propias.
+    """
+    stmt = select(Admin).where(Admin.usuario_id == current_user.id)
+    result = await db.execute(stmt)
+    admin = result.scalar_one_or_none()
+    if not admin:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No tienes perfil de Admin.")
+
+    taller_repo = TallerRepository(db)
+    sucursales_propias = await taller_repo.get_sucursal_ids_by_admin(admin.id)
+    if sucursal_id not in sucursales_propias:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Esta sucursal no pertenece a ninguno de tus talleres.",
+        )
+
     service = SucursalService(db)
     eliminado = await service.eliminar(sucursal_id)
     if not eliminado:
