@@ -1,0 +1,140 @@
+import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
+import 'package:app_cliente/core/network/api_client.dart';
+import 'package:app_cliente/core/storage/secure_storage.dart';
+
+enum AuthStatus { checking, authenticated, unauthenticated }
+
+class AuthProvider extends ChangeNotifier {
+  final ApiClient _apiClient = ApiClient();
+  AuthStatus authStatus = AuthStatus.checking;
+  String errorMessage = '';
+
+  AuthProvider() {
+    checkAuthStatus();
+  }
+
+  // Verifica si el token existe al abrir la app o si sigue siendo válido
+  Future<void> checkAuthStatus() async {
+    final token = await SecureStorage.getToken();
+    if (token == null) {
+      authStatus = AuthStatus.unauthenticated;
+      notifyListeners();
+      return;
+    }
+
+    try {
+      // Opcional: Podría llamar a /usuarios/me si queremos validar el token y traer datos del usuario.
+      // Por ahora, si hay token, asumimos autenticado hasta que una llamada falle por 401.
+      final response = await _apiClient.instance.get('/usuarios/me');
+      if (response.statusCode == 200) {
+        authStatus = AuthStatus.authenticated;
+      } else {
+        await logout();
+      }
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 401) {
+        await logout();
+      } else {
+        // Error de red, pero el token existe. Asumimos autenticado offline por ahora
+        authStatus = AuthStatus.authenticated;
+      }
+    } catch (e) {
+      authStatus = AuthStatus.unauthenticated;
+    }
+
+    notifyListeners();
+  }
+
+  // Login
+  Future<bool> login(String email, String password) async {
+    try {
+      final response = await _apiClient.instance.post(
+        '/auth/login',
+        data: {
+          'username': email,
+          'password': password,
+        },
+        options: Options(
+          contentType: Headers.formUrlEncodedContentType,
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        final token = response.data['access_token'];
+        await SecureStorage.saveToken(token);
+        
+        authStatus = AuthStatus.authenticated;
+        errorMessage = '';
+        notifyListeners();
+        return true;
+      }
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 401) {
+        errorMessage = 'Credenciales incorrectas';
+      } else {
+        errorMessage = 'Error de conexión: ${e.message}';
+      }
+      notifyListeners();
+    } catch (e) {
+      errorMessage = 'Error inesperado';
+      notifyListeners();
+    }
+    return false;
+  }
+
+  // Registro
+  Future<bool> registro({
+    required String nombre,
+    required String email,
+    required String password,
+    required String ci,
+    String? telefono,
+  }) async {
+    try {
+      final data = {
+        'nombre': nombre,
+        'email': email,
+        'password': password,
+        'ci': ci,
+      };
+      
+      if (telefono != null && telefono.isNotEmpty) {
+        data['telefono'] = telefono;
+      }
+
+      final response = await _apiClient.instance.post(
+        '/usuarios/',
+        data: data,
+        options: Options(
+          contentType: Headers.jsonContentType,
+        ),
+      );
+
+      if (response.statusCode == 201) {
+        // Registro exitoso, podríamos desear iniciar sesión automáticamente, pero por ahora sólo notificamos
+        errorMessage = '';
+        return true;
+      }
+    } on DioException catch (e) {
+        if (e.response?.statusCode == 400) {
+            errorMessage = e.response?.data['detail'] ?? 'El usuario ya existe';
+        } else {
+            errorMessage = 'Error de conexión';
+        }
+        notifyListeners();
+    } catch (e) {
+      errorMessage = 'Error inesperado';
+      notifyListeners();
+    }
+    return false;
+  }
+
+  // Logout
+  Future<void> logout() async {
+    await SecureStorage.deleteToken();
+    authStatus = AuthStatus.unauthenticated;
+    errorMessage = '';
+    notifyListeners();
+  }
+}

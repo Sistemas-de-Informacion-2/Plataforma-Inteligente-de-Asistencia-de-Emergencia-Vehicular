@@ -26,7 +26,6 @@ router = APIRouter()
 
 
 # ── Utilidad interna: obtener admin_id del usuario actual ────────────────────
-
 async def _get_admin_id(current_user: Usuario, db: AsyncSession) -> int:
     """
     Extrae el admin_id asociado al usuario autenticado.
@@ -43,10 +42,7 @@ async def _get_admin_id(current_user: Usuario, db: AsyncSession) -> int:
     return admin.id
 
 
-# ═══════════════════════════════════════════════════════════════
 #  CREAR EMPLEADO (Usuario + Rol TECNICO + Empleado)
-# ═══════════════════════════════════════════════════════════════
-
 @router.post("/", response_model=EmpleadoOut, status_code=status.HTTP_201_CREATED)
 async def crear_empleado(
     empleado_in: EmpleadoCreateFull,
@@ -81,10 +77,7 @@ async def crear_empleado(
         )
 
 
-# ═══════════════════════════════════════════════════════════════
 #  LISTAR EMPLEADOS (Scoped al taller del admin)
-# ═══════════════════════════════════════════════════════════════
-
 @router.get("/", response_model=list[EmpleadoConUsuario])
 async def listar_empleados(
     skip: int = 0,
@@ -101,10 +94,7 @@ async def listar_empleados(
     return await service.listar_por_admin(admin_id, skip=skip, limit=limit)
 
 
-# ═══════════════════════════════════════════════════════════════
 #  OBTENER EMPLEADO POR ID
-# ═══════════════════════════════════════════════════════════════
-
 @router.get("/{empleado_id}", response_model=EmpleadoConUsuario)
 async def obtener_empleado(
     empleado_id: int,
@@ -126,10 +116,7 @@ async def obtener_empleado(
     return empleado
 
 
-# ═══════════════════════════════════════════════════════════════
 #  ACTUALIZAR EMPLEADO
-# ═══════════════════════════════════════════════════════════════
-
 @router.patch("/{empleado_id}", response_model=EmpleadoOut)
 async def actualizar_empleado(
     empleado_id: int,
@@ -171,10 +158,7 @@ async def actualizar_empleado(
     return empleado
 
 
-# ═══════════════════════════════════════════════════════════════
 #  ELIMINAR EMPLEADO (Soft Delete)
-# ═══════════════════════════════════════════════════════════════
-
 @router.delete("/{empleado_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def eliminar_empleado(
     empleado_id: int,

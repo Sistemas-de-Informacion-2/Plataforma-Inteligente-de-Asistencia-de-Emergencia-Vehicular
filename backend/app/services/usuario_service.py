@@ -8,8 +8,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import hash_password
 from app.models.usuario import Usuario, UsuarioPerfil
+from app.models.rol import Rol, UsuarioRol
 from app.repositories.usuario_repository import UsuarioRepository
 from app.schemas.usuario import UsuarioCreate, UsuarioUpdate
+from sqlalchemy import select
 
 
 class UsuarioService:
@@ -46,9 +48,19 @@ class UsuarioService:
             perfil = UsuarioPerfil(**perfil_data)
             self.session.add(perfil)
             await self.session.flush()
-            await self.session.refresh(usuario)
 
-        return usuario
+        # Asignar rol por defecto (CLIENTE)
+        stmt_rol = select(Rol).where(Rol.nombre == 'CLIENTE')
+        res_rol = await self.session.execute(stmt_rol)
+        rol_cliente = res_rol.scalar_one_or_none()
+        
+        if rol_cliente:
+            nuevo_usuario_rol = UsuarioRol(usuario_id=usuario.id, rol_id=rol_cliente.id)
+            self.session.add(nuevo_usuario_rol)
+            await self.session.flush()
+
+        # Cargar explícitamente la relación perfil (o None) para evitar el error MissingGreenlet
+        return await self.obtener_con_perfil(usuario.id)
 
     # ── Consultas ─────────────────────────────────────────────
 
