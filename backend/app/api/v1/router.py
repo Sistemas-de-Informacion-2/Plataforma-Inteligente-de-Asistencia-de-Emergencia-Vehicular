@@ -21,6 +21,7 @@ from app.api.v1.endpoints import notificaciones_ws
 from app.api.v1.endpoints import empleados
 from app.api.v1.endpoints import servicios
 from app.api.v1.endpoints import vehiculos
+from app.api.v1.endpoints import incidentes
 from app.api.deps import get_current_user
 
 api_router = APIRouter()
@@ -68,5 +69,11 @@ api_router.include_router(
     vehiculos.router,
     prefix="/vehiculos",
     tags=["Vehículos del Cliente"],
+    dependencies=[Depends(get_current_user)]
+)
+api_router.include_router(
+    incidentes.router,
+    prefix="/incidentes",
+    tags=["Reporte de Incidentes"],
     dependencies=[Depends(get_current_user)]
 )

@@ -4,6 +4,7 @@ import 'package:app_cliente/core/theme/app_theme.dart';
 import 'package:app_cliente/features/auth/providers/auth_provider.dart';
 import 'package:app_cliente/features/vehiculos/providers/vehiculo_provider.dart';
 import 'package:app_cliente/features/perfil/providers/perfil_provider.dart';
+import 'package:app_cliente/features/emergencias/providers/emergencia_provider.dart';
 import 'package:app_cliente/features/auth/screens/splash_screen.dart';
 
 void main() {
@@ -20,6 +21,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => VehiculoProvider()),
         ChangeNotifierProvider(create: (_) => PerfilProvider()),
+        ChangeNotifierProvider(create: (_) => EmergenciaProvider()),
       ],
       child: MaterialApp(
         title: 'App de Emergencias',

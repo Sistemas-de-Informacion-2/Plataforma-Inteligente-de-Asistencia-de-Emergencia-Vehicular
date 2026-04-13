@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:app_cliente/core/theme/app_theme.dart';
 import 'package:app_cliente/features/auth/providers/auth_provider.dart';
 import 'package:app_cliente/features/auth/screens/login_screen.dart';
 import 'package:app_cliente/features/vehiculos/screens/garaje_screen.dart';
 import 'package:app_cliente/features/perfil/screens/perfil_screen.dart';
 import 'package:app_cliente/features/perfil/providers/perfil_provider.dart';
+import 'package:app_cliente/features/emergencias/screens/inicio_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -14,46 +16,18 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int _currentIndex = 0;
-
-  final List<Widget> _screens = [
-    const _InicioContentTab(), // Pestaña 0
-    const GarajeScreen(),      // Pestaña 1
-  ];
-
-  final List<String> _titles = [
-    'Inicio',
-    'Mi Garaje',
-  ];
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_titles[_currentIndex]),
-        elevation: 0,
-      ),
+      key: _scaffoldKey,
+      // El mapa cubre todo — sin AppBar
+      extendBodyBehindAppBar: true,
       drawer: _buildDrawer(context),
-      body: _screens[_currentIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.map_outlined),
-            activeIcon: Icon(Icons.map),
-            label: 'Inicio/Mapa',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.directions_car_filled_outlined),
-            activeIcon: Icon(Icons.directions_car),
-            label: 'Mis Autos',
-          ),
-        ],
+      // InicioScreen recibe el callback para abrir el drawer
+      body: InicioScreen(
+        onOpenDrawer: () => _scaffoldKey.currentState?.openDrawer(),
       ),
     );
   }
@@ -61,86 +35,182 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildDrawer(BuildContext context) {
     final perfilProvider = context.watch<PerfilProvider>();
     final perfil = perfilProvider.perfil;
+    final mq = MediaQuery.of(context);
 
     return Drawer(
+      backgroundColor: Colors.white,
       child: Column(
         children: [
-          UserAccountsDrawerHeader(
-            decoration: BoxDecoration(
-              color: Theme.of(context).primaryColor,
+          // ── Header premium ──────────────────────────────────
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.only(
+              top: mq.padding.top + 20,
+              left: 24,
+              right: 24,
+              bottom: 24,
             ),
-            accountName: Text(perfil?.nombre ?? 'Cargando...'), 
-            accountEmail: Text(perfil?.email ?? 'CLIENTE'), 
-            currentAccountPicture: CircleAvatar(
-              backgroundColor: Colors.white,
-              backgroundImage: perfil?.fotoPerfil != null 
-                  ? NetworkImage(perfil!.fotoPerfil!) 
-                  : null,
-              child: perfil?.fotoPerfil == null 
-                  ? const Icon(Icons.person, size: 40, color: Colors.grey)
-                  : null,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [AppTheme.primaryColor, Color(0xFF0047CC)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Avatar
+                Container(
+                  width: 64,
+                  height: 64,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                        color: Colors.white.withOpacity(0.5), width: 2),
+                    image: perfil?.fotoPerfil != null
+                        ? DecorationImage(
+                            image: NetworkImage(perfil!.fotoPerfil!),
+                            fit: BoxFit.cover,
+                          )
+                        : null,
+                    color: Colors.white.withOpacity(0.2),
+                  ),
+                  child: perfil?.fotoPerfil == null
+                      ? const Icon(Icons.person_rounded,
+                          size: 36, color: Colors.white)
+                      : null,
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  perfil?.nombre ?? 'Cargando…',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  perfil?.email ?? 'CLIENTE',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.75),
+                    fontSize: 13,
+                  ),
+                ),
+              ],
             ),
           ),
-          ListTile(
-            leading: const Icon(Icons.person_outline),
-            title: const Text('Mi Perfil'),
-            onTap: () {
-              Navigator.pop(context); // Cierra drawer
-              Navigator.push(
-                context, 
-                MaterialPageRoute(builder: (_) => const PerfilScreen()),
-              );
-            },
+
+          // ── Menu items ──────────────────────────────────────
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              children: [
+                _DrawerTile(
+                  icon: Icons.person_outline_rounded,
+                  label: 'Mi Perfil',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(context,
+                        MaterialPageRoute(builder: (_) => const PerfilScreen()));
+                  },
+                ),
+                _DrawerTile(
+                  icon: Icons.directions_car_outlined,
+                  label: 'Mis Autos',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const GarajeScreen()));
+                  },
+                ),
+                _DrawerTile(
+                  icon: Icons.history_rounded,
+                  label: 'Historial de Servicios',
+                  onTap: () => Navigator.pop(context),
+                ),
+                _DrawerTile(
+                  icon: Icons.settings_outlined,
+                  label: 'Configuración',
+                  onTap: () => Navigator.pop(context),
+                ),
+              ],
+            ),
           ),
-          ListTile(
-            leading: const Icon(Icons.history),
-            title: const Text('Historial de Servicios'),
-            onTap: () {
-              Navigator.pop(context);
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.settings_outlined),
-            title: const Text('Configuración'),
-            onTap: () {
-              Navigator.pop(context);
-            },
-          ),
-          const Spacer(),
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.logout, color: Colors.redAccent),
-            title: const Text('Cerrar Sesión', style: TextStyle(color: Colors.redAccent)),
+
+          // ── Footer ──────────────────────────────────────────
+          const Divider(height: 1),
+          _DrawerTile(
+            icon: Icons.logout_rounded,
+            label: 'Cerrar Sesión',
+            destructive: true,
             onTap: () async {
               Navigator.pop(context);
               await context.read<AuthProvider>().logout();
               if (mounted) {
                 Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(builder: (_) => const LoginScreen()),
-                );
+                    MaterialPageRoute(builder: (_) => const LoginScreen()));
               }
             },
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: mq.padding.bottom + 8),
         ],
       ),
     );
   }
 }
 
-class _InicioContentTab extends StatelessWidget {
-  const _InicioContentTab();
+/// Tile reutilizable del Drawer
+class _DrawerTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool destructive;
+
+  const _DrawerTile({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.destructive = false,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.map_outlined, size: 80, color: Colors.grey),
-          SizedBox(height: 16),
-          Text('Mapa Principal (Próximamente)'),
-        ],
+    final color = destructive ? AppTheme.danger : AppTheme.textPrimary;
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        child: ListTile(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          leading: Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: (destructive ? AppTheme.danger : AppTheme.primaryColor)
+                  .withOpacity(0.08),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, size: 20, color: color),
+          ),
+          title: Text(
+            label,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w500,
+              color: color,
+            ),
+          ),
+          trailing: destructive
+              ? null
+              : const Icon(Icons.chevron_right_rounded,
+                  size: 20, color: AppTheme.textSecondary),
+        ),
       ),
     );
   }

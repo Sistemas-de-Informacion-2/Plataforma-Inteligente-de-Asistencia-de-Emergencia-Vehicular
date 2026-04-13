@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 import traceback
 from app.api.v1.router import api_router
 from app.core.config import get_settings
@@ -51,6 +52,10 @@ app.add_middleware(
 
 # ── Registrar Routers ─────────────────────────────────────────
 app.include_router(api_router, prefix=settings.API_V1_PREFIX)
+
+import os
+os.makedirs("uploads", exist_ok=True)
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 
 # ── Health Check ──────────────────────────────────────────────

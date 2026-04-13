@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:app_cliente/core/theme/app_theme.dart';
 import 'package:app_cliente/features/vehiculos/providers/vehiculo_provider.dart';
 import 'package:app_cliente/features/vehiculos/widgets/vehiculo_form_sheet.dart';
 import 'package:app_cliente/features/vehiculos/models/vehiculo.dart';
@@ -10,10 +11,8 @@ class GarajeScreen extends StatelessWidget {
   void _showAddOrEditSheet(BuildContext context, {Vehiculo? vehiculo}) {
     showModalBottomSheet(
       context: context,
-      isScrollControlled: true, // Importante para que el teclado desplace el modal
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (context) => VehiculoFormSheet(vehiculo: vehiculo),
     );
   }
@@ -22,24 +21,39 @@ class GarajeScreen extends StatelessWidget {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Eliminar Vehículo'),
-        content: Text('¿Seguro que deseas eliminar el ${vehiculo.marca} ${vehiculo.modelo} (${vehiculo.placa})?'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          'Eliminar Vehículo',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
+        content: Text(
+            '¿Seguro que deseas eliminar el ${vehiculo.marca} ${vehiculo.modelo} (${vehiculo.placa})?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: const Text('Cancelar'),
           ),
-          TextButton(
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: AppTheme.danger,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+            ),
             onPressed: () async {
               Navigator.pop(ctx);
-              final success = await context.read<VehiculoProvider>().deleteVehiculo(vehiculo.id);
+              final success = await context
+                  .read<VehiculoProvider>()
+                  .deleteVehiculo(vehiculo.id);
               if (success && context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Vehículo eliminado'), backgroundColor: Colors.redAccent),
+                  const SnackBar(
+                    content: Text('Vehículo eliminado'),
+                    backgroundColor: AppTheme.danger,
+                  ),
                 );
               }
             },
-            child: const Text('Eliminar', style: TextStyle(color: Colors.redAccent)),
+            child: const Text('Eliminar'),
           ),
         ],
       ),
@@ -49,91 +63,252 @@ class GarajeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppTheme.backgroundColor,
+      appBar: AppBar(
+        title: const Text('Mi Garaje'),
+        backgroundColor: Colors.white,
+        foregroundColor: AppTheme.textPrimary,
+        elevation: 0,
+        titleTextStyle: const TextStyle(
+          color: AppTheme.textPrimary,
+          fontSize: 20,
+          fontWeight: FontWeight.w700,
+          letterSpacing: -0.3,
+        ),
+        iconTheme: const IconThemeData(color: AppTheme.textPrimary),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Divider(
+              height: 1, color: Colors.grey.shade100, thickness: 1),
+        ),
+      ),
       body: Consumer<VehiculoProvider>(
         builder: (context, provider, child) {
           if (provider.isLoading && provider.vehiculos.isEmpty) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(
+              child: CircularProgressIndicator(color: AppTheme.primaryColor),
+            );
           }
 
           if (provider.vehiculos.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.directions_car_outlined, size: 80, color: Colors.grey.shade400),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No tienes vehículos registrados',
-                    style: TextStyle(color: Colors.grey.shade600, fontSize: 16),
-                  ),
-                ],
-              ),
+            return _EmptyGarage(
+              onAddTap: () => _showAddOrEditSheet(context),
             );
           }
 
           return RefreshIndicator(
+            color: AppTheme.primaryColor,
             onRefresh: provider.fetchVehiculos,
             child: ListView.builder(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
               itemCount: provider.vehiculos.length,
               itemBuilder: (context, index) {
                 final vehiculo = provider.vehiculos[index];
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  elevation: 1,
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                    leading: CircleAvatar(
-                      backgroundColor: Theme.of(context).primaryColor.withOpacity(0.1),
-                      child: Icon(Icons.directions_car, color: Theme.of(context).primaryColor),
-                    ),
-                    title: Text(
-                      '${vehiculo.marca} ${vehiculo.modelo}',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    subtitle: Text('Año: ${vehiculo.anio} | Placa: ${vehiculo.placa}'),
-                    trailing: PopupMenuButton<String>(
-                      onSelected: (value) {
-                        if (value == 'edit') {
-                          _showAddOrEditSheet(context, vehiculo: vehiculo);
-                        } else if (value == 'delete') {
-                          _showDeleteDialog(context, vehiculo);
-                        }
-                      },
-                      itemBuilder: (context) => [
-                        const PopupMenuItem(
-                          value: 'edit',
-                          child: Row(
-                            children: [
-                              Icon(Icons.edit_outlined, size: 20),
-                              SizedBox(width: 8),
-                              Text('Editar'),
-                            ],
-                          ),
-                        ),
-                        const PopupMenuItem(
-                          value: 'delete',
-                          child: Row(
-                            children: [
-                              Icon(Icons.delete_outline, size: 20, color: Colors.redAccent),
-                              SizedBox(width: 8),
-                              Text('Eliminar', style: TextStyle(color: Colors.redAccent)),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                return _VehicleCard(
+                  vehiculo: vehiculo,
+                  onEdit: () =>
+                      _showAddOrEditSheet(context, vehiculo: vehiculo),
+                  onDelete: () => _showDeleteDialog(context, vehiculo),
                 );
               },
             ),
           );
         },
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showAddOrEditSheet(context),
-        child: const Icon(Icons.add),
+        backgroundColor: AppTheme.primaryColor,
+        foregroundColor: Colors.white,
+        elevation: 2,
+        icon: const Icon(Icons.add_rounded),
+        label: const Text(
+          'Añadir Auto',
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+class _EmptyGarage extends StatelessWidget {
+  final VoidCallback onAddTap;
+  const _EmptyGarage({required this.onAddTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 40),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 96,
+              height: 96,
+              decoration: BoxDecoration(
+                color: AppTheme.primaryColor.withOpacity(0.08),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.directions_car_outlined,
+                  size: 48, color: AppTheme.primaryColor),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'Tu garaje está vacío',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Agrega tu primer vehículo para reportar emergencias de forma rápida.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
+            ),
+            const SizedBox(height: 32),
+            FilledButton.icon(
+              onPressed: onAddTap,
+              style: FilledButton.styleFrom(
+                backgroundColor: AppTheme.primaryColor,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
+              ),
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Añadir vehículo',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _VehicleCard extends StatelessWidget {
+  final Vehiculo vehiculo;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+
+  const _VehicleCard({
+    required this.vehiculo,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: AppTheme.cardShadow,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: [
+            // Ícono del auto
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: AppTheme.primaryColor.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Icon(Icons.directions_car_rounded,
+                  color: AppTheme.primaryColor, size: 26),
+            ),
+            const SizedBox(width: 14),
+
+            // Texto
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${vehiculo.marca} ${vehiculo.modelo}',
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Row(
+                    children: [
+                      _Chip(label: vehiculo.anio.toString()),
+                      const SizedBox(width: 6),
+                      _Chip(label: vehiculo.placa),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            // Menú
+            PopupMenuButton<String>(
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14)),
+              icon: const Icon(Icons.more_vert_rounded,
+                  color: AppTheme.textSecondary),
+              onSelected: (v) {
+                if (v == 'edit') onEdit();
+                if (v == 'delete') onDelete();
+              },
+              itemBuilder: (_) => [
+                const PopupMenuItem(
+                  value: 'edit',
+                  child: Row(children: [
+                    Icon(Icons.edit_outlined, size: 18),
+                    SizedBox(width: 10),
+                    Text('Editar'),
+                  ]),
+                ),
+                const PopupMenuItem(
+                  value: 'delete',
+                  child: Row(children: [
+                    Icon(Icons.delete_outline,
+                        size: 18, color: AppTheme.danger),
+                    SizedBox(width: 10),
+                    Text('Eliminar',
+                        style: TextStyle(color: AppTheme.danger)),
+                  ]),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Chip extends StatelessWidget {
+  final String label;
+  const _Chip({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: AppTheme.muted,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: AppTheme.textSecondary,
+          letterSpacing: 0.3,
+        ),
       ),
     );
   }

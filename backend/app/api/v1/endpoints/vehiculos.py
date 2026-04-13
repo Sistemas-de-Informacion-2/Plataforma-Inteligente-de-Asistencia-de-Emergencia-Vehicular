@@ -38,7 +38,10 @@ async def obtener_mis_vehiculos(
     db: AsyncSession = Depends(get_db)
 ):
     """Obtiene los vehículos del usuario actual."""
-    stmt = select(Vehiculo).where(Vehiculo.usuario_id == current_user.id)
+    stmt = select(Vehiculo).where(
+        Vehiculo.usuario_id == current_user.id,
+        Vehiculo.es_eliminado == False
+    )
     result = await db.execute(stmt)
     return result.scalars().all()
 
