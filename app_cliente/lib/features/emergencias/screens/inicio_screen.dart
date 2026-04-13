@@ -36,14 +36,19 @@ class _InicioScreenState extends State<InicioScreen>
   File? _recordedAudio;
   bool _isRecording = false;
   late final AudioRecorder _audioRecorder;
+  late final AudioPlayer _audioPlayer;
 
   late AnimationController _sendBtnController;
   late Animation<double> _sendBtnScale;
+
+  bool _isPlayingAudio = false;
 
   @override
   void initState() {
     super.initState();
     _audioRecorder = AudioRecorder();
+    _audioPlayer = AudioPlayer();
+    _audioPlayer.onPlayerComplete.listen((event) => setState(() => _isPlayingAudio = false));
     
     _sendBtnController = AnimationController(
       vsync: this,
@@ -63,6 +68,7 @@ class _InicioScreenState extends State<InicioScreen>
     _descripcionController.dispose();
     _sendBtnController.dispose();
     _audioRecorder.dispose();
+    _audioPlayer.dispose();
     super.dispose();
   }
 
@@ -193,8 +199,24 @@ class _InicioScreenState extends State<InicioScreen>
     }
   }
 
+  // ── Audio Playback ──────────────────────────────────────────
+  Future<void> _toggleAudioPlayback() async {
+    if (_isPlayingAudio) {
+      await _audioPlayer.stop();
+      setState(() => _isPlayingAudio = false);
+    } else {
+      await _audioPlayer.play(DeviceFileSource(_recordedAudio!.path));
+      setState(() => _isPlayingAudio = true);
+    }
+  }
+
   // ── Submit ───────────────────────────────────────────────────
   Future<void> _enviarSOS() async {
+    // Validar existencia real del archivo de audio para evitar PathNotFoundException
+    if (_recordedAudio != null && !(await _recordedAudio!.exists())) {
+      _recordedAudio = null;
+    }
+
     final bool hasContent = _descripcionController.text.trim().isNotEmpty ||
         _imagenesSeleccionadas.isNotEmpty || _recordedAudio != null;
 
@@ -267,7 +289,7 @@ class _InicioScreenState extends State<InicioScreen>
     final mq = MediaQuery.of(context);
 
     final bool hasContent = _descripcionController.text.trim().isNotEmpty ||
-        _imagenesSeleccionadas.isNotEmpty;
+        _imagenesSeleccionadas.isNotEmpty || _recordedAudio != null;
 
     // Auto-select first vehicle
     if (_vehiculoSeleccionado == null &&
@@ -395,6 +417,8 @@ class _InicioScreenState extends State<InicioScreen>
                           onRemoveImage: _removeImage,
                           onRemoveAudio: () =>
                               setState(() => _recordedAudio = null),
+                          isPlayingAudio: _isPlayingAudio,
+                          onToggleAudio: _toggleAudioPlayback,
                         ),
 
                       // Fila principal
@@ -477,33 +501,27 @@ class _InicioScreenState extends State<InicioScreen>
 
                           const SizedBox(width: 10),
 
-                          // Mic / enviar
-                          AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 200),
-                            transitionBuilder: (Widget child, Animation<double> animation) {
-                              return ScaleTransition(scale: animation, child: child);
+                          // Botones mic y enviar siempre visibles
+                          _SOSActionButton(
+                            icon: _isRecording ? Icons.stop_rounded : Icons.mic_rounded,
+                            backgroundColor: _isRecording ? AppTheme.danger : const Color(0xFF2C2C2E),
+                            iconColor: Colors.white,
+                            onTap: () {
+                              if (_isRecording) {
+                                _detenerGrabacion();
+                              } else {
+                                _iniciarGrabacion();
+                              }
                             },
-                            child: hasContent || _recordedAudio != null
-                                ? _SOSActionButton(
-                                    key: const ValueKey('send_btn'),
-                                    icon: Icons.send_rounded,
-                                    backgroundColor: AppTheme.danger,
-                                    iconColor: Colors.white,
-                                    onTap: _enviarSOS,
-                                  )
-                                : _SOSActionButton(
-                                    key: const ValueKey('mic_btn'),
-                                    icon: _isRecording ? Icons.stop_rounded : Icons.mic_rounded,
-                                    backgroundColor: _isRecording ? AppTheme.danger : const Color(0xFF2C2C2E),
-                                    iconColor: Colors.white,
-                                    onTap: () {
-                                      if (_isRecording) {
-                                        _detenerGrabacion();
-                                      } else {
-                                        _iniciarGrabacion();
-                                      }
-                                    },
-                                  ),
+                          ),
+
+                          const SizedBox(width: 8),
+
+                          _SOSActionButton(
+                            icon: Icons.send_rounded,
+                            backgroundColor: hasContent ? AppTheme.danger : Colors.grey.shade400,
+                            iconColor: Colors.white,
+                            onTap: hasContent ? () => _enviarSOS() : () {},
                           ),
                         ],
                       ),
@@ -660,12 +678,16 @@ class _AttachmentsRow extends StatelessWidget {
   final File? audio;
   final ValueChanged<int> onRemoveImage;
   final VoidCallback onRemoveAudio;
+  final bool isPlayingAudio;
+  final VoidCallback onToggleAudio;
 
   const _AttachmentsRow({
     required this.imagenes,
     required this.audio,
     required this.onRemoveImage,
     required this.onRemoveAudio,
+    required this.isPlayingAudio,
+    required this.onToggleAudio,
   });
 
   @override
@@ -677,7 +699,40 @@ class _AttachmentsRow extends StatelessWidget {
         padding: const EdgeInsets.only(bottom: 8),
         children: [
           if (audio != null)
-            _AudioChip(file: audio!, onRemove: onRemoveAudio),
+            Padding(
+              padding: const EdgeInsets.only(right: 8.0, top: 6),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: AppTheme.primaryColor.withOpacity(0.25), width: 1),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: Icon(isPlayingAudio ? Icons.stop : Icons.play_arrow, size: 20, color: AppTheme.primaryColor),
+                      onPressed: onToggleAudio,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Audio adjunto',
+                      style: TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.w600, fontSize: 13),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 16, color: AppTheme.danger),
+                      onPressed: onRemoveAudio,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ...List.generate(imagenes.length, (i) {
             return _ImageThumb(
               file: imagenes[i],
@@ -690,114 +745,7 @@ class _AttachmentsRow extends StatelessWidget {
   }
 }
 
-class _AudioChip extends StatefulWidget {
-  final File file;
-  final VoidCallback onRemove;
-  
-  const _AudioChip({required this.file, required this.onRemove});
 
-  @override
-  State<_AudioChip> createState() => _AudioChipState();
-}
-
-class _AudioChipState extends State<_AudioChip> {
-  final AudioPlayer _audioPlayer = AudioPlayer();
-  bool _isPlaying = false;
-  Duration _duration = Duration.zero;
-  Duration _position = Duration.zero;
-
-  @override
-  void initState() {
-    super.initState();
-    _audioPlayer.onPlayerStateChanged.listen((state) {
-      if (mounted) setState(() => _isPlaying = state == PlayerState.playing);
-    });
-    _audioPlayer.onDurationChanged.listen((d) {
-      if (mounted) setState(() => _duration = d);
-    });
-    _audioPlayer.onPositionChanged.listen((p) {
-      if (mounted) setState(() => _position = p);
-    });
-    // Set source to load duration
-    _audioPlayer.setSource(DeviceFileSource(widget.file.path));
-  }
-
-  @override
-  void dispose() {
-    _audioPlayer.dispose();
-    super.dispose();
-  }
-
-  String _formatDuration(Duration d) {
-    String twoDigits(int n) => n.toString().padLeft(2, '0');
-    final minutes = twoDigits(d.inMinutes.remainder(60));
-    final seconds = twoDigits(d.inSeconds.remainder(60));
-    // Do not show hours for short emergency audios
-    return "\$minutes:\$seconds";
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        GestureDetector(
-          onTap: () async {
-            if (_isPlaying) {
-              await _audioPlayer.pause();
-            } else {
-              await _audioPlayer.play(DeviceFileSource(widget.file.path));
-            }
-          },
-          child: Container(
-            margin: const EdgeInsets.only(right: 8, top: 6),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            decoration: BoxDecoration(
-              color: AppTheme.primaryColor.withOpacity(0.08),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                  color: AppTheme.primaryColor.withOpacity(0.25), width: 1),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                  color: AppTheme.primaryColor,
-                  size: 20,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  _duration.inMilliseconds > 0 
-                    ? "\${_formatDuration(_position)} / \${_formatDuration(_duration)}"
-                    : 'Audio',
-                  style: const TextStyle(
-                    color: AppTheme.primaryColor,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        Positioned(
-          right: -4,
-          top: -4,
-          child: GestureDetector(
-            onTap: widget.onRemove,
-            child: Container(
-              padding: const EdgeInsets.all(4),
-              decoration: const BoxDecoration(
-                  color: AppTheme.danger, shape: BoxShape.circle),
-              child: const Icon(Icons.close, size: 14, color: Colors.white),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
 
 class _ImageThumb extends StatelessWidget {
   final File file;
