@@ -163,3 +163,6 @@ android/key.properties
 # package-lock.json
 # yarn.lock
 # pnpm-lock.yaml
+
+# Archivos de subida
+uploads/
