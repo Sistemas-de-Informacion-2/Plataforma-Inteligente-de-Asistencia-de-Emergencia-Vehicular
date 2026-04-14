@@ -136,7 +136,7 @@ class _InicioScreenState extends State<InicioScreen> with SingleTickerProviderSt
     }
 
     // Paso C: Enviar Emergencia
-    final success = await emProvider.enviarEmergencia(
+    final result = await emProvider.enviarEmergencia(
       vehiculoId: formProvider.vehiculoSeleccionado?.id,
       latitud: formProvider.userLocation!.latitude,
       longitud: formProvider.userLocation!.longitude,
@@ -147,23 +147,116 @@ class _InicioScreenState extends State<InicioScreen> with SingleTickerProviderSt
 
     if (mounted) {
       // Paso D: Mostrar resultado y limpiar
-      if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('¡Emergencia reportada! Ayuda en camino.'),
-            backgroundColor: AppTheme.success,
-          ),
-        );
+      if (result != null) {
+        final estado = result.solicitud?.estado ?? '';
+
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+        if (emProvider.advertirArchivosBorrados) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Algunos archivos temporales fueron eliminados por el sistema y no se enviaron.'),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+
+        if (estado == 'RECHAZADO_POR_IA' || estado == 'REQUIERE_VALIDACION') {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('La Inteligencia Artificial no pudo diagnosticar el problema con exactitud. Mostrando mecánicos cercanos por defecto.'),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 4),
+            ),
+          );
+          _showFallbackTalleresPanel();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('¡Emergencia reportada! Ayuda en camino.'),
+              backgroundColor: AppTheme.success,
+            ),
+          );
+        }
         formProvider.limpiarFormulario();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(emProvider.errorMessage),
+            content: Text(emProvider.errorMessage.isNotEmpty ? emProvider.errorMessage : 'Falló el envío de la emergencia.'),
             backgroundColor: AppTheme.danger,
           ),
         );
       }
     }
+  }
+
+  void _showFallbackTalleresPanel() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 24),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const Icon(Icons.build_circle_rounded, size: 64, color: Colors.orange),
+              const SizedBox(height: 16),
+              const Text(
+                'Buscando Talleres Cercanos',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Como la IA no pudo diagnosticar el problema con exactitud, estamos obteniendo una lista de los talleres más cercanos para que elijas.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 15,
+                  color: AppTheme.textSecondary,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF2C2C2E),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Entendido', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   @override

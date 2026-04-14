@@ -3,14 +3,13 @@
 Configuración centralizada de la aplicación.
 Usa Pydantic Settings para leer variables de entorno desde .env
 """
-
 from functools import lru_cache
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import Optional
 
 
 class Settings(BaseSettings):
     """Configuración global de la aplicación cargada desde variables de entorno."""
-
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
@@ -29,6 +28,9 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "cambiar-en-produccion"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+
+    # IA
+    gemini_api_key: Optional[str] = None
 
 
 @lru_cache

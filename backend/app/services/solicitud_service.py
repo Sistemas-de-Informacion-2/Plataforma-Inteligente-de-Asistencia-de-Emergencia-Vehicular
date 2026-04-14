@@ -1,18 +1,12 @@
 # backend/app/services/solicitud_service.py
 """
-Servicio: SolicitudEmergencia — EL ORQUESTADOR.
-
-Este servicio coordina el flujo completo de una emergencia:
-  1. Guardar la solicitud en BD
-  2. Asociar evidencias (fotos, audio, texto)
-  3. Invocar el servicio de IA para generar diagnóstico
-  4. Guardar el diagnóstico en BD
-  5. (Opcional) Disparar búsqueda de taller
-  6. Notificar al usuario
-
-Es el punto central del flujo de negocio.
+Servicio: SolicitudEmergencia — EL ORQUESTADOR DE BASE DE DATOS.
+Este servicio coordina la persistencia del flujo de emergencia:
+  1. Guardar la solicitud en BD con el estado dictaminado por la IA.
+  2. Asociar evidencias.
+  3. Guardar el diagnóstico estructurado.
+  4. Disparar búsqueda de taller (PostGIS) según la categoría.
 """
-
 import logging
 from typing import Any
 
@@ -24,59 +18,30 @@ from app.models.evidencia import Evidencia, TipoEvidencia
 from app.models.solicitud_emergencia import SolicitudEmergencia, EstadoSolicitud
 from app.repositories.solicitud_repository import SolicitudRepository
 from app.repositories.evidencia_repository import EvidenciaRepository
-from app.schemas.solicitud_emergencia import SolicitudCreate, SolicitudUpdate
+from app.schemas.solicitud_emergencia import SolicitudCreate
 from app.schemas.evidencia import EvidenciaCreate
-from app.services.ia_service import IAService
 from app.services.asignacion_service import AsignacionService
 from app.services.notificacion_service import NotificacionService
 
 logger = logging.getLogger(__name__)
-
 
 class SolicitudService:
     def __init__(self, session: AsyncSession):
         self.session = session
         self.repo = SolicitudRepository(session)
         self.evidencia_repo = EvidenciaRepository(session)
-        self.ia_service = IAService()
         self.asignacion_service = AsignacionService(session)
         self.notificacion_service = NotificacionService(session)
 
-    # ═══════════════════════════════════════════════════════════
-    #  FLUJO PRINCIPAL: Crear nueva solicitud de emergencia
-    # ═══════════════════════════════════════════════════════════
-
-    async def crear_nueva_solicitud(
+    # Crear solicitud con IA pre-procesada
+    async def crear_nueva_solicitud_con_ia(
         self,
-        data: SolicitudCreate,
-        evidencias: list[EvidenciaCreate] | None = None,
-        *,
-        auto_diagnostico: bool = True,
-        auto_asignar: bool = False,
+        solicitud_in: SolicitudCreate,
+        evidencias_in: list[EvidenciaCreate],
+        diagnostico: dict,
+        estado_inicial: str
     ) -> dict[str, Any]:
-        """
-        Flujo completo para crear una emergencia:
-
-        1. Guardar solicitud con ubicación PostGIS
-        2. Guardar evidencias adjuntas
-        3. Ejecutar módulos de IA para generar diagnóstico
-        4. (Opcional) Buscar y asignar taller automáticamente
-        5. Notificar al cliente
-
-        Args:
-            data:              Datos de la solicitud
-            evidencias:        Lista de evidencias (fotos, audios, textos)
-            auto_diagnostico:  Si True, ejecuta IA inmediatamente
-            auto_asignar:      Si True, busca taller automáticamente tras el diagnóstico
-
-        Returns:
-            {
-                "solicitud": SolicitudEmergencia,
-                "evidencias": list[Evidencia],
-                "diagnostico": DiagnosticoIA | None,
-                "asignacion_resultado": dict | None,
-            }
-        """
+        
         resultado = {
             "solicitud": None,
             "evidencias": [],
@@ -84,25 +49,29 @@ class SolicitudService:
             "asignacion_resultado": None,
         }
 
-        # ── Paso 1: Crear la solicitud ────────────────────────
-        logger.info(f"[Solicitud] Creando emergencia para cliente {data.cliente_id}")
+        # ── Paso 1: Crear la solicitud con el estado calculado ──
+        logger.info(f"[Solicitud] Guardando emergencia para cliente {solicitud_in.cliente_id}")
 
-        solicitud_data = data.model_dump()
-        solicitud_data["estado"] = EstadoSolicitud.PENDIENTE
+        solicitud_data = solicitud_in.model_dump()
+        
+        # Mapeamos el string de estado a nuestro Enum de SQLAlchemy
+        try:
+            solicitud_data["estado"] = EstadoSolicitud(estado_inicial)
+        except ValueError:
+            # Fallback seguro si el estado no coincide exactamente
+            solicitud_data["estado"] = EstadoSolicitud.PENDIENTE
 
         # Generar geometría PostGIS
         solicitud_data["ubicacion"] = WKTElement(
-            f"POINT({data.longitud} {data.latitud})", srid=4326
+            f"POINT({solicitud_in.longitud} {solicitud_in.latitud})", srid=4326
         )
 
         solicitud = await self.repo.create(solicitud_data)
         resultado["solicitud"] = solicitud
 
-        logger.info(f"[Solicitud] Solicitud #{solicitud.id} creada")
-
-        # ── Paso 2: Guardar evidencias ────────────────────────
-        if evidencias:
-            for ev_data in evidencias:
+        # ── Paso 2: Guardar evidencias ──
+        if evidencias_in:
+            for ev_data in evidencias_in:
                 evidencia = Evidencia(
                     tipo=ev_data.tipo,
                     url=ev_data.url,
@@ -110,49 +79,59 @@ class SolicitudService:
                 )
                 self.session.add(evidencia)
                 resultado["evidencias"].append(evidencia)
-
             await self.session.flush()
-            logger.info(
-                f"[Solicitud] {len(evidencias)} evidencias guardadas "
-                f"para solicitud #{solicitud.id}"
-            )
 
-        # ── Paso 3: Diagnóstico IA ────────────────────────────
-        if auto_diagnostico:
-            diagnostico = await self._ejecutar_diagnostico_ia(
-                solicitud=solicitud,
-                evidencias_data=evidencias,
-            )
-            resultado["diagnostico"] = diagnostico
+        # ── Paso 3: Guardar el Diagnóstico Estructurado ──
+        # Mapeamos el JSON de Gemini a las columnas de tu BD actual
+        nuevo_diagnostico = DiagnosticoIA(
+            solicitud_id=solicitud.id,
+            problema_detectado=diagnostico.get("resumen", "Problema desconocido"),
+            nivel_gravedad=diagnostico.get("nivel_gravedad", "MEDIO"), # Guardamos la gravedad real aquí
+            prioridad=diagnostico.get("prioridad", "MEDIA"),
+            costo_estimado_ia=0.0, # Ya no calculamos precios con IA
+            # Si en el futuro agregas la columna 'confianza' a tu BD, iría aquí:
+            # confianza=diagnostico.get("confianza", 0.0)
+        )
+        self.session.add(nuevo_diagnostico)
+        await self.session.flush()
+        await self.session.refresh(nuevo_diagnostico)
+        resultado["diagnostico"] = nuevo_diagnostico
 
-        # ── Paso 4: Auto-asignar taller ───────────────────────
-        if auto_asignar and resultado["diagnostico"]:
-            asignacion_resultado = await self._auto_asignar(
-                solicitud=solicitud,
-                diagnostico=resultado["diagnostico"],
-            )
-            resultado["asignacion_resultado"] = asignacion_resultado
+        # ── Paso 4: Auto-asignación con PostGIS (Siempre buscar ayuda) ──
+        if estado_inicial == "PENDIENTE_ASIGNACION" or estado_inicial == EstadoSolicitud.PENDIENTE.value:
+            categoria_ia = diagnostico.get("categoria", "OTRO")
+        else:
+            # Fallback if IA didn't trust the image/audio
+            categoria_ia = "GENERAL"
 
-            # Actualizar estado si se asignó
-            if asignacion_resultado.get("asignacion"):
-                await self.repo.actualizar_estado(
-                    solicitud.id, EstadoSolicitud.EN_PROCESO
-                )
+        logger.info(f"[Asignación] Buscando taller para la categoría: {categoria_ia} (Estado inicial: {estado_inicial})")
+        
+        asignacion_resultado = await self.asignacion_service.buscar_mejor_taller(
+            solicitud_id=solicitud.id,
+            latitud_incidente=solicitud.latitud,
+            longitud_incidente=solicitud.longitud,
+            tipo_problema=categoria_ia,
+        )
+        resultado["asignacion_resultado"] = asignacion_resultado
 
-                # ── Emisión de Eventos WebSocket ──
-                tecnico = asignacion_resultado.get("tecnico_asignado")
-                if tecnico:
-                    from app.api.v1.endpoints.notificaciones_ws import manager
-                    evento_ws = {
-                        "type": "NUEVA_ASIGNACION",
-                        "solicitud_id": solicitud.id,
-                        "distancia": asignacion_resultado.get("distancia_km"),
-                        "eta": asignacion_resultado.get("tiempo_estimado")
-                    }
-                    # Notificar al Técnico asignado
-                    await manager.send_personal_message(evento_ws, str(tecnico.usuario_id))
-                    # Notificar al Cliente
-                    await manager.send_personal_message(evento_ws, str(solicitud.cliente_id))
+        # Si encontró taller, actualizamos a EN_PROCESO
+        if asignacion_resultado and asignacion_resultado.get("sucursal"):
+            await self.repo.actualizar_estado(solicitud.id, EstadoSolicitud.EN_PROCESO)
+
+            # ── Emisión de Eventos WebSocket ──
+            tecnico = asignacion_resultado.get("tecnico_asignado")
+            if tecnico:
+                from app.api.v1.endpoints.notificaciones_ws import manager
+                evento_ws = {
+                    "type": "NUEVA_ASIGNACION",
+                    "solicitud_id": solicitud.id,
+                    "distancia": asignacion_resultado.get("distancia_km"),
+                    "eta": asignacion_resultado.get("tiempo_estimado")
+                }
+                # Notificar al Técnico asignado
+                await manager.send_personal_message(evento_ws, str(tecnico.usuario_id))
+                # Notificar al Cliente
+                await manager.send_personal_message(evento_ws, str(solicitud.cliente_id))
 
         # ── Paso 5: Notificar al cliente ──────────────────────
         await self.notificacion_service.enviar_a_usuario(
@@ -163,13 +142,9 @@ class SolicitudService:
                 "Estamos buscando ayuda para ti."
             ),
         )
-
         return resultado
 
-    # ═══════════════════════════════════════════════════════════
     #  Consultas
-    # ═══════════════════════════════════════════════════════════
-
     async def obtener_por_id(self, solicitud_id: int) -> SolicitudEmergencia | None:
         return await self.repo.get_by_id(solicitud_id)
 
@@ -199,10 +174,7 @@ class SolicitudService:
     ) -> list[SolicitudEmergencia]:
         return list(await self.repo.get_all(skip=skip, limit=limit))
 
-    # ═══════════════════════════════════════════════════════════
     #  Actualización de estado
-    # ═══════════════════════════════════════════════════════════
-
     async def actualizar_estado(
         self,
         solicitud_id: int,
@@ -228,10 +200,7 @@ class SolicitudService:
 
         return solicitud
 
-    # ═══════════════════════════════════════════════════════════
     #  Agregar evidencia a solicitud existente
-    # ═══════════════════════════════════════════════════════════
-
     async def agregar_evidencia(
         self, data: EvidenciaCreate
     ) -> Evidencia:
@@ -243,10 +212,7 @@ class SolicitudService:
     ) -> list[Evidencia]:
         return list(await self.evidencia_repo.get_by_solicitud(solicitud_id))
 
-    # ═══════════════════════════════════════════════════════════
     #  Métodos internos
-    # ═══════════════════════════════════════════════════════════
-
     async def _ejecutar_diagnostico_ia(
         self,
         solicitud: SolicitudEmergencia,

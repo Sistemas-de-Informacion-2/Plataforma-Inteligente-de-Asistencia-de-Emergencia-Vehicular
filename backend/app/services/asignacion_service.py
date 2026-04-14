@@ -230,10 +230,7 @@ class AsignacionService:
     ) -> Asignacion | None:
         return await self.asignacion_repo.get_activa_de_solicitud(solicitud_id)
 
-    # ═══════════════════════════════════════════════════════════
     #  Métodos internos del algoritmo
-    # ═══════════════════════════════════════════════════════════
-
     async def _sucursal_ofrece_servicio(
         self, sucursal_id: int, tipo_problema: str
     ) -> bool:
