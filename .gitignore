@@ -166,3 +166,8 @@ android/key.properties
 
 # Archivos de subida
 uploads/
+**/uploads/*
+!**/uploads/.gitkeep
+*.jpg
+*.png
+*.jpeg
