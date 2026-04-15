@@ -12,6 +12,7 @@ import 'package:app_cliente/features/emergencias/widgets/vehicle_pill_selector.d
 import 'package:app_cliente/features/emergencias/widgets/sos_action_button.dart';
 import 'package:app_cliente/features/emergencias/widgets/attachments_row.dart';
 import 'package:app_cliente/features/emergencias/widgets/attach_option_tile.dart';
+import 'package:app_cliente/features/emergencias/models/incidente_response_model.dart';
 
 class InicioScreen extends StatefulWidget {
   /// Callback que abre el Drawer del [HomeScreen] padre.
@@ -172,12 +173,7 @@ class _InicioScreenState extends State<InicioScreen> with SingleTickerProviderSt
           );
           _showFallbackTalleresPanel();
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('¡Emergencia reportada! Ayuda en camino.'),
-              backgroundColor: AppTheme.success,
-            ),
-          );
+          _showAiSummaryPanel(result);
         }
         formProvider.limpiarFormulario();
       } else {
@@ -189,6 +185,116 @@ class _InicioScreenState extends State<InicioScreen> with SingleTickerProviderSt
         );
       }
     }
+  }
+
+  void _showAiSummaryPanel(IncidenteResponseModel result) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 24),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const Icon(Icons.check_circle_rounded, size: 64, color: AppTheme.success),
+              const SizedBox(height: 16),
+              const Text(
+                '¡Emergencia Reportada!',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              if (result.diagnostico != null) ...[
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.blue.shade100),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.smart_toy_rounded, color: Colors.blue, size: 20),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Dictamen IA: ${result.diagnostico!.nivelGravedad}',
+                            style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        result.diagnostico!.problemaDetectado ?? 'Sin resumen detallado.',
+                        style: const TextStyle(color: AppTheme.textSecondary, height: 1.4),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+
+              if (result.asignacionResultado != null && result.asignacionResultado!.sucursal != null) ...[
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.green.shade100),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.engineering_rounded, color: Colors.green, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Manejando tu incidencia: ${result.asignacionResultado!.sucursal!["nombre"]}.',
+                          style: const TextStyle(color: Colors.green, fontWeight: FontWeight.w500),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+              ],
+
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryColor,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Entendido', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   void _showFallbackTalleresPanel() {

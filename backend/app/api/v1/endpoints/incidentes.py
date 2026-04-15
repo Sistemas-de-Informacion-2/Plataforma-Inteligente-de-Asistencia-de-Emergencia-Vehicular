@@ -102,10 +102,25 @@ async def crear_incidente_multipart(
             estado_inicial=estado_calculado
         )
 
+        raw_asignacion = resultado_db.get("asignacion_resultado", {})
+        asignacion_dict = None
+        if raw_asignacion and raw_asignacion.get("seleccionado"):
+            mejor = raw_asignacion["seleccionado"]
+            tecnicos = mejor.get("tecnicos_disponibles", [])
+            asignacion_dict = {
+                "sucursal": {
+                    "id": mejor.get("sucursal_id"),
+                    "nombre": mejor.get("sucursal_nombre", "")
+                },
+                "tecnico_asignado": tecnicos[0] if tecnicos else None,
+                "distancia_km": mejor.get("distancia_km", 0.0),
+                "tiempo_estimado": max(5.0, float(round(mejor.get("distancia_km", 0) * 3)))
+            }
+
         return {
             "solicitud": SolicitudOut.model_validate(resultado_db["solicitud"]).model_dump(mode='json') if resultado_db.get("solicitud") else None,
             "diagnostico": DiagnosticoIAOut.model_validate(resultado_db["diagnostico"]).model_dump(mode='json') if resultado_db.get("diagnostico") else None,
-            "asignacion": AsignacionOut.model_validate(resultado_db["asignacion"]).model_dump(mode='json') if resultado_db.get("asignacion") else None,
+            "asignacion_resultado": asignacion_dict,
         }
     except Exception as e:
         import traceback

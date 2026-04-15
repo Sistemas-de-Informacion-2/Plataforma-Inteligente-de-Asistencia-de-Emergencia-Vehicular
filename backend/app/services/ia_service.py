@@ -42,7 +42,7 @@ class GeminiProvider(AIProvider):
         
         # Forzamos la salida en formato JSON
         self.model = genai.GenerativeModel(
-            "gemini-2.0-flash",
+            "gemini-2.5-flash",
             generation_config={"response_mime_type": "application/json"}
         )
 
