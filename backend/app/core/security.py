@@ -3,26 +3,20 @@
 Módulo de seguridad — Preparado para JWT.
 No se aplica a endpoints todavía; se activará en un sprint posterior.
 """
-
 from datetime import datetime, timedelta, timezone
 from typing import Any
-
 from jose import JWTError, jwt
 import bcrypt
-
 from app.core.config import get_settings
 
 settings = get_settings()
 
 # ── Hashing de contraseñas ─────────────────────────────────────
-
-
 def hash_password(plain_password: str) -> str:
     """Genera un hash bcrypt de la contraseña en texto plano."""
     salt = bcrypt.gensalt()
     hashed = bcrypt.hashpw(plain_password.encode('utf-8'), salt)
     return hashed.decode('utf-8')
-
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verifica una contraseña contra su hash."""
@@ -30,7 +24,6 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         plain_password.encode('utf-8'), 
         hashed_password.encode('utf-8')
     )
-
 
 # ── Tokens JWT ─────────────────────────────────────────────────
 def create_access_token(
@@ -44,7 +37,6 @@ def create_access_token(
     )
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
-
 
 def decode_access_token(token: str) -> dict[str, Any] | None:
     """Decodifica y valida un token JWT. Retorna None si es inválido."""

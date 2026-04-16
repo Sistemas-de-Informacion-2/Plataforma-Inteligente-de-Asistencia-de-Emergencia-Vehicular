@@ -2,13 +2,9 @@
 """
 Schemas Pydantic: Asignacion.
 """
-
 from datetime import datetime
-
 from pydantic import BaseModel, ConfigDict, Field
-
 from app.models.asignacion import EstadoAsignacion
-
 
 class AsignacionBase(BaseModel):
     estado: EstadoAsignacion = EstadoAsignacion.PENDIENTE

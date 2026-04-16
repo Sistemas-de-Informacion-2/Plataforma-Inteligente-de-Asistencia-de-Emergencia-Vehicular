@@ -3,15 +3,11 @@
 Modelo: Notificacion.
 Notificaciones push dirigidas a un usuario específico.
 """
-
 from datetime import datetime
-
 from sqlalchemy import Boolean, ForeignKey, Text, DateTime
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
-
 from app.core.database import Base
-
 
 class Notificacion(Base):
     __tablename__ = "notificaciones"

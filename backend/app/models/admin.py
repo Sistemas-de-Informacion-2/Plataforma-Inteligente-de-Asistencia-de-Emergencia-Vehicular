@@ -3,12 +3,9 @@
 Modelo: Admin.
 Extiende Usuario via FK 1:1. Administra uno o más talleres.
 """
-
 from sqlalchemy import Boolean, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-
 from app.core.database import Base
-
 
 class Admin(Base):
     __tablename__ = "admins"

@@ -2,17 +2,13 @@
 """
 Modelos: OrdenTrabajo y DetalleOrden.
 """
-
 import enum
 from datetime import datetime
-
 from sqlalchemy import String, Float, ForeignKey, Text, DateTime, Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
-
 from app.core.database import Base
 from app.models.auditable import AuditableMixin
-
 
 class EstadoOrden(str, enum.Enum):
     """Estados posibles de una orden de trabajo."""

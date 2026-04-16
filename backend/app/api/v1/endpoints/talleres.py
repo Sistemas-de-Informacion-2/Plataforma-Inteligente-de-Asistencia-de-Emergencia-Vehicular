@@ -130,7 +130,7 @@ async def onboarding_taller(
     await db.flush()  # → sucursal.id disponible
 
     # ── Generar JWT para el nuevo admin ───────────────────────
-    access_token = create_access_token(data={"sub": str(usuario.id)})
+    access_token = create_access_token(data={"sub": str(usuario.id), "roles": ["ADMIN_TALLER"]})
 
     return TallerOnboardingResponse(
         usuario_id=usuario.id,
@@ -141,10 +141,7 @@ async def onboarding_taller(
     )
 
 
-# ═══════════════════════════════════════════════════════════════
 #  TALLERES (PROTEGIDOS)
-# ═══════════════════════════════════════════════════════════════
-
 @router.post("/", response_model=TallerOut, status_code=status.HTTP_201_CREATED)
 async def crear_taller(
     taller_in: TallerCreate,

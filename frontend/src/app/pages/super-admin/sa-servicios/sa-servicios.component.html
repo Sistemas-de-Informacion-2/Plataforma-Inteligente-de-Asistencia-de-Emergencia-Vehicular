@@ -1,0 +1,126 @@
+<div class="max-w-7xl mx-auto space-y-6 lg:space-y-8 pb-12 relative">
+
+  <!-- Toast de Éxito -->
+  <div *ngIf="showToast()" class="fixed top-24 right-8 z-[3000] bg-green-50 text-green-800 border border-green-200 px-6 py-4 rounded-xl shadow-lg flex items-center animate-fade-in">
+    <svg class="w-6 h-6 mr-3 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+    <div>
+      <h4 class="font-bold">¡Operación Exitosa!</h4>
+      <p class="text-sm">{{ toastMessage() }}</p>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <div class="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
+    <div>
+      <h1 class="text-2xl md:text-3xl font-bold text-text-main tracking-tight">Catálogo de Servicios</h1>
+      <p class="text-text-muted mt-1 text-sm md:text-base">Gestiona las especialidades oficiales de la plataforma.</p>
+    </div>
+    <button (click)="openModal('create')" class="px-6 py-2.5 bg-primary-600 hover:bg-primary-700 text-white font-bold rounded-xl shadow-md transition-all transform hover:-translate-y-0.5 focus:outline-none focus:ring-4 focus:ring-primary-300 flex items-center">
+      <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+      Nuevo Servicio
+    </button>
+  </div>
+
+  <!-- Loading -->
+  <div *ngIf="isLoading()" class="bg-surface-light border border-gray-200 rounded-2xl p-8 flex justify-center items-center h-64 shadow-sm">
+    <svg class="animate-spin h-8 w-8 text-primary-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+    </svg>
+  </div>
+
+  <!-- Tabla de Servicios -->
+  <div *ngIf="!isLoading()" class="bg-surface-light border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full text-left border-collapse">
+        <thead>
+          <tr class="bg-gray-50 border-b border-gray-200 text-xs md:text-sm font-bold text-gray-600 uppercase tracking-wider">
+            <th class="px-6 py-4 w-16">ID</th>
+            <th class="px-6 py-4">Nombre</th>
+            <th class="px-6 py-4">Descripción</th>
+            <th class="px-6 py-4 text-center w-40">Acciones</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100 text-sm text-gray-700">
+          <tr *ngIf="servicios().length === 0">
+            <td colspan="4" class="px-6 py-12 text-center text-gray-500 font-medium">
+              No hay servicios registrados. Crea el primero para que los talleres puedan ofrecerlos.
+            </td>
+          </tr>
+
+          <tr *ngFor="let s of servicios()" class="hover:bg-gray-50 transition-colors group">
+            <td class="px-6 py-4 text-gray-400 font-mono text-xs">{{ s.id }}</td>
+            <td class="px-6 py-4">
+              <span class="font-bold text-gray-900">{{ s.nombre }}</span>
+            </td>
+            <td class="px-6 py-4 text-gray-600 max-w-md truncate">{{ s.descripcion || '—' }}</td>
+            <td class="px-6 py-4 text-center whitespace-nowrap">
+              <div class="flex justify-center items-center space-x-2">
+                <button (click)="openModal('edit', s)" class="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors focus:outline-none" title="Editar">
+                  <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                </button>
+                <button (click)="eliminarServicio(s)" class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors focus:outline-none" title="Eliminar">
+                  <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Crear/Editar Servicio -->
+<div *ngIf="isModalOpen()" class="fixed inset-0 z-[2000] flex items-center justify-center p-4">
+  <div class="fixed inset-0 bg-gray-900/40 backdrop-blur-sm transition-opacity" (click)="closeModal()"></div>
+
+  <div class="relative bg-white rounded-2xl w-full max-w-lg max-h-[95vh] overflow-y-auto shadow-2xl flex flex-col">
+    <!-- Header -->
+    <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white/95 backdrop-blur z-10 shrink-0">
+      <h2 class="text-xl font-bold text-gray-800">
+        {{ modalMode() === 'create' ? 'Nuevo Servicio' : 'Editar Servicio' }}
+      </h2>
+      <button (click)="closeModal()" class="text-gray-400 hover:text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-full p-2 transition-colors focus:outline-none">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+      </button>
+    </div>
+
+    <!-- Formulario -->
+    <form [formGroup]="servicioForm" (ngSubmit)="onSubmit()" class="flex flex-col flex-1">
+      <div class="p-6 space-y-5">
+        <div>
+          <label class="block text-sm font-semibold text-text-main mb-1">Nombre del Servicio <span class="text-alert">*</span></label>
+          <input type="text" formControlName="nombre" placeholder="Ej: Motor, Llanta, Electricidad"
+            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none transition-all bg-white">
+        </div>
+
+        <div>
+          <label class="block text-sm font-semibold text-text-main mb-1">Descripción</label>
+          <textarea formControlName="descripcion" rows="3" placeholder="Descripción breve del servicio..."
+            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none transition-all bg-white resize-none"></textarea>
+        </div>
+
+        <!-- Error -->
+        <div *ngIf="errorMessage()" class="p-4 bg-red-50 text-red-800 border border-red-200 rounded-xl flex items-start">
+          <svg class="h-5 w-5 text-red-500 mr-3 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path></svg>
+          <span class="font-medium text-sm">{{ errorMessage() }}</span>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="mt-auto px-6 py-4 bg-gray-50 border-t border-gray-200 sticky bottom-0 z-10 flex justify-end gap-3 shrink-0 rounded-b-2xl">
+        <button type="button" (click)="closeModal()" class="px-6 py-2.5 text-gray-600 bg-white border border-gray-300 hover:bg-gray-50 font-bold rounded-xl transition-colors focus:outline-none">
+          Cancelar
+        </button>
+        <button type="submit" [disabled]="isSubmitting() || servicioForm.invalid" class="px-6 py-2.5 bg-primary-600 hover:bg-primary-700 text-white font-bold rounded-xl shadow-md transition-all flex items-center disabled:opacity-50 disabled:cursor-not-allowed">
+          <svg *ngIf="isSubmitting()" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          {{ modalMode() === 'create' ? (isSubmitting() ? 'Creando...' : 'Crear Servicio') : (isSubmitting() ? 'Guardando...' : 'Guardar Cambios') }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

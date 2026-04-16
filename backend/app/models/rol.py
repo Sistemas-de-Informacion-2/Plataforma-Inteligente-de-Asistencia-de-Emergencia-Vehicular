@@ -2,12 +2,9 @@
 """
 Modelos: Rol, Permiso, RolPermiso (M:N) y UsuarioRol (M:N).
 """
-
 from sqlalchemy import String, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-
 from app.core.database import Base
-
 
 class Rol(Base):
     __tablename__ = "roles"

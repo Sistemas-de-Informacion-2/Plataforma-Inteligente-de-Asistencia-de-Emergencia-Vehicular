@@ -47,8 +47,11 @@
             <td class="px-6 py-4 text-gray-600 truncate max-w-xs">{{ s.direccion || 'Sin dirección específica' }}</td>
             <td class="px-6 py-4 text-gray-600">{{ s.telefono || '-' }}</td>
             <td class="px-6 py-4 flex justify-center space-x-3">
+              <button (click)="openServicesModal(s)" class="text-indigo-600 hover:text-indigo-800 focus:outline-none transition-colors" title="Gestionar Servicios">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+              </button>
               <button (click)="openViewModal(s)" class="text-primary-600 hover:text-primary-800 focus:outline-none transition-colors" title="Ver Mapeo">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
               </button>
               <button (click)="openModal(s)" class="text-amber-500 hover:text-amber-700 focus:outline-none transition-colors" title="Editar">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
@@ -157,5 +160,54 @@
         </button>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- Modal Gestión de Servicios -->
+<div *ngIf="isServicesModalOpen()" class="fixed inset-0 z-[2000] flex items-center justify-center p-4">
+  <div class="fixed inset-0 bg-gray-900/40 backdrop-blur-sm transition-opacity" (click)="closeServicesModal()"></div>
+  
+  <div class="relative bg-white rounded-2xl w-full max-w-2xl max-h-[85vh] overflow-y-auto shadow-2xl animate-fade-in flex flex-col">
+    <!-- Modal Header -->
+    <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white/95 backdrop-blur z-10 shrink-0">
+      <div>
+        <h2 class="text-xl font-bold text-gray-800">Servicios Ofrecidos</h2>
+        <p class="text-sm text-gray-500 mt-1">Sucursal: {{ activeSucursalForServices()?.nombre }}</p>
+      </div>
+      <button (click)="closeServicesModal()" class="text-gray-400 hover:text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-full p-2 transition-colors focus:outline-none">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+      </button>
+    </div>
+
+    <!-- Modal Body -->
+    <div class="p-6">
+      <div *ngIf="isServicesLoading()" class="flex justify-center items-center py-12">
+        <svg class="animate-spin h-8 w-8 text-primary-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+      </div>
+
+      <div *ngIf="!isServicesLoading()" class="space-y-4">
+        <div *ngIf="allServicios().length === 0" class="text-center py-8 text-gray-500">
+          No hay servicios en el catálogo maestro.
+        </div>
+
+        <!-- Lista de Servicios con Checkbox/Toggle -->
+        <div *ngFor="let srv of allServicios()" class="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200 hover:bg-gray-100 transition-colors">
+          <div>
+            <h3 class="font-bold text-gray-800">{{ srv.nombre }}</h3>
+            <p class="text-sm text-gray-500 mt-0.5 max-w-sm truncate" [title]="srv.descripcion">{{ srv.descripcion || 'Sin descripción' }}</p>
+          </div>
+          
+          <button (click)="toggleService(srv.id)"
+                  [disabled]="loadingServiceToggleIds().includes(srv.id)"
+                  [ngClass]="assignedServiceIds().includes(srv.id) ? 'bg-primary-600' : 'bg-gray-300'"
+                  class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none disabled:opacity-50 disabled:cursor-wait">
+            <span [ngClass]="assignedServiceIds().includes(srv.id) ? 'translate-x-5' : 'translate-x-0'" class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out">
+               <!-- Spinner for loading state -->
+               <svg *ngIf="loadingServiceToggleIds().includes(srv.id)" class="animate-spin h-5 w-5 text-gray-400 absolute" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="gray" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+            </span>
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </div>

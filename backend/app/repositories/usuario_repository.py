@@ -3,12 +3,10 @@
 Repositorio: Usuario.
 Búsquedas específicas por email y CI.
 """
-
 from typing import Sequence
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-
 from app.models.usuario import Usuario, UsuarioPerfil
 from app.repositories.base import BaseRepository
 
@@ -43,6 +41,17 @@ class UsuarioRepository(BaseRepository[Usuario]):
     async def get_by_ci(self, ci: str) -> Usuario | None:
         """Busca un usuario por su cédula de identidad."""
         stmt = select(Usuario).where(Usuario.ci == ci, Usuario.es_eliminado == False)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def get_with_roles_by_email(self, email: str) -> Usuario | None:
+        """Busca un usuario por email con sus roles (nombre) precargados."""
+        from app.models.rol import UsuarioRol
+        stmt = (
+            select(Usuario)
+            .options(selectinload(Usuario.roles).selectinload(UsuarioRol.rol))
+            .where(Usuario.email == email, Usuario.es_eliminado == False)
+        )
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 

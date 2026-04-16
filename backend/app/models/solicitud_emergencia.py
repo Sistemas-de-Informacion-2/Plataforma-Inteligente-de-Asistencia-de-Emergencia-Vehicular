@@ -3,15 +3,12 @@
 Modelo: SolicitudEmergencia.
 Enum de estados. Usa GeoAlchemy2 para ubicación del incidente.
 """
-
 import enum
 from datetime import datetime
-
 from sqlalchemy import String, Float, ForeignKey, Text, DateTime, Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 from geoalchemy2 import Geometry
-
 from app.core.database import Base
 from app.models.auditable import AuditableMixin
 

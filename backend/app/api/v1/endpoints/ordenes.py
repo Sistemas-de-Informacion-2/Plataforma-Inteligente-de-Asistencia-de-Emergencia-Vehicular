@@ -13,7 +13,6 @@ from app.services.orden_service import OrdenService
 
 router = APIRouter()
 
-
 @router.post("/", response_model=OrdenTrabajoOut, status_code=status.HTTP_201_CREATED)
 async def crear_orden(
     orden_in: OrdenTrabajoCreate,

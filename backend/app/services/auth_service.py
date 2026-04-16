@@ -15,8 +15,8 @@ class AuthService:
         self.repo = UsuarioRepository(session)
 
     async def authenticate_user(self, email: str, password: str) -> Token:
-        """Autentica a un usuario y retorna su token de acceso."""
-        user = await self.repo.get_by_email(email)
+        """Autentica a un usuario y retorna su token de acceso con roles."""
+        user = await self.repo.get_with_roles_by_email(email)
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -31,8 +31,10 @@ class AuthService:
                 headers={"WWW-Authenticate": "Bearer"},
             )
             
+        roles = [r.rol.nombre for r in user.roles]
+        
         access_token = create_access_token(
-            data={"sub": str(user.id)}
+            data={"sub": str(user.id), "roles": roles}
         )
         
         return Token(access_token=access_token, token_type="bearer")

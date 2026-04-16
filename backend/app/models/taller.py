@@ -3,11 +3,9 @@
 Modelos: Taller y Sucursal.
 Sucursal usa GeoAlchemy2 para columna PostGIS de ubicación.
 """
-
 from sqlalchemy import String, Float, ForeignKey, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from geoalchemy2 import Geometry
-
 from app.core.database import Base
 from app.models.auditable import AuditableMixin
 

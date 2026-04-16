@@ -3,17 +3,13 @@
 Repositorio base genérico CRUD.
 Usa SQLAlchemy 2.0 (select, session.execute) con async.
 """
-
 from typing import Any, Generic, Sequence, Type, TypeVar
-
 from sqlalchemy import select, update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.core.database import Base
 
 # TypeVar genérico vinculado a cualquier modelo que herede de Base
 T = TypeVar("T", bound=Base)
-
 
 class BaseRepository(Generic[T]):
     """
@@ -30,7 +26,6 @@ class BaseRepository(Generic[T]):
         self.session = session
 
     # ── READ ──────────────────────────────────────────────────
-
     async def get_by_id(self, id: int) -> T | None:
         """Obtiene un registro por su ID primario. Excluye soft deletes."""
         stmt = select(self.model).where(self.model.id == id)
@@ -91,7 +86,6 @@ class BaseRepository(Generic[T]):
         return result.scalars().all()
 
     # ── CREATE ────────────────────────────────────────────────
-
     async def create(self, data: dict[str, Any]) -> T:
         """
         Crea un nuevo registro a partir de un diccionario de datos.
@@ -104,7 +98,6 @@ class BaseRepository(Generic[T]):
         return instance
 
     # ── UPDATE ────────────────────────────────────────────────
-
     async def update(self, id: int, data: dict[str, Any]) -> T | None:
         """
         Actualiza un registro por ID con los campos proporcionados.
@@ -130,7 +123,6 @@ class BaseRepository(Generic[T]):
         return updated
 
     # ── DELETE ────────────────────────────────────────────────
-
     async def delete(self, id: int) -> bool:
         """Elimina un registro (lógico si tiene es_eliminado, físico de lo contrario). Retorna True si se afectó."""
         if hasattr(self.model, "es_eliminado"):
@@ -147,7 +139,6 @@ class BaseRepository(Generic[T]):
         return result.rowcount > 0
 
     # ── COUNT ─────────────────────────────────────────────────
-
     async def count(self) -> int:
         """Cuenta el total de registros vivos."""
         from sqlalchemy import func

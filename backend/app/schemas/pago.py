@@ -2,7 +2,6 @@
 """
 Schemas Pydantic: Pago y MetodoPago.
 """
-
 from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field
 from app.models.pago import EstadoPago
@@ -11,21 +10,17 @@ from app.models.pago import EstadoPago
 class MetodoPagoBase(BaseModel):
     nombre: str = Field(..., max_length=100)
 
-
 class MetodoPagoCreate(MetodoPagoBase):
     pass
 
-
 class MetodoPagoOut(MetodoPagoBase):
     model_config = ConfigDict(from_attributes=True)
-
     id: int
 
 
 #  PAGO
 class PagoBase(BaseModel):
     monto_total: float = Field(..., gt=0)
-
 
 class PagoCreate(PagoBase):
     """
@@ -35,15 +30,12 @@ class PagoCreate(PagoBase):
     orden_id: int
     metodo_pago_id: int | None = None
 
-
 class PagoUpdate(BaseModel):
     estado: EstadoPago | None = None
     metodo_pago_id: int | None = None
 
-
 class PagoOut(PagoBase):
     model_config = ConfigDict(from_attributes=True)
-
     id: int
     estado: EstadoPago
     fecha: datetime

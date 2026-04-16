@@ -3,13 +3,10 @@
 Modelo: Usuario y UsuarioPerfil.
 Relaciones: Usuario 1:1 UsuarioPerfil, 1:N Vehiculos, M:N Roles (via UsuarioRol).
 """
-
 from datetime import datetime, date
-
 from sqlalchemy import String, Integer, DateTime, Date, ForeignKey, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
-
 from app.core.database import Base
 from app.models.auditable import AuditableMixin
 

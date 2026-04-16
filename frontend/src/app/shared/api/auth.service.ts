@@ -55,4 +55,32 @@ export class AuthService {
   private hasToken(): boolean {
     return typeof localStorage !== 'undefined' && !!localStorage.getItem('access_token');
   }
+
+  isAdmin(): boolean {
+    const token = localStorage.getItem('access_token');
+    if (token) {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload.roles && payload.roles.includes('ADMIN_TALLER');
+    }
+    return false;
+  }
+
+  isSuperAdmin(): boolean {
+    const token = localStorage.getItem('access_token');
+    if (token) {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload.roles && payload.roles.includes('SUPER_ADMIN');
+    }
+    return false;
+  }
+
+  isTecnico(): boolean {
+    const token = localStorage.getItem('access_token');
+    if (token) {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload.roles && payload.roles.includes('TECNICO');
+    }
+    return false;
+  }
+
 }

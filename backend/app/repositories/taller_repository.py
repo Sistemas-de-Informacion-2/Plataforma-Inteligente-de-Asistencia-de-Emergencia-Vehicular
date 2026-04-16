@@ -3,15 +3,12 @@
 Repositorio: Taller y Sucursal.
 Incluye búsqueda geoespacial con PostGIS (ST_DWithin).
 """
-
 from typing import Any, Sequence
-
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from geoalchemy2.functions import ST_DWithin, ST_Distance
 from geoalchemy2.elements import WKTElement
-
 from app.models.taller import Taller, Sucursal
 from app.repositories.base import BaseRepository
 
@@ -85,16 +82,13 @@ class SucursalRepository(BaseRepository[Sucursal]):
     ) -> list[dict[str, Any]]:
         """
         Busca sucursales dentro de un radio usando PostGIS ST_DWithin.
-
         Retorna una lista de dicts con la sucursal y la distancia en km.
         El radio se convierte de km a metros para ST_DWithin con geography.
-
         Args:
             latitud:   Latitud del punto de referencia (incidente)
             longitud:  Longitud del punto de referencia (incidente)
             radio_km:  Radio de búsqueda en kilómetros (default: 10)
             limit:     Máximo de resultados
-
         Returns:
             Lista de {"sucursal": Sucursal, "distancia_km": float}
         """
@@ -143,3 +137,39 @@ class SucursalRepository(BaseRepository[Sucursal]):
         )
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def obtener_servicios_de_sucursal(self, sucursal_id: int) -> Sequence:
+        """Obtiene las relaciones SucursalServicio incluyendo la entidad Servicio."""
+        from app.models.servicio import SucursalServicio, Servicio
+        stmt = (
+            select(SucursalServicio)
+            .options(selectinload(SucursalServicio.servicio))
+            .where(SucursalServicio.sucursal_id == sucursal_id)
+        )
+        result = await self.session.execute(stmt)
+        return result.scalars().all()
+
+    async def agregar_servicio_a_sucursal(self, sucursal_id: int, servicio_id: int) -> None:
+        from app.models.servicio import SucursalServicio
+        # Verificar existencia primero para evitar duplicados / errores
+        stmt = select(SucursalServicio).where(
+            SucursalServicio.sucursal_id == sucursal_id,
+            SucursalServicio.servicio_id == servicio_id
+        )
+        result = await self.session.execute(stmt)
+        if result.scalar_one_or_none() is None:
+            asociacion = SucursalServicio(sucursal_id=sucursal_id, servicio_id=servicio_id)
+            self.session.add(asociacion)
+            await self.session.flush()
+
+    async def quitar_servicio_de_sucursal(self, sucursal_id: int, servicio_id: int) -> None:
+        from app.models.servicio import SucursalServicio
+        stmt = select(SucursalServicio).where(
+            SucursalServicio.sucursal_id == sucursal_id,
+            SucursalServicio.servicio_id == servicio_id
+        )
+        result = await self.session.execute(stmt)
+        asociacion = result.scalar_one_or_none()
+        if asociacion:
+            await self.session.delete(asociacion)
+            await self.session.flush()

@@ -3,13 +3,10 @@
 Repositorio: Empleado (Técnico).
 Filtrado por sucursal, disponibilidad, especialidad y Admin (tenant isolation).
 """
-
 from typing import Sequence
-
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-
 from app.models.empleado import Empleado
 from app.models.taller import Sucursal, Taller
 from app.repositories.base import BaseRepository
@@ -56,10 +53,7 @@ class EmpleadoRepository(BaseRepository[Empleado]):
         result = await self.session.execute(stmt)
         return result.scalars().all()
 
-    # ─────────────────────────────────────────────────────────────────
     # TENANT-SCOPED QUERIES (solo empleados del taller del admin)
-    # ─────────────────────────────────────────────────────────────────
-
     async def get_by_admin(
         self,
         admin_id: int,

@@ -7,7 +7,6 @@ from functools import lru_cache
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Optional
 
-
 class Settings(BaseSettings):
     """Configuración global de la aplicación cargada desde variables de entorno."""
     model_config = SettingsConfigDict(

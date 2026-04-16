@@ -2,10 +2,8 @@
 """
 Modelos: Servicio (Especialidad) y SucursalServicio (M:N).
 """
-
 from sqlalchemy import String, ForeignKey, UniqueConstraint, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-
 from app.core.database import Base
 
 

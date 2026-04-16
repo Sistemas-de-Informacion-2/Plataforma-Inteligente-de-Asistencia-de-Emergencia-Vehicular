@@ -39,8 +39,17 @@ export class LoginComponent {
     this.authService.login(email, password).subscribe({
       next: () => {
         this.isLoading = false;
-        // Navegación exitosa al dashboard principal
-        this.router.navigate(['/dashboard']);
+        if (this.authService.isAdmin()) {
+          this.router.navigate(['/dashboard']);
+        } else if (this.authService.isSuperAdmin()) {
+          this.router.navigate(['/super-admin']);
+        } else if (this.authService.isTecnico()) {
+          // Si tuvieras un portal para técnicos:
+          // this.router.navigate(['/tecnico']);
+          console.warn('Técnico login: no hay dashboard de técnico web aún');
+        } else {
+          this.router.navigate(['/login']);
+        }
       },
       error: (err) => {
         this.isLoading = false;

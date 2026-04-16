@@ -1,0 +1,79 @@
+<div class="max-w-7xl mx-auto space-y-6 lg:space-y-8 pb-12 relative">
+
+  <!-- Toast de Éxito -->
+  <div *ngIf="showToast()" class="fixed top-24 right-8 z-[3000] bg-green-50 text-green-800 border border-green-200 px-6 py-4 rounded-xl shadow-lg flex items-center animate-fade-in">
+    <svg class="w-6 h-6 mr-3 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+    <div>
+      <h4 class="font-bold">¡Operación Exitosa!</h4>
+      <p class="text-sm">{{ toastMessage() }}</p>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <div class="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
+    <div>
+      <h1 class="text-2xl md:text-3xl font-bold text-text-main tracking-tight">Gestión de Usuarios</h1>
+      <p class="text-text-muted mt-1 text-sm md:text-base">Visualiza y modera los usuarios registrados en la plataforma.</p>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  <div *ngIf="isLoading()" class="bg-surface-light border border-gray-200 rounded-2xl p-8 flex justify-center items-center h-64 shadow-sm">
+    <svg class="animate-spin h-8 w-8 text-primary-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+    </svg>
+  </div>
+
+  <!-- Tabla de Usuarios -->
+  <div *ngIf="!isLoading()" class="bg-surface-light border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full text-left border-collapse min-w-[900px]">
+        <thead>
+          <tr class="bg-gray-50 border-b border-gray-200 text-xs md:text-sm font-bold text-gray-600 uppercase tracking-wider">
+            <th class="px-6 py-4">Usuario</th>
+            <th class="px-6 py-4">Contacto</th>
+            <th class="px-6 py-4">CI</th>
+            <th class="px-6 py-4">Registrado</th>
+            <th class="px-6 py-4 text-center w-40">Acciones</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100 text-sm text-gray-700">
+          <tr *ngIf="usuarios().length === 0">
+            <td colspan="5" class="px-6 py-12 text-center text-gray-500 font-medium">
+              No hay usuarios registrados en la plataforma.
+            </td>
+          </tr>
+
+          <tr *ngFor="let u of usuarios()" class="hover:bg-gray-50 transition-colors group">
+            <td class="px-6 py-4">
+              <div class="flex items-center">
+                <div class="h-10 w-10 flex-shrink-0 bg-primary-100 rounded-full flex items-center justify-center text-primary-700 font-bold">
+                  {{ u.nombre.charAt(0).toUpperCase() }}
+                </div>
+                <div class="ml-4">
+                  <div class="font-bold text-gray-900">{{ u.nombre }}</div>
+                  <div class="text-xs text-gray-500">{{ u.perfil?.apellido_paterno || '' }} {{ u.perfil?.apellido_materno || '' }}</div>
+                </div>
+              </div>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+              <div class="text-sm text-gray-900">{{ u.email }}</div>
+              <div class="text-sm text-gray-500">{{ u.telefono || '—' }}</div>
+            </td>
+            <td class="px-6 py-4 font-mono text-xs text-gray-600">{{ u.ci }}</td>
+            <td class="px-6 py-4 text-sm text-gray-500">{{ u.fecha_creacion | date:'dd/MM/yyyy' }}</td>
+            <td class="px-6 py-4 text-center whitespace-nowrap">
+              <button
+                (click)="banearUsuario(u)"
+                class="inline-flex items-center px-4 py-2 text-xs font-bold text-white bg-red-500 hover:bg-red-600 rounded-lg shadow-sm transition-all transform hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-red-300">
+                <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>
+                Banear
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

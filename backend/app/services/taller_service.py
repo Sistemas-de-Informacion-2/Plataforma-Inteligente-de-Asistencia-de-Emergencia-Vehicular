@@ -117,3 +117,22 @@ class SucursalService:
 
     async def eliminar(self, sucursal_id: int) -> bool:
         return await self.repo.delete(sucursal_id)
+
+    async def obtener_servicios_asignados(self, sucursal_id: int):
+        return await self.repo.obtener_servicios_de_sucursal(sucursal_id)
+
+    async def asignar_servicio(self, sucursal_id: int, servicio_id: int, admin_id: int) -> None:
+        from app.repositories.taller_repository import TallerRepository
+        taller_repo = TallerRepository(self.session)
+        sucursales_propias = await taller_repo.get_sucursal_ids_by_admin(admin_id)
+        if sucursal_id not in sucursales_propias:
+            raise ValueError("Esta sucursal no te pertenece")
+        await self.repo.agregar_servicio_a_sucursal(sucursal_id, servicio_id)
+
+    async def quitar_servicio(self, sucursal_id: int, servicio_id: int, admin_id: int) -> None:
+        from app.repositories.taller_repository import TallerRepository
+        taller_repo = TallerRepository(self.session)
+        sucursales_propias = await taller_repo.get_sucursal_ids_by_admin(admin_id)
+        if sucursal_id not in sucursales_propias:
+            raise ValueError("Esta sucursal no te pertenece")
+        await self.repo.quitar_servicio_de_sucursal(sucursal_id, servicio_id)

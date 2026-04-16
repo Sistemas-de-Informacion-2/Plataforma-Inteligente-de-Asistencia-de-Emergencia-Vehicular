@@ -9,7 +9,6 @@ from app.services.usuario_service import UsuarioService
 
 router = APIRouter()
 
-
 @router.post("/", response_model=UsuarioOut, status_code=status.HTTP_201_CREATED)
 async def registrar_usuario(
     usuario_in: UsuarioCreate,

@@ -95,11 +95,9 @@ class EmpleadoService:
             )
 
         empleado = await self.repo.create(empleado_data)
-
         return empleado
 
     # ── Consultas ─────────────────────────────────────────────
-
     async def obtener_por_id(self, empleado_id: int) -> Empleado | None:
         return await self.repo.get_by_id(empleado_id)
 
@@ -147,7 +145,6 @@ class EmpleadoService:
         )
 
     # ── Actualización ─────────────────────────────────────────
-
     async def actualizar(
         self, empleado_id: int, data: EmpleadoUpdate
     ) -> Empleado | None:
@@ -187,7 +184,59 @@ class EmpleadoService:
         }
         return await self.repo.update(empleado_id, update_data)
 
-    # ── Eliminación ───────────────────────────────────────────
-
+    # ── Eliminación (Soft-Delete Inteligente) ────────────────────
     async def eliminar(self, empleado_id: int) -> bool:
-        return await self.repo.delete(empleado_id)
+        """
+        Baja inteligente de un empleado (técnico):
+          1. Soft-delete del registro Empleado (es_eliminado=True)
+          2. Retirar el rol TECNICO del UsuarioRol (hard delete de la fila)
+          3. Ofuscar email y CI del Usuario → libera constraints UNIQUE
+          4. Soft-delete del Usuario (es_eliminado=True)
+
+        Esto permite que la misma persona se re-registre en el futuro
+        como dueño de taller u otro rol, usando su email/CI original.
+        """
+        from datetime import datetime
+        from sqlalchemy import delete as sa_delete
+        from sqlalchemy.sql import func
+
+        # Obtener el empleado con su usuario
+        empleado = await self.repo.get_by_id(empleado_id)
+        if not empleado:
+            return False
+
+        usuario_id = empleado.usuario_id
+
+        # ── Paso 1: Soft-delete del Empleado ──────────────────
+        await self.repo.delete(empleado_id)
+
+        # ── Paso 2: Retirar rol TECNICO ───────────────────────
+        stmt_rol = select(Rol).where(Rol.nombre == "TECNICO")
+        result = await self.session.execute(stmt_rol)
+        rol_tecnico = result.scalar_one_or_none()
+
+        if rol_tecnico:
+            stmt_del = sa_delete(UsuarioRol).where(
+                UsuarioRol.usuario_id == usuario_id,
+                UsuarioRol.rol_id == rol_tecnico.id,
+            )
+            await self.session.execute(stmt_del)
+
+        # ── Paso 3: Ofuscar email y CI del Usuario ────────────
+        usuario = await self.usuario_repo.get_by_id(usuario_id)
+        if usuario:
+            timestamp = int(datetime.utcnow().timestamp())
+            email_ofuscado = f"eliminado_{timestamp}_{usuario.email}"
+            ci_ofuscado = f"eliminado_{timestamp}_{usuario.ci}"
+
+            await self.usuario_repo.update(usuario_id, {
+                "email": email_ofuscado,
+                "ci": ci_ofuscado,
+            })
+
+        # ── Paso 4: Soft-delete del Usuario ───────────────────
+        await self.usuario_repo.delete(usuario_id)
+
+        await self.session.flush()
+        return True
+

@@ -11,7 +11,6 @@ from app.services.solicitud_service import SolicitudService
 
 router = APIRouter()
 
-
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def crear_solicitud(
     solicitud_in: SolicitudCreate,

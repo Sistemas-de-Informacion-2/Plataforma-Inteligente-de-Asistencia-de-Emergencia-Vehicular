@@ -3,13 +3,10 @@
 Schemas Pydantic: Onboarding Todo-en-Uno para Admin de Taller.
 Transacción atómica que crea: Usuario → Rol → Admin → Taller → Sucursal.
 """
-
 from pydantic import BaseModel, ConfigDict, Field
-
 
 class TallerOnboardingRequest(BaseModel):
     """Datos para el registro completo de un Admin de Taller."""
-
     # ── Datos del Usuario ─────────────────────────────────────
     nombre: str = Field(..., min_length=1, max_length=100)
     email: str = Field(..., max_length=150)
@@ -32,7 +29,6 @@ class TallerOnboardingRequest(BaseModel):
 class TallerOnboardingResponse(BaseModel):
     """Respuesta del onboarding con los IDs creados y token JWT."""
     model_config = ConfigDict(from_attributes=True)
-
     usuario_id: int
     admin_id: int
     taller_id: int

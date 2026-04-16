@@ -3,16 +3,12 @@
 Repositorio: OrdenTrabajo.
 Filtros por solicitud y sucursal.
 """
-
 from typing import Sequence
-
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-
 from app.models.orden_trabajo import OrdenTrabajo, EstadoOrden
 from app.repositories.base import BaseRepository
-
 
 class OrdenRepository(BaseRepository[OrdenTrabajo]):
     def __init__(self, session: AsyncSession):

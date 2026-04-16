@@ -3,13 +3,10 @@
 Modelo: Vehiculo.
 Relación: Usuario 1:N Vehiculos.
 """
-
 from sqlalchemy import String, Integer, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-
 from app.core.database import Base
 from app.models.auditable import AuditableMixin
-
 
 class Vehiculo(AuditableMixin, Base):
     __tablename__ = "vehiculos"

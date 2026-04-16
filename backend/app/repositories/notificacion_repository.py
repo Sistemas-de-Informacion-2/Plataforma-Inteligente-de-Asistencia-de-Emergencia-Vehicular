@@ -3,15 +3,11 @@
 Repositorio: Notificacion.
 Filtrado por usuario y estado de lectura.
 """
-
 from typing import Sequence
-
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.models.notificacion import Notificacion
 from app.repositories.base import BaseRepository
-
 
 class NotificacionRepository(BaseRepository[Notificacion]):
     def __init__(self, session: AsyncSession):

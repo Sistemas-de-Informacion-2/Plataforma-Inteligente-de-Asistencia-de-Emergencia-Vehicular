@@ -3,13 +3,10 @@
 Modelo: ResenaForo.
 Reseñas y calificaciones de sucursales por parte de los usuarios.
 """
-
 from datetime import datetime
-
 from sqlalchemy import Integer, ForeignKey, Text, DateTime
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
-
 from app.core.database import Base
 
 

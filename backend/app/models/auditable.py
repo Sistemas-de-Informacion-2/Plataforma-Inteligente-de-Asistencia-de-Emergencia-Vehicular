@@ -3,11 +3,9 @@
 Patrón Mixin de Auditoría (Soft Delete).
 Se aplica a modelos principales para evitar borrados físicos.
 """
-
 from datetime import datetime
 from sqlalchemy import Boolean, DateTime, func, text
 from sqlalchemy.orm import Mapped, mapped_column
-
 
 class AuditableMixin:
     """

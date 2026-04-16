@@ -2,14 +2,10 @@
 """
 Modelo: Evidencia (imagen, audio, texto adjunto a una solicitud).
 """
-
 import enum
-
 from sqlalchemy import String, ForeignKey, Text, Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-
 from app.core.database import Base
-
 
 class TipoEvidencia(str, enum.Enum):
     """Tipos de evidencia que puede adjuntar un usuario."""

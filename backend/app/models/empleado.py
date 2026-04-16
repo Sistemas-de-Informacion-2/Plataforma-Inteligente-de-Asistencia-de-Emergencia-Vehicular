@@ -3,14 +3,11 @@
 Modelo: Empleado (Técnico).
 Extiende Usuario via FK 1:1. Tiene ubicación GPS y pertenece a una Sucursal.
 """
-
 from sqlalchemy import String, Boolean, Float, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from geoalchemy2 import Geometry
-
 from app.core.database import Base
 from app.models.auditable import AuditableMixin
-
 
 class Empleado(AuditableMixin, Base):
     __tablename__ = "empleados"

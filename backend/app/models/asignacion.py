@@ -3,7 +3,6 @@
 Modelo: Asignacion.
 Vincula una SolicitudEmergencia con un Empleado y una Sucursal.
 """
-
 import enum
 from datetime import datetime
 

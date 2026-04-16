@@ -3,15 +3,11 @@
 Repositorio: Pago.
 Filtrado por orden y estado.
 """
-
 from typing import Sequence
-
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.models.pago import Pago, EstadoPago
 from app.repositories.base import BaseRepository
-
 
 class PagoRepository(BaseRepository[Pago]):
     def __init__(self, session: AsyncSession):

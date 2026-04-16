@@ -2,7 +2,6 @@
 """
 Schemas Pydantic: Empleado (Técnico).
 """
-
 from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional
 

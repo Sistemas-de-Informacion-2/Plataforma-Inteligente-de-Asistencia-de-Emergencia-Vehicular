@@ -9,19 +9,12 @@ Nota de seguridad:
 - Los demás routers protegidos usan Depends(get_current_user) a nivel global
   o a nivel de endpoint según corresponda.
 """
-
 from fastapi import APIRouter, Depends
 
-from app.api.v1.endpoints import usuarios
-from app.api.v1.endpoints import talleres
-from app.api.v1.endpoints import solicitudes
-from app.api.v1.endpoints import ordenes
-from app.api.v1.endpoints import auth
-from app.api.v1.endpoints import notificaciones_ws
-from app.api.v1.endpoints import empleados
-from app.api.v1.endpoints import servicios
-from app.api.v1.endpoints import vehiculos
-from app.api.v1.endpoints import incidentes
+from app.api.v1.endpoints import ( 
+    usuarios, talleres, solicitudes, ordenes, auth, notificaciones_ws,
+    empleados, servicios, vehiculos, incidentes, admin, sucursales
+)
 from app.api.deps import get_current_user
 
 api_router = APIRouter()
@@ -30,12 +23,18 @@ api_router = APIRouter()
 api_router.include_router(auth.router, prefix="/auth", tags=["Autenticación"])
 api_router.include_router(usuarios.router, prefix="/usuarios", tags=["Usuarios"])
 api_router.include_router(notificaciones_ws.router, prefix="/ws/notificaciones", tags=["WebSockets"])
+api_router.include_router(admin.router, prefix="/admin", tags=["Super Admin Dashboard"])
 
-# ── Talleres: seguridad a nivel de endpoint (onboarding es público) ─
+# ── Talleres y Sucursales: seguridad a nivel de endpoint ────
 api_router.include_router(
     talleres.router,
     prefix="/talleres",
-    tags=["Talleres y Sucursales"],
+    tags=["Talleres"],
+)
+api_router.include_router(
+    sucursales.router,
+    prefix="/sucursales",
+    tags=["Sucursales y Asignaciones"],
 )
 
 # ── Empleados: protegidos por JWT a nivel de endpoint ─────────

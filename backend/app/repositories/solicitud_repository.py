@@ -3,16 +3,12 @@
 Repositorio: SolicitudEmergencia.
 Filtros por estado y cliente.
 """
-
 from typing import Sequence
-
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-
 from app.models.solicitud_emergencia import SolicitudEmergencia, EstadoSolicitud
 from app.repositories.base import BaseRepository
-
 
 class SolicitudRepository(BaseRepository[SolicitudEmergencia]):
     def __init__(self, session: AsyncSession):

@@ -3,15 +3,11 @@
 Repositorio: Evidencia.
 Filtrado por solicitud y tipo.
 """
-
 from typing import Sequence
-
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.models.evidencia import Evidencia, TipoEvidencia
 from app.repositories.base import BaseRepository
-
 
 class EvidenciaRepository(BaseRepository[Evidencia]):
     def __init__(self, session: AsyncSession):

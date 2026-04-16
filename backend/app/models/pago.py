@@ -3,16 +3,12 @@
 Modelos: Pago y MetodoPago.
 El taller paga 10% de comisión a la plataforma.
 """
-
 import enum
 from datetime import datetime
-
 from sqlalchemy import String, Float, ForeignKey, DateTime, Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
-
 from app.core.database import Base
-
 
 class EstadoPago(str, enum.Enum):
     """Estados de un pago."""

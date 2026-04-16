@@ -2,6 +2,7 @@ import { Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { SucursalesService, Sucursal } from '../../shared/api/sucursales.service';
+import { ServiciosService, Servicio } from '../../shared/api/servicios.service';
 import { MapSelectorComponent } from '../../shared/ui/map-selector/map-selector.component';
 
 @Component({
@@ -12,6 +13,7 @@ import { MapSelectorComponent } from '../../shared/ui/map-selector/map-selector.
 })
 export class SucursalesComponent implements OnInit {
   private sucursalesService = inject(SucursalesService);
+  private serviciosService = inject(ServiciosService);
   private fb = inject(FormBuilder);
 
   constructor() {
@@ -26,6 +28,14 @@ export class SucursalesComponent implements OnInit {
   isSubmitting = signal(false);
   editingId = signal<number | null>(null);
   viewingSucursal = signal<Sucursal | null>(null);
+
+  // Estado para Modal de Servicios
+  isServicesModalOpen = signal(false);
+  activeSucursalForServices = signal<Sucursal | null>(null);
+  allServicios = signal<Servicio[]>([]);
+  assignedServiceIds = signal<number[]>([]);
+  loadingServiceToggleIds = signal<number[]>([]); // Para el spinner individual
+  isServicesLoading = signal(false);
   
   // Validation error handling para el mapa
   locationError = signal(false);
@@ -120,6 +130,93 @@ export class SucursalesComponent implements OnInit {
         error: (err) => console.error('Error al eliminar sucursal', err)
       });
     }
+  }
+
+  // --- Gestion de Servicios N:M ---
+
+  openServicesModal(sucursal: Sucursal): void {
+    this.activeSucursalForServices.set(sucursal);
+    this.isServicesModalOpen.set(true);
+    this.isServicesLoading.set(true);
+    
+    // Cargar Catálogo Maestro si no se ha cargado
+    if (this.allServicios().length === 0) {
+      this.serviciosService.getServicios().subscribe({
+        next: (servicios) => {
+          this.allServicios.set(servicios);
+          this.fetchAssignedServices(sucursal.id);
+        },
+        error: (err) => {
+          console.error('Error cargando catalogo de servicios', err);
+          this.isServicesLoading.set(false);
+        }
+      });
+    } else {
+      this.fetchAssignedServices(sucursal.id);
+    }
+  }
+
+  private fetchAssignedServices(sucursalId: number): void {
+    this.sucursalesService.obtenerServiciosAsignados(sucursalId).subscribe({
+      next: (asignaciones) => {
+        const ids = asignaciones.map((a: any) => a.servicio_id || a.servicio?.id || a.id); 
+        // Dependiendo de cómo mapee el backend. El backend devuelve SucursalServicioOut que tiene servicio_id.
+        const mappedIds = asignaciones.map((a: any) => a.servicio_id);
+        this.assignedServiceIds.set(mappedIds);
+        this.isServicesLoading.set(false);
+      },
+      error: (err) => {
+        console.error('Error cargando servicios asignados', err);
+        this.isServicesLoading.set(false);
+      }
+    });
+  }
+
+  closeServicesModal(): void {
+    this.isServicesModalOpen.set(false);
+    this.activeSucursalForServices.set(null);
+  }
+
+  toggleService(servicioId: number): void {
+    const sucursal = this.activeSucursalForServices();
+    if (!sucursal) return;
+
+    // Bloquear click si ya esta cargando
+    if (this.loadingServiceToggleIds().includes(servicioId)) return;
+    
+    this.loadingServiceToggleIds.update(ids => [...ids, servicioId]);
+
+    const isAssigned = this.assignedServiceIds().includes(servicioId);
+
+    if (isAssigned) {
+      // Quitar
+      this.sucursalesService.quitarServicio(sucursal.id, servicioId).subscribe({
+        next: () => {
+          this.assignedServiceIds.update(ids => ids.filter(id => id !== servicioId));
+          this.removeLoadingToggle(servicioId);
+        },
+        error: (err) => {
+          console.error('Error al quitar servicio', err);
+          this.removeLoadingToggle(servicioId);
+        }
+      });
+    } else {
+      // Agregar
+      this.sucursalesService.asignarServicio(sucursal.id, servicioId).subscribe({
+        next: () => {
+          this.assignedServiceIds.update(ids => [...ids, servicioId]);
+          this.removeLoadingToggle(servicioId);
+        },
+        error: (err) => {
+          console.error('Error al asignar servicio', err);
+          this.removeLoadingToggle(servicioId);
+        }
+      });
+    }
+  }
+
+  private removeLoadingToggle(servicioId: number): void {
+    this.loadingServiceToggleIds.update(ids => ids.filter(id => id !== servicioId));
   }
 
   onLocationSelected(location: {lat: number, lng: number} | null): void {

@@ -49,4 +49,19 @@ export class SucursalesService {
   eliminarSucursal(sucursalId: number): Observable<void> {
     return this.http.delete<void>(`${this.apiTallerUrl}/sucursales/${sucursalId}`);
   }
+
+  // --- GESTIÓN DE SERVICIOS N:M ---
+  private apiSucursalUrl = 'http://localhost:8000/api/v1/sucursales';
+
+  obtenerServiciosAsignados(sucursalId: number): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiSucursalUrl}/${sucursalId}/servicios`);
+  }
+
+  asignarServicio(sucursalId: number, servicioId: number): Observable<any> {
+    return this.http.post<any>(`${this.apiSucursalUrl}/${sucursalId}/servicios/${servicioId}`, {});
+  }
+
+  quitarServicio(sucursalId: number, servicioId: number): Observable<void> {
+    return this.http.delete<void>(`${this.apiSucursalUrl}/${sucursalId}/servicios/${servicioId}`);
+  }
 }

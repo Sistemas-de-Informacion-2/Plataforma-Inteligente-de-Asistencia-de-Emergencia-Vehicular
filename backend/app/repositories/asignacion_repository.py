@@ -3,12 +3,9 @@
 Repositorio: Asignacion.
 Filtros por solicitud, empleado y estado.
 """
-
 from typing import Sequence
-
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.models.asignacion import Asignacion, EstadoAsignacion
 from app.repositories.base import BaseRepository
 

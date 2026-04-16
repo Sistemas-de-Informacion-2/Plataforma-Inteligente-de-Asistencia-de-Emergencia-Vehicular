@@ -1,0 +1,88 @@
+<div class="flex h-screen bg-surface-dark overflow-hidden">
+
+  <!-- Sidebar -->
+  <aside
+    class="bg-surface-light border-r border-gray-200 text-text-main w-64 flex-shrink-0 transition-all duration-300 ease-in-out absolute z-20 h-full flex flex-col md:relative md:translate-x-0"
+    [ngClass]="{'translate-x-0': isSidebarOpen, '-translate-x-full': !isSidebarOpen}">
+
+    <!-- Branding -->
+    <div class="p-6">
+      <h2 class="text-xl font-bold tracking-tight">
+        <span class="text-primary-600">Super</span><span class="text-text-main">Admin</span>
+      </h2>
+      <p class="text-xs text-text-muted mt-1 uppercase tracking-wider font-semibold">Panel de Plataforma</p>
+    </div>
+
+    <!-- Navegación -->
+    <nav class="mt-4 px-4 space-y-1 flex-1 overflow-y-auto">
+      <a routerLink="/super-admin/servicios"
+         routerLinkActive="bg-primary-50 text-primary-600 font-bold border-r-4 border-primary-600"
+         class="flex items-center py-2.5 px-4 rounded transition duration-200 hover:bg-gray-50 text-text-main font-medium cursor-pointer">
+        <svg class="w-5 h-5 mr-3 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/>
+        </svg>
+        Catálogo de Servicios
+      </a>
+      <a routerLink="/super-admin/usuarios"
+         routerLinkActive="bg-primary-50 text-primary-600 font-bold border-r-4 border-primary-600"
+         class="flex items-center py-2.5 px-4 rounded transition duration-200 hover:bg-gray-50 text-text-main font-medium mt-1 cursor-pointer">
+        <svg class="w-5 h-5 mr-3 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+        </svg>
+        Gestión de Usuarios
+      </a>
+    </nav>
+
+    <!-- Logout -->
+    <div class="p-4 border-t border-gray-200 mt-auto">
+      <button
+        (click)="logout()"
+        class="w-full flex items-center py-2.5 px-4 text-alert hover:bg-alert hover:bg-opacity-10 rounded transition duration-200 font-bold">
+        <svg class="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+        </svg>
+        Cerrar Sesión
+      </button>
+    </div>
+  </aside>
+
+  <!-- Overlay móvil -->
+  <div
+    *ngIf="isSidebarOpen"
+    (click)="toggleSidebar()"
+    class="fixed inset-0 bg-black/40 backdrop-blur-sm z-10 md:hidden transition-opacity">
+  </div>
+
+  <!-- Contenido Principal -->
+  <div class="flex-1 flex flex-col min-w-0">
+
+    <!-- Navbar Superior -->
+    <header class="bg-surface-light border-b border-gray-200 h-16 flex items-center justify-between px-4 sm:px-6 z-10">
+      <div class="flex items-center">
+        <button
+          (click)="toggleSidebar()"
+          class="text-text-muted hover:text-primary-600 focus:outline-none md:hidden p-1 mr-3 rounded-md hover:bg-primary-50 transition">
+          <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+          </svg>
+        </button>
+        <span class="text-sm font-semibold text-text-muted hidden md:inline">Super Admin Dashboard</span>
+      </div>
+
+      <div class="flex items-center space-x-4">
+        <div class="w-9 h-9 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 font-bold border border-primary-200 shadow-sm">
+          SA
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Body -->
+    <main class="flex-1 overflow-x-hidden overflow-y-auto bg-surface-dark p-4 md:p-6 lg:p-8">
+      <router-outlet></router-outlet>
+    </main>
+
+  </div>
+</div>
