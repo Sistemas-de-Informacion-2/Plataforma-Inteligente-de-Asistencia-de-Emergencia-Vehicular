@@ -34,6 +34,28 @@ class PagoService:
         if settings.STRIPE_SECRET_KEY:
             stripe.api_key = settings.STRIPE_SECRET_KEY
 
+    async def _notificar_deuda(self, admin_id: int, nueva_deuda: float):
+        """Notifica por WebSocket al administrador sobre su nueva deuda."""
+        try:
+            from sqlalchemy import select
+            from app.models.admin import Admin
+            
+            stmt = select(Admin.usuario_id).where(Admin.id == admin_id)
+            result = await self.session.execute(stmt)
+            usuario_id = result.scalar_one_or_none()
+            
+            if usuario_id:
+                from app.api.v1.endpoints.notificaciones_ws import manager
+                await manager.send_personal_message(
+                    {
+                        "type": "DEUDA_ACTUALIZADA",
+                        "nueva_deuda": float(nueva_deuda)
+                    },
+                    str(usuario_id)
+                )
+        except Exception as e:
+            logger.error(f"[Pago] Error enviando WS DEUDA_ACTUALIZADA: {e}")
+
     # ── Crear pago (el admin ingresa el monto post-servicio) ──
     async def crear_pago(
         self,
@@ -110,6 +132,7 @@ class PagoService:
                     f"[Pago] {metodo_pago} confirmado en crear_pago. Deuda admin #{admin_id}: "
                     f"Bs. {admin.deuda_comision:.2f} (+{comision:.2f})"
                 )
+                await self._notificar_deuda(admin_id, admin.deuda_comision)
         else:
             # Notificar al cliente via WS (sólo si es por la APP)
             try:
@@ -231,6 +254,7 @@ class PagoService:
                 f"[Pago] Efectivo confirmado. Deuda admin #{admin_id}: "
                 f"Bs. {admin.deuda_comision:.2f} (+{pago.comision:.2f})"
             )
+            await self._notificar_deuda(admin_id, admin.deuda_comision)
 
         await self.session.commit()
         return True
@@ -297,6 +321,43 @@ class PagoService:
                 f"[Pago] QR confirmado. Deuda admin #{admin.id}: "
                 f"Bs. {admin.deuda_comision:.2f} (+{pago.comision:.2f})"
             )
+            await self._notificar_deuda(admin.id, admin.deuda_comision)
+
+        await self.session.commit()
+        return True
+
+    async def confirmar_pago_efectivo_cliente(self, pago_id: int) -> bool:
+        """
+        El cliente confirma que pagará en efectivo al llegar el mecánico.
+        Carga la comisión (10%) como deuda al admin (igual que QR).
+        """
+        pago = await self.session.get(Pago, pago_id)
+        if not pago or pago.estado != EstadoPago.PENDIENTE:
+            return False
+
+        pago.estado = EstadoPago.COMPLETADO
+        pago.tipo_pago = TipoPago.EFECTIVO
+
+        # Cargar deuda de comisión al admin
+        stmt = (
+            select(Admin)
+            .select_from(Pago)
+            .join(OrdenTrabajo, OrdenTrabajo.id == Pago.orden_id)
+            .join(Sucursal, Sucursal.id == OrdenTrabajo.sucursal_id)
+            .join(Taller, Taller.id == Sucursal.taller_id)
+            .join(Admin, Admin.id == Taller.admin_id)
+            .where(Pago.id == pago_id)
+        )
+        result = await self.session.execute(stmt)
+        admin = result.scalar_one_or_none()
+        
+        if admin:
+            admin.deuda_comision = (admin.deuda_comision or 0) + pago.comision
+            logger.info(
+                f"[Pago] Efectivo confirmado por CLIENTE. Deuda admin #{admin.id}: "
+                f"Bs. {admin.deuda_comision:.2f} (+{pago.comision:.2f})"
+            )
+            await self._notificar_deuda(admin.id, admin.deuda_comision)
 
         await self.session.commit()
         return True

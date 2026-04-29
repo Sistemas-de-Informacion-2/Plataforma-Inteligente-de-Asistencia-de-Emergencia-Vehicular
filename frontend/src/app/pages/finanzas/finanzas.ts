@@ -12,11 +12,9 @@ import { environment } from '../../../environments/environment';
   styleUrl: './finanzas.css',
 })
 export class Finanzas implements OnInit {
-  private pagosService = inject(PagosService);
+  public pagosService = inject(PagosService);
   private usuarioService = inject(UsuarioService);
 
-  deudaActual = signal<number>(0);
-  limiteDeuda = signal<number>(150);
   puedeAceptar = signal<boolean>(true);
   
   qrUrl = signal<string | null>(null);
@@ -31,11 +29,11 @@ export class Finanzas implements OnInit {
   cargarDatos() {
     this.isLoading.set(true);
     
-    // Cargar deuda
+    // Cargar deuda para asegurar el estado global y local
     this.pagosService.consultarDeuda().subscribe({
       next: (res) => {
-        this.deudaActual.set(res.deuda_actual);
-        this.limiteDeuda.set(res.limite);
+        this.pagosService.deudaGlobal.set(res.deuda_actual);
+        this.pagosService.limiteGlobal.set(res.limite);
         this.puedeAceptar.set(res.puede_aceptar_solicitudes);
         this.isLoading.set(false);
       },

@@ -79,16 +79,24 @@ class _PaymentScreenState extends State<PaymentScreen> {
   Future<void> _confirmarEfectivo() async {
     setState(() => _isLoading = true);
     try {
-      // Nota: Este endpoint requiere rol ADMIN. En un flujo real,
-      // el admin confirmaría desde su panel. Aquí mostramos el mensaje.
+      await _apiClient.instance.post('/pagos/${widget.pagoId}/confirmar-efectivo-cliente');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('El mecánico/admin confirmará el cobro en efectivo.'),
+            content: Text('Pago en efectivo confirmado. El mecánico fue notificado.'),
             backgroundColor: AppTheme.primaryColor,
           ),
         );
         Navigator.of(context).pop(true);
+      }
+    } on DioException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al confirmar: ${e.response?.data['detail'] ?? e.message}'),
+            backgroundColor: AppTheme.danger,
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);

@@ -125,6 +125,17 @@
       <!-- Right side: Notifications + Profile -->
       <div class="flex items-center gap-2 sm:gap-4">
 
+        <!-- Deuda Global -->
+        <div class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-colors cursor-pointer"
+             [ngClass]="pagosService.deudaGlobal() >= pagosService.limiteGlobal() ? 'bg-red-50 border-red-200 text-alert' : 'bg-orange-50 border-orange-200 text-orange-600'"
+             routerLink="/finanzas"
+             title="Ir a Finanzas">
+          <i class='bx bx-wallet text-lg'></i>
+          <span class="text-xs font-bold whitespace-nowrap">
+            Deuda: Bs. {{ pagosService.deudaGlobal() | number:'1.2-2' }}
+          </span>
+        </div>
+
         <!-- Notificaciones -->
         <button
           routerLink="/despacho"

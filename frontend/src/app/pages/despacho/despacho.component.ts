@@ -216,6 +216,8 @@ export class DespachoComponent implements OnInit, OnDestroy {
           alert(`Cobro enviado al cliente exitosamente. Comisión a retener: Bs. ${res.comision}`);
         } else {
           alert(`Cobro registrado en ${metodo}. La comisión de Bs. ${res.comision} fue añadida a tu deuda.`);
+          // Actualizar deuda global inmediatamente
+          this.pagosService.deudaGlobal.update(d => d + res.comision);
         }
         
         // Mover a finalizadas y actualizar estado local

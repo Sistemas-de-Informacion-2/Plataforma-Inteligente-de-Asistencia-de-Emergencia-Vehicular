@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { RouterModule, RouterOutlet } from '@angular/router';
 import { AuthService } from '../../../shared/api/auth.service';
 import { WebsocketService } from '../../../core/services/websocket.service';
+import { PagosService } from '../../../shared/api/pagos.service';
 import { Subscription } from 'rxjs';
 
 @Component({
@@ -15,6 +16,7 @@ import { Subscription } from 'rxjs';
 export class AdminLayoutComponent implements OnInit, OnDestroy {
   private authService = inject(AuthService);
   private wsService = inject(WebsocketService);
+  public pagosService = inject(PagosService);
 
   isSidebarOpen = window.innerWidth >= 768;
   isProfileMenuOpen = false;
@@ -23,9 +25,19 @@ export class AdminLayoutComponent implements OnInit, OnDestroy {
   private wsSubscription?: Subscription;
 
   ngOnInit() {
+    // Cargar deuda inicial
+    this.pagosService.consultarDeuda().subscribe({
+      next: (res) => {
+        this.pagosService.deudaGlobal.set(res.deuda_actual);
+        this.pagosService.limiteGlobal.set(res.limite);
+      }
+    });
+
     this.wsSubscription = this.wsService.getNotifications().subscribe(notif => {
       if (notif.type === 'NUEVA_SOLICITUD_EMERGENCIA') {
         this.notificationCount.update(c => c + 1);
+      } else if (notif.type === 'DEUDA_ACTUALIZADA') {
+        this.pagosService.deudaGlobal.set(notif['nueva_deuda']);
       }
     });
   }

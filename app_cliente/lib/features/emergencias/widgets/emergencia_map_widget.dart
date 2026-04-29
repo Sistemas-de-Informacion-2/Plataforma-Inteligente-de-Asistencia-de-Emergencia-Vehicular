@@ -2,17 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:fixo/core/theme/app_theme.dart';
+import 'package:provider/provider.dart';
+import 'package:fixo/features/emergencias/providers/emergencia_provider.dart';
 
 class EmergenciaMapWidget extends StatefulWidget {
   final LatLng? userLocation;
-  final LatLng? mechanicLocation;
-  final List<LatLng> polylineCoords;
 
   const EmergenciaMapWidget({
     super.key, 
     this.userLocation,
-    this.mechanicLocation,
-    this.polylineCoords = const [],
   });
 
   @override
@@ -28,6 +26,8 @@ class _EmergenciaMapWidgetState extends State<EmergenciaMapWidget>
 
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
+  LatLng? _oldMechanicLocation;
+  LatLng? _currentMechanicLocation;
 
   @override
   void initState() {
@@ -79,16 +79,22 @@ class _EmergenciaMapWidgetState extends State<EmergenciaMapWidget>
         ),
         
         // Capa de ruta
-        if (widget.polylineCoords.isNotEmpty)
-          PolylineLayer(
-            polylines: [
-              Polyline(
-                points: widget.polylineCoords,
-                color: AppTheme.primaryColor.withValues(alpha: 0.8),
-                strokeWidth: 5.0,
-              ),
-            ],
-          ),
+        Consumer<EmergenciaProvider>(
+          builder: (context, provider, child) {
+            if (provider.polylineCoords.isNotEmpty) {
+              return PolylineLayer(
+                polylines: [
+                  Polyline(
+                    points: provider.polylineCoords,
+                    color: AppTheme.primaryColor.withValues(alpha: 0.8),
+                    strokeWidth: 5.0,
+                  ),
+                ],
+              );
+            }
+            return const SizedBox.shrink();
+          },
+        ),
 
         // Marcador del Cliente
         if (widget.userLocation != null)
@@ -134,41 +140,53 @@ class _EmergenciaMapWidgetState extends State<EmergenciaMapWidget>
           ),
 
         // Marcador Animado del Mecánico
-        if (widget.mechanicLocation != null)
-          TweenAnimationBuilder<LatLng>(
-            tween: _LatLngTween(
-              begin: widget.mechanicLocation!,
-              end: widget.mechanicLocation!,
-            ),
-            duration: const Duration(seconds: 3),
-            curve: Curves.linear,
-            builder: (context, animatedPos, child) {
-              return MarkerLayer(
-                markers: [
-                  Marker(
-                    point: animatedPos,
-                    width: 60,
-                    height: 60,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        boxShadow: AppTheme.floatShadow,
-                        border: Border.all(color: AppTheme.primaryColor, width: 2),
-                      ),
-                      child: const Center(
-                        child: Icon(
-                          Icons.engineering_rounded,
-                          color: AppTheme.primaryColor,
-                          size: 32,
+        Consumer<EmergenciaProvider>(
+          builder: (context, provider, child) {
+            if (provider.mechanicLocation != _currentMechanicLocation) {
+              _oldMechanicLocation = _currentMechanicLocation ?? provider.mechanicLocation;
+              _currentMechanicLocation = provider.mechanicLocation;
+            }
+
+            if (_currentMechanicLocation != null) {
+              return TweenAnimationBuilder<LatLng>(
+                key: const ValueKey('mechanic_marker'),
+                tween: _LatLngTween(
+                  begin: _oldMechanicLocation ?? _currentMechanicLocation!,
+                  end: _currentMechanicLocation!,
+                ),
+                duration: const Duration(milliseconds: 4800), // Ligeramente menos que los 5s del timer para fluidez
+                curve: Curves.linear,
+                builder: (context, animatedPos, child) {
+                  return MarkerLayer(
+                    markers: [
+                      Marker(
+                        point: animatedPos,
+                        width: 60,
+                        height: 60,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            boxShadow: AppTheme.floatShadow,
+                            border: Border.all(color: AppTheme.primaryColor, width: 2),
+                          ),
+                          child: const Center(
+                            child: Icon(
+                              Icons.engineering_rounded,
+                              color: AppTheme.primaryColor,
+                              size: 32,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                  ),
-                ],
+                    ],
+                  );
+                },
               );
-            },
-          ),
+            }
+            return const SizedBox.shrink();
+          },
+        ),
       ],
     );
   }

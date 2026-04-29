@@ -105,7 +105,8 @@ class _TrackingScreenState extends State<TrackingScreen>
 
   @override
   Widget build(BuildContext context) {
-    final emProvider = context.watch<EmergenciaProvider>();
+    // Leemos una sola vez los datos estáticos de la asignación para no recargar toda la pantalla
+    final emProvider = context.read<EmergenciaProvider>();
     final asignacion = emProvider.asignacion;
     
     // Extraer datos si están disponibles
@@ -121,14 +122,7 @@ class _TrackingScreenState extends State<TrackingScreen>
         : 'Ayuda en camino';
     final mecanicoRol = esAdmin ? 'Administrador del taller' : 'Técnico asignado';
     
-    // Si tenemos ETA dinámico del routing, usarlo, de lo contrario fallback al estimado inicial
-    final etaText = emProvider.etaText != '--' 
-        ? emProvider.etaText 
-        : '${asignacion?.tiempoEstimado?.toStringAsFixed(0) ?? '--'} min';
-
-    // Provider nos da las coordenadas para el tracking
-    final mechanicLocation = emProvider.mechanicLocation;
-    final polylineCoords = emProvider.polylineCoords;
+    // El ETA y la ubicación del mecánico se actualizarán localmente con Consumers/Selectors
 
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -170,12 +164,10 @@ class _TrackingScreenState extends State<TrackingScreen>
       ),
       body: Stack(
         children: [
-          // Mapa de fondo
+          // Mapa de fondo estático (sus marcadores internos escuchan los cambios)
           Positioned.fill(
             child: EmergenciaMapWidget(
               userLocation: context.read<InicioProvider>().userLocation,
-              mechanicLocation: mechanicLocation,
-              polylineCoords: polylineCoords,
             ),
           ),
 
@@ -235,13 +227,21 @@ class _TrackingScreenState extends State<TrackingScreen>
                                   ),
                                 ),
                                 const SizedBox(height: 4),
-                                Text(
-                                  'Llegada aprox: $etaText',
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    color: AppTheme.primaryColor,
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                                Selector<EmergenciaProvider, String>(
+                                  selector: (_, p) => p.etaText,
+                                  builder: (context, etaValue, child) {
+                                    final finalEta = etaValue != '--' 
+                                        ? etaValue 
+                                        : '${asignacion?.tiempoEstimado?.toStringAsFixed(0) ?? '--'} min';
+                                    return Text(
+                                      'Llegada aprox: $finalEta',
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        color: AppTheme.primaryColor,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    );
+                                  },
                                 ),
                               ],
                             ),

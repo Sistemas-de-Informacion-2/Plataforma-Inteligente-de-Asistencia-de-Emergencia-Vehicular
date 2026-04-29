@@ -191,6 +191,23 @@ async def confirmar_pago_qr(
     return {"message": "Pago QR confirmado."}
 
 
+@router.post(
+    "/{pago_id}/confirmar-efectivo-cliente",
+    summary="Cliente confirma pago en efectivo",
+    description="El cliente confirma que pagará en efectivo. Se suma la deuda al admin.",
+)
+async def confirmar_pago_efectivo_cliente(
+    pago_id: int,
+    current_user: Usuario = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    service = PagoService(db)
+    exito = await service.confirmar_pago_efectivo_cliente(pago_id)
+    if not exito:
+        raise HTTPException(status_code=400, detail="No se pudo confirmar el pago en efectivo.")
+    return {"message": "Pago en efectivo confirmado por el cliente."}
+
+
 @router.get(
     "/{pago_id}",
     summary="Obtener detalle de un pago",

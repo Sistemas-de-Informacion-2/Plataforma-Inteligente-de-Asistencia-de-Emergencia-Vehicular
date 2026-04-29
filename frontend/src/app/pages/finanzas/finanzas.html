@@ -25,15 +25,15 @@
           </div>
 
           <div class="mb-8">
-            <p class="text-5xl font-black text-alert mb-2">Bs. {{ deudaActual() | number:'1.2-2' }}</p>
+            <p class="text-5xl font-black text-alert mb-2">Bs. {{ pagosService.deudaGlobal() | number:'1.2-2' }}</p>
             <div class="flex justify-between text-sm mb-2">
               <span class="text-text-muted font-medium">Progreso al límite</span>
-              <span class="text-alert font-bold">Bs. {{ limiteDeuda() | number:'1.2-2' }} (Límite)</span>
+              <span class="text-alert font-bold">Bs. {{ pagosService.limiteGlobal() | number:'1.2-2' }} (Límite)</span>
             </div>
             <!-- Progress Bar -->
             <div class="w-full bg-gray-100 rounded-full h-3 mb-2 overflow-hidden">
               <div class="bg-alert h-3 rounded-full transition-all duration-500" 
-                   [style.width]="(deudaActual() / limiteDeuda()) * 100 + '%'"></div>
+                   [style.width]="(pagosService.deudaGlobal() / pagosService.limiteGlobal()) * 100 + '%'"></div>
             </div>
             @if (!puedeAceptar()) {
               <div class="mt-4 p-4 bg-red-50 border border-red-100 rounded-xl flex items-start gap-3">

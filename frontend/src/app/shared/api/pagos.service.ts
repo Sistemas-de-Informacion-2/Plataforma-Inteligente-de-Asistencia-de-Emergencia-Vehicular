@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
@@ -22,6 +22,9 @@ export interface DeudaResponse {
 })
 export class PagosService {
   private readonly PAGOS_URL = `${environment.apiUrl}/pagos`;
+
+  deudaGlobal = signal<number>(0);
+  limiteGlobal = signal<number>(150);
 
   constructor(private http: HttpClient) {}
 
