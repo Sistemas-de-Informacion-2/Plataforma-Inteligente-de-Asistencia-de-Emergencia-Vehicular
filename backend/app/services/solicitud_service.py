@@ -115,17 +115,17 @@ class SolicitudService:
         # ── Paso 4: Buscar sucursales recomendadas (sin asignar) ─
         # Solo buscar si la IA no rechazó el incidente
         if estado_inicial not in ("RECHAZADO_POR_IA",):
-            categoria_ia = diagnostico.get("categoria", "OTRO")
+            servicios_ia = diagnostico.get("servicios", [])
 
             logger.info(
-                f"[Recomendación] Buscando talleres aptos para categoría: "
-                f"{categoria_ia} (solicitud #{solicitud.id})"
+                f"[Recomendación] Buscando talleres aptos para servicios: "
+                f"{servicios_ia} (solicitud #{solicitud.id})"
             )
 
             candidatos = await self.asignacion_service.buscar_sucursales_aptas(
                 latitud_incidente=solicitud.latitud,
                 longitud_incidente=solicitud.longitud,
-                tipo_problema=categoria_ia,
+                servicios_requeridos=servicios_ia,
             )
             resultado["sucursales_recomendadas"] = candidatos
 

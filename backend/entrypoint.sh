@@ -14,13 +14,14 @@ RETRY_COUNT=0
 
 while ! python -c "
 import socket
+import sys
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 try:
     s.connect(('db', 5432))
     s.close()
-    exit(0)
-except:
-    exit(1)
+    sys.exit(0)
+except Exception:
+    sys.exit(1)
 " 2>/dev/null; do
     RETRY_COUNT=$((RETRY_COUNT + 1))
     if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then

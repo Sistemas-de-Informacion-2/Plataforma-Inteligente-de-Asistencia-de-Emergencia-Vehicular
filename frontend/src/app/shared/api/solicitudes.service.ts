@@ -42,6 +42,7 @@ export interface SolicitudEmergencia {
   // Campos de UI (agregados localmente)
   mecanicoSeleccionado?: number | null;
   montoCobro?: number | null;
+  metodoPago?: 'APP' | 'EFECTIVO' | 'QR';
   mostrandoCobro?: boolean;
   // Campos legacy (usados por DashboardComponent)
   tipo_incidente?: string;
@@ -81,6 +82,15 @@ export class SolicitudesService {
   getEnProcesoPorSucursal(sucursalId: number): Observable<SolicitudEmergencia[]> {
     return this.http.get<SolicitudEmergencia[]>(
       `${this.SUCURSALES_URL}/${sucursalId}/solicitudes/en-proceso`
+    );
+  }
+
+  /** Obtiene las solicitudes atendidas (finalizadas).
+   * GET /api/v1/sucursales/{sucursalId}/solicitudes/atendidas
+   */
+  getAtendidasPorSucursal(sucursalId: number): Observable<SolicitudEmergencia[]> {
+    return this.http.get<SolicitudEmergencia[]>(
+      `${this.SUCURSALES_URL}/${sucursalId}/solicitudes/atendidas`
     );
   }
 

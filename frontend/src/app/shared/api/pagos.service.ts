@@ -25,11 +25,12 @@ export class PagosService {
 
   constructor(private http: HttpClient) {}
 
-  /** Crea un pago post-servicio ingresando el monto cobrado. */
-  crearPago(solicitudId: number, montoTotal: number): Observable<PagoResponse> {
+  /** Crea un pago post-servicio ingresando el monto cobrado y el método. */
+  crearPago(solicitudId: number, montoTotal: number, metodoPago: 'APP' | 'EFECTIVO' | 'QR' = 'APP'): Observable<PagoResponse> {
     return this.http.post<PagoResponse>(`${this.PAGOS_URL}/`, {
       solicitud_id: solicitudId,
-      monto_total: montoTotal
+      monto_total: montoTotal,
+      metodo_pago: metodoPago
     });
   }
 

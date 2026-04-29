@@ -52,6 +52,8 @@ class SucursalRecomendada(BaseModel):
     taller_nombre: str
     distancia_km: float
     tiene_servicio: bool
+    rating: float = 0.0
+    rating_count: int = 0
     tecnicos_disponibles: int
     score: float
     eta_minutos: int

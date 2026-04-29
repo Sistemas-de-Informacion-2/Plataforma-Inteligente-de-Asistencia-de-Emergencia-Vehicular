@@ -23,6 +23,7 @@ export class DespachoComponent implements OnInit, OnDestroy {
   private pagosService = inject(PagosService);
 
   solicitudesEntrantes = signal<SolicitudEmergencia[]>([]);
+  solicitudesFinalizadas = signal<SolicitudEmergencia[]>([]);
   sucursalActiva = signal<Sucursal | null>(null);
   mecanicosDisponibles = signal<Empleado[]>([]);
 
@@ -83,6 +84,7 @@ export class DespachoComponent implements OnInit, OnDestroy {
               ...s,
               mecanicoSeleccionado: null as number | null,
               montoCobro: null as number | null,
+              metodoPago: 'APP' as 'APP' | 'EFECTIVO' | 'QR',
               mostrandoCobro: false
             }));
             
@@ -99,6 +101,14 @@ export class DespachoComponent implements OnInit, OnDestroy {
       error: (err) => {
         console.error('[Despacho] Error cargando solicitudes pendientes:', err);
       }
+    });
+
+    // Cargar finalizadas
+    this.solicitudesService.getAtendidasPorSucursal(sucursalId).subscribe({
+      next: (atendidas) => {
+        this.solicitudesFinalizadas.set(atendidas);
+      },
+      error: (err) => console.error('[Despacho] Error cargando finalizadas:', err)
     });
   }
 
@@ -130,7 +140,7 @@ export class DespachoComponent implements OnInit, OnDestroy {
             next: (solicitud) => {
               console.log('[Despacho] Detalle de solicitud recibido:', solicitud);
               this.solicitudesEntrantes.update(lista => [
-                { ...solicitud, mecanicoSeleccionado: null, montoCobro: null, mostrandoCobro: false },
+                { ...solicitud, mecanicoSeleccionado: null, montoCobro: null, metodoPago: 'APP', mostrandoCobro: false },
                 ...lista
               ]);
             },
@@ -185,7 +195,7 @@ export class DespachoComponent implements OnInit, OnDestroy {
     // Actualizar inmutablemente para trigger del signal
     this.solicitudesEntrantes.update(solicitudes =>
       solicitudes.map(s => 
-        s.id === solicitud.id ? { ...s, mostrandoCobro: true } : s
+        s.id === solicitud.id ? { ...s, mostrandoCobro: true, metodoPago: 'APP' } : s
       )
     );
   }
@@ -198,9 +208,20 @@ export class DespachoComponent implements OnInit, OnDestroy {
 
     if (!solicitud.id) return;
 
-    this.pagosService.crearPago(solicitud.id, solicitud.montoCobro).subscribe({
+    const metodo = solicitud.metodoPago || 'APP';
+
+    this.pagosService.crearPago(solicitud.id, solicitud.montoCobro, metodo).subscribe({
       next: (res) => {
-        alert(`Cobro enviado al cliente exitosamente. Comisión a retener: Bs. ${res.comision}`);
+        if (metodo === 'APP') {
+          alert(`Cobro enviado al cliente exitosamente. Comisión a retener: Bs. ${res.comision}`);
+        } else {
+          alert(`Cobro registrado en ${metodo}. La comisión de Bs. ${res.comision} fue añadida a tu deuda.`);
+        }
+        
+        // Mover a finalizadas y actualizar estado local
+        const solicitudActualizada = { ...solicitud, estado: 'ATENDIDO' };
+        this.solicitudesFinalizadas.update(lista => [solicitudActualizada, ...lista]);
+        
         // Remover de la vista de despacho
         this.solicitudesEntrantes.update(solicitudes =>
           solicitudes.filter(s => s.id !== solicitud.id)
@@ -208,7 +229,7 @@ export class DespachoComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         console.error('Error al crear pago:', err);
-        alert('No se pudo enviar el cobro al cliente.');
+        alert('No se pudo procesar el cobro.');
       }
     });
   }

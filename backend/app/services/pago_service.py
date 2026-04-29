@@ -40,6 +40,7 @@ class PagoService:
         solicitud_id: int,
         monto_total: float,
         admin_id: int,
+        metodo_pago: str = "APP",
     ) -> dict:
         """
         Crea una OrdenTrabajo + Pago pendiente para una solicitud.
@@ -90,31 +91,50 @@ class PagoService:
             f"comisión={comision}, taller={monto_taller}"
         )
 
-        # Notificar al cliente via WS
-        try:
-            from app.models.solicitud_emergencia import SolicitudEmergencia
-            stmt_sol = select(SolicitudEmergencia.cliente_id).where(
-                SolicitudEmergencia.id == solicitud_id
-            )
-            result_sol = await self.session.execute(stmt_sol)
-            cliente_id = result_sol.scalar_one_or_none()
+        # Actualizar el estado de la solicitud a ATENDIDO
+        from app.models.solicitud_emergencia import SolicitudEmergencia, EstadoSolicitud
+        stmt_upd = select(SolicitudEmergencia).where(SolicitudEmergencia.id == solicitud_id)
+        result_upd = await self.session.execute(stmt_upd)
+        solicitud_actualizar = result_upd.scalar_one_or_none()
+        if solicitud_actualizar:
+            solicitud_actualizar.estado = EstadoSolicitud.ATENDIDO
 
-            if cliente_id:
-                from app.api.v1.endpoints.notificaciones_ws import manager
-                await manager.send_personal_message(
-                    {
-                        "type": "PAGO_REQUERIDO",
-                        "pago_id": pago.id,
-                        "solicitud_id": solicitud_id,
-                        "monto_total": monto_total,
-                        "comision": comision,
-                        "monto_taller": monto_taller,
-                        "mensaje": f"El servicio ha finalizado. Monto total: Bs. {monto_total:.2f}",
-                    },
-                    str(cliente_id)
+        # Si el admin escogió EFECTIVO o QR, marcamos el pago y sumamos la deuda
+        if metodo_pago in ["EFECTIVO", "QR"]:
+            pago.estado = EstadoPago.COMPLETADO
+            pago.tipo_pago = TipoPago.EFECTIVO if metodo_pago == "EFECTIVO" else TipoPago.QR
+            admin = await self.session.get(Admin, admin_id)
+            if admin:
+                admin.deuda_comision = (admin.deuda_comision or 0) + comision
+                logger.info(
+                    f"[Pago] {metodo_pago} confirmado en crear_pago. Deuda admin #{admin_id}: "
+                    f"Bs. {admin.deuda_comision:.2f} (+{comision:.2f})"
                 )
-        except Exception as e:
-            logger.error(f"[Pago] Error WS PAGO_REQUERIDO: {e}")
+        else:
+            # Notificar al cliente via WS (sólo si es por la APP)
+            try:
+                stmt_sol = select(SolicitudEmergencia.cliente_id).where(
+                    SolicitudEmergencia.id == solicitud_id
+                )
+                result_sol = await self.session.execute(stmt_sol)
+                cliente_id = result_sol.scalar_one_or_none()
+
+                if cliente_id:
+                    from app.api.v1.endpoints.notificaciones_ws import manager
+                    await manager.send_personal_message(
+                        {
+                            "type": "PAGO_REQUERIDO",
+                            "pago_id": pago.id,
+                            "solicitud_id": solicitud_id,
+                            "monto_total": monto_total,
+                            "comision": comision,
+                            "monto_taller": monto_taller,
+                            "mensaje": f"El servicio ha finalizado. Monto total: Bs. {monto_total:.2f}",
+                        },
+                        str(cliente_id)
+                    )
+            except Exception as e:
+                logger.error(f"[Pago] Error WS PAGO_REQUERIDO: {e}")
 
         await self.session.commit()
 

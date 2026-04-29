@@ -186,6 +186,32 @@ async def listar_solicitudes_en_proceso_sucursal(
     return solicitudes
 
 
+@router.get(
+    "/{sucursal_id}/solicitudes/atendidas",
+    response_model=list[SolicitudDetallada],
+    summary="Listar solicitudes atendidas o finalizadas para una sucursal",
+    description="Retorna las solicitudes en estado ATENDIDO.",
+)
+async def listar_solicitudes_atendidas_sucursal(
+    sucursal_id: int,
+    current_user: Usuario = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Solicitudes finalizadas (ATENDIDO) para el panel de despacho."""
+    admin_id = await obtener_admin_id(current_user, db)
+
+    from app.repositories.taller_repository import TallerRepository
+    taller_repo = TallerRepository(db)
+    sucursales_propias = await taller_repo.get_sucursal_ids_by_admin(admin_id)
+    if sucursal_id not in sucursales_propias:
+        raise HTTPException(status_code=403, detail="Esta sucursal no te pertenece")
+
+    service = SolicitudService(db)
+    from app.models.solicitud_emergencia import EstadoSolicitud
+    solicitudes = await service.listar_por_estado(EstadoSolicitud.ATENDIDO)
+    return solicitudes
+
+
 from pydantic import BaseModel, Field
 
 class ResenaCreate(BaseModel):

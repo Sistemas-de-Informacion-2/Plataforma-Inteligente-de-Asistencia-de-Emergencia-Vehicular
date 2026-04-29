@@ -26,6 +26,7 @@ class CrearPagoRequest(BaseModel):
     """Admin crea un pago después de atender el servicio."""
     solicitud_id: int
     monto_total: float = Field(..., gt=0, description="Monto total del servicio en Bs.")
+    metodo_pago: str = Field(default="APP", description="APP, EFECTIVO, QR")
 
 
 class PagoResponse(BaseModel):
@@ -75,6 +76,7 @@ async def crear_pago(
             solicitud_id=payload.solicitud_id,
             monto_total=payload.monto_total,
             admin_id=admin.id,
+            metodo_pago=payload.metodo_pago,
         )
         return PagoResponse(**resultado)
     except ValueError as e:

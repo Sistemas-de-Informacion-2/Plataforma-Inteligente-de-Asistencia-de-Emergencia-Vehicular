@@ -73,16 +73,15 @@ async def crear_incidente_multipart(
         )
 
         evidencias_in: List[EvidenciaCreate] = []
-        ruta_fisica_img = None
+        rutas_fisicas_imgs: List[str] = []
         ruta_fisica_audio = None
 
-        # ── 2. Procesar imágenes ──────────────────────────────
-        for i, img_file in enumerate(imagenes):
+        # ── 2. Procesar imágenes (TODAS van a Gemini) ─────────
+        for img_file in imagenes:
             if img_file.filename:
                 r_rel, r_fis = await storage.upload_file_with_path(img_file, "evidencias")
                 evidencias_in.append(EvidenciaCreate(tipo=TipoEvidencia.IMAGEN, url=r_rel))
-                if i == 0:  # Solo la primera foto a Gemini para ahorrar tokens
-                    ruta_fisica_img = r_fis
+                rutas_fisicas_imgs.append(r_fis)
 
         # ── 3. Procesar audio ─────────────────────────────────
         if audio and audio.filename:
@@ -94,7 +93,7 @@ async def crear_incidente_multipart(
         diagnostico_ia = asistente_ia.procesar_sos(
             descripcion=descripcion,
             ruta_audio=ruta_fisica_audio,
-            ruta_imagen=ruta_fisica_img
+            rutas_imagenes=rutas_fisicas_imgs or None,
         )
 
         # ── 5. Lógica de confianza → estado inicial ──────────
@@ -138,6 +137,8 @@ async def crear_incidente_multipart(
                 taller_nombre=c["taller_nombre"],
                 distancia_km=c["distancia_km"],
                 tiene_servicio=c["tiene_servicio"],
+                rating=c.get("rating", 0.0),
+                rating_count=c.get("rating_count", 0),
                 tecnicos_disponibles=len(c.get("tecnicos_disponibles", [])),
                 score=c["score"],
                 eta_minutos=max(5, round(c["distancia_km"] * 3)),

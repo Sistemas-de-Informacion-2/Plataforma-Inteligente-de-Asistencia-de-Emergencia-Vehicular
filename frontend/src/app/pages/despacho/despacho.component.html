@@ -178,11 +178,19 @@
                                 placeholder="Ej. 150"
                                 class="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm p-2 border">
                               <p class="text-xs text-gray-500">La plataforma retendrá el 10% (Bs. {{ ((solicitud.montoCobro ?? 0) * 0.1) | number:'1.2-2' }})</p>
+                              <label class="block text-sm font-medium text-gray-700 mt-2">Método de Cobro</label>
+                              <select 
+                                [(ngModel)]="solicitud.metodoPago"
+                                class="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm p-2 border">
+                                <option value="APP">Enviar cobro al Cliente (App)</option>
+                                <option value="EFECTIVO">Cobro Directo: Efectivo</option>
+                                <option value="QR">Cobro Directo: QR</option>
+                              </select>
                               
                               <button
                                 (click)="cobrarServicio(solicitud)"
-                                class="w-full bg-green-600 text-white py-2 px-4 rounded-md text-sm font-medium hover:bg-green-700 transition-colors mt-2">
-                                Enviar cobro al cliente
+                                class="w-full bg-green-600 text-white py-2 px-4 rounded-md text-sm font-medium hover:bg-green-700 transition-colors mt-3">
+                                {{ solicitud.metodoPago === 'APP' ? 'Enviar cobro al cliente' : 'Registrar cobro y finalizar' }}
                               </button>
                             </div>
                           }
@@ -194,5 +202,40 @@
             }
           </div>
         }
+      }
+      
+      <!-- Sección de Emergencias Finalizadas / Atendidas -->
+      @if (solicitudesFinalizadas().length > 0) {
+        <div class="mt-12">
+          <div class="flex items-center gap-2 mb-6 border-b pb-2">
+            <i class='bx bx-history text-2xl text-gray-500'></i>
+            <h2 class="text-xl font-bold text-gray-800">Emergencias Atendidas</h2>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 opacity-75">
+            @for (solicitud of solicitudesFinalizadas(); track solicitud.id) {
+              <div class="bg-gray-50 rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                <div class="p-5">
+                  <div class="flex justify-between items-start mb-4">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-800">
+                      Finalizada
+                    </span>
+                    <span class="text-xs text-gray-500">Solicitud #{{ solicitud.id }}</span>
+                  </div>
+                  @if (solicitud.descripcion) {
+                    <p class="text-sm text-gray-600 mb-3 line-clamp-2">{{ solicitud.descripcion }}</p>
+                  }
+                  @if (solicitud.vehiculo) {
+                    <p class="text-xs text-gray-500 font-medium mb-3">
+                      {{ solicitud.vehiculo.marca }} {{ solicitud.vehiculo.modelo }} - {{ solicitud.vehiculo.placa }}
+                    </p>
+                  }
+                  <div class="pt-3 border-t border-gray-200">
+                    <p class="text-xs text-green-700 font-medium"><i class='bx bx-check-circle'></i> Servicio completado</p>
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
       }
 </div>
