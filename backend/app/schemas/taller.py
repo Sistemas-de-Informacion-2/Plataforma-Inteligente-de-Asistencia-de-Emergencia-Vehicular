@@ -3,6 +3,7 @@
 Schemas Pydantic: Taller y Sucursal.
 """
 from pydantic import BaseModel, ConfigDict, Field
+from typing import Optional
 
 #  SUCURSAL
 class SucursalBase(BaseModel):
@@ -57,3 +58,12 @@ class TallerConSucursales(TallerOut):
     model_config = ConfigDict(from_attributes=True)
 
     sucursales: list[SucursalOut] = []
+
+
+# ── Gestión de solicitudes (Fase 3: Uber para Mecánicos Inverso) ──
+class RespuestaTaller(BaseModel):
+    """Respuesta de un taller a una solicitud de emergencia.
+    Si aceptar=True y empleado_id=None, se asume que el Admin atenderá personalmente."""
+    aceptar: bool
+    empleado_id: Optional[int] = None
+

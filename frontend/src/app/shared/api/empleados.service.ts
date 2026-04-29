@@ -1,6 +1,9 @@
+// src/app/shared/api/empleados.service.ts
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
+import { environment } from '../../../environments/environment';
 
 export interface UsuarioBaseInfo {
   nombre: string;
@@ -28,7 +31,7 @@ export interface Empleado {
 export interface EmpleadoCreateFull {
   nombre: string;
   email: string;
-  password?: string; // Necesario para crear, no se devuelve
+  password?: string;
   ci: string;
   telefono?: string;
   especialidad?: string;
@@ -42,10 +45,16 @@ export interface EmpleadoCreateFull {
 })
 export class EmpleadosService {
   private http = inject(HttpClient);
-  private apiUrl = 'http://localhost:8000/api/v1/empleados';
+  private apiUrl = `${environment.apiUrl}/empleados`;
 
   listarEmpleados(): Observable<Empleado[]> {
     return this.http.get<Empleado[]>(this.apiUrl);
+  }
+
+  getDisponiblesPorSucursal(sucursalId: number): Observable<Empleado[]> {
+    return this.listarEmpleados().pipe(
+      map(empleados => empleados.filter(e => e.sucursal_id === sucursalId && e.disponible))
+    );
   }
 
   crearEmpleado(payload: EmpleadoCreateFull): Observable<Empleado> {

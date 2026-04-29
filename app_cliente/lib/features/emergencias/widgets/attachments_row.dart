@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:app_cliente/core/theme/app_theme.dart';
+import 'package:fixo/core/theme/app_theme.dart';
 
 class AttachmentsRow extends StatelessWidget {
   final List<File> imagenes;
@@ -22,50 +22,96 @@ class AttachmentsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 76,
+    return Container(
+      height: 80,
+      margin: const EdgeInsets.only(bottom: 8),
       child: ListView(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.only(bottom: 8),
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 4),
         children: [
+          // ── Cápsula de Audio Premium ───────────────────────
           if (audio != null)
             Padding(
-              padding: const EdgeInsets.only(right: 8.0, top: 6),
+              padding: const EdgeInsets.only(right: 12, top: 4, bottom: 4),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 14),
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: AppTheme.primaryColor.withOpacity(0.25), width: 1),
+                  gradient: LinearGradient(
+                    colors: [
+                      AppTheme.primaryColor.withValues(alpha: 0.15),
+                      AppTheme.primaryColor.withValues(alpha: 0.05),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: AppTheme.primaryColor.withValues(alpha: 0.2),
+                    width: 1.5,
+                  ),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    IconButton(
-                      icon: Icon(isPlayingAudio ? Icons.stop : Icons.play_arrow, size: 20, color: AppTheme.primaryColor),
-                      onPressed: onToggleAudio,
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
+                    GestureDetector(
+                      onTap: onToggleAudio,
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: const BoxDecoration(
+                          color: AppTheme.primaryColor,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          isPlayingAudio ? Icons.stop_rounded : Icons.play_arrow_rounded,
+                          size: 18,
+                          color: Colors.white,
+                        ),
+                      ),
                     ),
-                    const SizedBox(width: 8),
-                    const Text(
-                      'Audio adjunto',
-                      style: TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.w600, fontSize: 13),
+                    const SizedBox(width: 10),
+                    const Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Nota de voz',
+                          style: TextStyle(
+                            color: AppTheme.textPrimary,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                        Text(
+                          'Audio grabado',
+                          style: TextStyle(
+                            color: AppTheme.textSecondary,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    IconButton(
-                      icon: const Icon(Icons.close, size: 16, color: AppTheme.danger),
-                      onPressed: onRemoveAudio,
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
+                    const SizedBox(width: 12),
+                    GestureDetector(
+                      onTap: onRemoveAudio,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: AppTheme.danger.withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.close_rounded, size: 14, color: AppTheme.danger),
+                      ),
                     ),
                   ],
                 ),
               ),
             ),
+
+          // ── Lista de Imágenes con Animación ────────────────
           ...List.generate(imagenes.length, (i) {
             return ImageThumb(
+              key: ValueKey(imagenes[i].path),
               file: imagenes[i],
+              index: i,
               onRemove: () => onRemoveImage(i),
             );
           }),
@@ -75,10 +121,49 @@ class AttachmentsRow extends StatelessWidget {
   }
 }
 
-class ImageThumb extends StatelessWidget {
+class ImageThumb extends StatefulWidget {
   final File file;
+  final int index;
   final VoidCallback onRemove;
-  const ImageThumb({super.key, required this.file, required this.onRemove});
+  
+  const ImageThumb({
+    super.key, 
+    required this.file, 
+    required this.onRemove,
+    required this.index,
+  });
+
+  @override
+  State<ImageThumb> createState() => _ImageThumbState();
+}
+
+class _ImageThumbState extends State<ImageThumb> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+    _scaleAnimation = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.elasticOut,
+    );
+    
+    // Retraso pequeño basado en el índice para efecto staggered
+    Future.delayed(Duration(milliseconds: widget.index * 100), () {
+      if (mounted) _controller.forward();
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   void _showFullScreenImage(BuildContext context) {
     showDialog(
@@ -94,7 +179,7 @@ class ImageThumb extends StatelessWidget {
               minScale: 1,
               maxScale: 4,
               child: Center(
-                child: Image.file(file, fit: BoxFit.contain),
+                child: Image.file(widget.file, fit: BoxFit.contain),
               ),
             ),
             Positioned(
@@ -113,36 +198,59 @@ class ImageThumb extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        GestureDetector(
-          onTap: () => _showFullScreenImage(context),
-          child: Container(
-            margin: const EdgeInsets.only(right: 8, top: 6),
-            width: 62,
-            height: 62,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
-              image: DecorationImage(image: FileImage(file), fit: BoxFit.cover),
-              boxShadow: AppTheme.cardShadow,
-            ),
-          ),
-        ),
-        Positioned(
-          right: 0,
-          top: 0,
-          child: GestureDetector(
-            onTap: onRemove,
+    return ScaleTransition(
+      scale: _scaleAnimation,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          GestureDetector(
+            onTap: () => _showFullScreenImage(context),
             child: Container(
-              padding: const EdgeInsets.all(3),
-              decoration: const BoxDecoration(
-                  color: AppTheme.danger, shape: BoxShape.circle),
-              child: const Icon(Icons.close, size: 12, color: Colors.white),
+              margin: const EdgeInsets.only(right: 12, top: 6, bottom: 6),
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.white, width: 2),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.12),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: Image.file(
+                  widget.file,
+                  fit: BoxFit.cover,
+                ),
+              ),
             ),
           ),
-        ),
-      ],
+          Positioned(
+            right: 4,
+            top: 0,
+            child: GestureDetector(
+              onTap: widget.onRemove,
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: const BoxDecoration(
+                  color: AppTheme.danger,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2)),
+                  ],
+                ),
+                child: const Icon(Icons.close_rounded, size: 12, color: Colors.white),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
+

@@ -1,9 +1,10 @@
+// src/app/shared/api/super-admin.service.ts
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { environment } from '../../../environments/environment';
 
-// ── Interfaces (alineadas con los schemas del backend) ──────
-
+// Interfaces (alineadas con los schemas del backend)
 export interface Servicio {
   id: number;
   nombre: string;
@@ -35,17 +36,15 @@ export interface UsuarioOut {
   perfil: UsuarioPerfilOut | null;
 }
 
-// ── Servicio HTTP ───────────────────────────────────────────
-
+// Servicio HTTP 
 @Injectable({
   providedIn: 'root'
 })
 export class SuperAdminService {
   private http = inject(HttpClient);
-  private readonly API = 'http://localhost:8000/api/v1/admin';
+  private readonly API = `${environment.apiUrl}/admin`;
 
-  // ── Servicios (Catálogo Maestro) ──────────────────────────
-
+  // Servicios (Catálogo Maestro) 
   getServicios(): Observable<Servicio[]> {
     return this.http.get<Servicio[]>(`${this.API}/servicios/`);
   }
@@ -66,8 +65,7 @@ export class SuperAdminService {
     return this.http.delete<void>(`${this.API}/servicios/${id}`);
   }
 
-  // ── Usuarios (Listado / Baneo) ────────────────────────────
-
+  // Usuarios (Listado / Baneo) 
   getUsuarios(skip = 0, limit = 100): Observable<UsuarioOut[]> {
     return this.http.get<UsuarioOut[]>(`${this.API}/usuarios/`, {
       params: { skip: skip.toString(), limit: limit.toString() }

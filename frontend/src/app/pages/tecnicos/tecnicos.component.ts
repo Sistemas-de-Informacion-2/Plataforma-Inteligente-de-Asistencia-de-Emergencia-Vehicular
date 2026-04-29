@@ -1,3 +1,4 @@
+// src/app/pages/tecnicos/tecnicos.component.ts
 import { Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -8,7 +9,8 @@ import { SucursalesService, Sucursal } from '../../shared/api/sucursales.service
   selector: 'app-tecnicos',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule],
-  templateUrl: './tecnicos.component.html'
+  templateUrl: './tecnicos.component.html',
+  styleUrls: ['./tecnicos.component.css']
 })
 export class TecnicosComponent implements OnInit {
   private empleadosService = inject(EmpleadosService);
@@ -25,6 +27,7 @@ export class TecnicosComponent implements OnInit {
   selectedEmpleadoId = signal<number | null>(null);
 
   isSubmitting = signal(false);
+  showPassword = signal(false);
   
   // Toast notifications
   showToast = signal(false);

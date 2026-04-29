@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:app_cliente/features/auth/providers/auth_provider.dart';
-import 'package:app_cliente/features/auth/screens/login_screen.dart';
-import 'package:app_cliente/features/home/screens/home_screen.dart';
+
+import 'package:fixo/features/auth/providers/auth_provider.dart';
+import 'package:fixo/features/auth/screens/login_screen.dart';
+import 'package:fixo/features/home/screens/home_screen.dart';
+
+// Widgets de splash
+import 'package:fixo/features/auth/widgets/splash/splash_background.dart';
+import 'package:fixo/features/auth/widgets/splash/splash_content.dart';
+import 'package:fixo/features/auth/widgets/splash/splash_footer.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -11,15 +17,66 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> {
+class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
+  bool _minTimeElapsed = false;
+  late AnimationController _fadeController;
+  late Animation<double> _fadeAnimation;
+
   @override
   void initState() {
     super.initState();
-    // Añadimos un pequeño delay para que se vea el logo/splash (es la versión temporal)
-    Future.delayed(const Duration(seconds: 2), () {
+    
+    _fadeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    );
+    
+    _fadeAnimation = CurvedAnimation(
+      parent: _fadeController,
+      curve: Curves.easeIn,
+    );
+
+    _fadeController.forward();
+
+    // Tiempo mínimo de 5 segundos para apreciar el diseño
+    Future.delayed(const Duration(seconds: 5), () {
       if (mounted) {
-        context.read<AuthProvider>().checkAuthStatus();
+        setState(() {
+          _minTimeElapsed = true;
+        });
+        
+        final authProvider = context.read<AuthProvider>();
+        authProvider.checkAuthStatus();
+
+        // Si ya sabemos el estado, navegamos inmediatamente después de los 5s
+        if (authProvider.authStatus == AuthStatus.authenticated) {
+          _navigateTo(const HomeScreen());
+        } else if (authProvider.authStatus == AuthStatus.unauthenticated) {
+          _navigateTo(const LoginScreen());
+        }
       }
+    });
+  }
+
+  @override
+  void dispose() {
+    _fadeController.dispose();
+    super.dispose();
+  }
+
+  void _navigateTo(Widget screen) {
+    if (!_minTimeElapsed) return; // No navegar hasta que pasen los 5 segundos
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Navigator.of(context).pushReplacement(
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) => screen,
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+          transitionDuration: const Duration(milliseconds: 800),
+        ),
+      );
     });
   }
 
@@ -28,36 +85,33 @@ class _SplashScreenState extends State<SplashScreen> {
     return Scaffold(
       body: Consumer<AuthProvider>(
         builder: (context, authProvider, _) {
-          // Escuchamos el estado, si cambia a authenticated vamos as Home
+          // Lógica de navegación
           if (authProvider.authStatus == AuthStatus.authenticated) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              Navigator.of(context).pushReplacement(
-                MaterialPageRoute(builder: (_) => const HomeScreen()),
-              );
-            });
+            _navigateTo(const HomeScreen());
           } else if (authProvider.authStatus == AuthStatus.unauthenticated) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              Navigator.of(context).pushReplacement(
-                MaterialPageRoute(builder: (_) => const LoginScreen()),
-              );
-            });
+            _navigateTo(const LoginScreen());
           }
           
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+          return SplashBackground(
+            child: Stack(
               children: [
-                Icon(
-                  Icons.car_crash,
-                  size: 100,
-                  color: Theme.of(context).primaryColor,
+                // Contenido central animado
+                Center(
+                  child: FadeTransition(
+                    opacity: _fadeAnimation,
+                    child: const SplashContent(),
+                  ),
                 ),
-                const SizedBox(height: 24),
-                const CircularProgressIndicator(),
-                const SizedBox(height: 16),
-                Text(
-                  'Cargando...',
-                  style: Theme.of(context).textTheme.bodyLarge,
+                
+                // Footer pegado abajo animado
+                Positioned(
+                  bottom: 50,
+                  left: 0,
+                  right: 0,
+                  child: FadeTransition(
+                    opacity: _fadeAnimation,
+                    child: const SplashFooter(),
+                  ),
                 ),
               ],
             ),

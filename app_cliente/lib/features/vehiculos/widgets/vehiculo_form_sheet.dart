@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:app_cliente/core/theme/app_theme.dart';
-import 'package:app_cliente/features/vehiculos/providers/vehiculo_provider.dart';
-import 'package:app_cliente/features/vehiculos/models/vehiculo.dart';
+import 'package:fixo/core/theme/app_theme.dart';
+import 'package:fixo/features/vehiculos/providers/vehiculo_provider.dart';
+import 'package:fixo/features/vehiculos/models/vehiculo.dart';
 
 class VehiculoFormSheet extends StatefulWidget {
   final Vehiculo? vehiculo;
@@ -52,7 +53,7 @@ class _VehiculoFormSheetState extends State<VehiculoFormSheet> {
             widget.vehiculo!.id,
             marca:  _marcaController.text.trim(),
             modelo: _modeloController.text.trim(),
-            anio:   int.parse(_anioController.text.trim()),
+            anio:   int.tryParse(_anioController.text.trim()) ?? 0,
             placa:  _placaController.text.trim().toUpperCase(),
           )
         : await provider.addVehiculo(
@@ -67,17 +68,31 @@ class _VehiculoFormSheetState extends State<VehiculoFormSheet> {
     if (mounted) {
       if (success) {
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(_isEditing
-              ? 'Vehículo actualizado exitosamente'
-              : 'Vehículo agregado exitosamente'),
-          backgroundColor: AppTheme.success,
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle_outline, color: Colors.white),
+                const SizedBox(width: 12),
+                Text(_isEditing
+                    ? 'Vehículo actualizado correctamente'
+                    : 'Vehículo guardado en tu garaje'),
+              ],
+            ),
+            backgroundColor: AppTheme.success,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(provider.errorMessage),
-          backgroundColor: AppTheme.danger,
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(provider.errorMessage),
+            backgroundColor: AppTheme.danger,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
       }
     }
   }
@@ -89,134 +104,165 @@ class _VehiculoFormSheetState extends State<VehiculoFormSheet> {
     return Container(
       decoration: const BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+        boxShadow: [
+          BoxShadow(color: Colors.black12, blurRadius: 20, offset: Offset(0, -5))
+        ],
       ),
-      padding: EdgeInsets.fromLTRB(24, 16, 24, bottomPadding + 24),
+      padding: EdgeInsets.fromLTRB(24, 12, 24, bottomPadding + 32),
       child: Form(
         key: _formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Handle
-            Center(
-              child: Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade200,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // Título
-            Text(
-              _isEditing ? 'Editar Vehículo' : 'Añadir Vehículo',
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-                color: AppTheme.textPrimary,
-                letterSpacing: -0.3,
-              ),
-            ),
-            Text(
-              _isEditing
-                  ? 'Actualiza los datos de tu vehículo'
-                  : 'Registra un nuevo vehículo para emergencias',
-              style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
-            ),
-
-            const SizedBox(height: 24),
-
-            // Marca
-            _FormField(
-              controller: _marcaController,
-              label: 'Marca',
-              hint: 'Ej. Toyota',
-              icon: Icons.branding_watermark_rounded,
-              validator: (v) =>
-                  v == null || v.isEmpty ? 'Campo requerido' : null,
-            ),
-            const SizedBox(height: 14),
-
-            // Modelo
-            _FormField(
-              controller: _modeloController,
-              label: 'Modelo',
-              hint: 'Ej. Corolla',
-              icon: Icons.directions_car_outlined,
-              validator: (v) =>
-                  v == null || v.isEmpty ? 'Campo requerido' : null,
-            ),
-            const SizedBox(height: 14),
-
-            // Año y Placa
-            Row(
-              children: [
-                Expanded(
-                  child: _FormField(
-                    controller: _anioController,
-                    label: 'Año',
-                    hint: '2020',
-                    icon: Icons.calendar_today_rounded,
-                    keyboardType: TextInputType.number,
-                    validator: (v) {
-                      if (v == null || v.isEmpty) return 'Requerido';
-                      final n = int.tryParse(v);
-                      if (n == null || n < 1900 || n > 2100) return 'Inválido';
-                      return null;
-                    },
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Handle Premium
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(10),
                   ),
                 ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: _FormField(
-                    controller: _placaController,
-                    label: 'Placa',
-                    hint: 'ABC-123',
-                    icon: Icons.confirmation_number_outlined,
-                    textCapitalization: TextCapitalization.characters,
-                    validator: (v) =>
-                        v == null || v.isEmpty ? 'Requerido' : null,
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 28),
-
-            // Botón guardar
-            _isLoading
-                ? const Center(
-                    child: CircularProgressIndicator(
-                        color: AppTheme.primaryColor))
-                : FilledButton(
-                    onPressed: _submit,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: AppTheme.primaryColor,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14)),
+              ),
+              const SizedBox(height: 24),
+    
+              // Título con Icono
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Text(
-                      _isEditing ? 'ACTUALIZAR' : 'GUARDAR VEHÍCULO',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 15,
-                        letterSpacing: 0.5,
+                    child: Icon(
+                      _isEditing ? Icons.edit_note_rounded : Icons.add_road_rounded,
+                      color: AppTheme.primaryColor,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _isEditing ? 'Editar Vehículo' : 'Nuevo Vehículo',
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.textPrimary,
+                          ),
+                        ),
+                        Text(
+                          _isEditing ? 'Modifica los detalles de tu auto' : 'Ingresa los datos para el registro',
+                          style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+    
+              const SizedBox(height: 32),
+    
+              // Marca
+              _FormField(
+                controller: _marcaController,
+                label: 'Marca del Vehículo',
+                hint: 'Ej. Toyota, Nissan...',
+                icon: Icons.branding_watermark_outlined,
+                validator: (v) => v == null || v.isEmpty ? 'La marca es obligatoria' : null,
+              ),
+              const SizedBox(height: 16),
+    
+              // Modelo
+              _FormField(
+                controller: _modeloController,
+                label: 'Modelo',
+                hint: 'Ej. Corolla, Sentra...',
+                icon: Icons.directions_car_filled_outlined,
+                validator: (v) => v == null || v.isEmpty ? 'El modelo es obligatorio' : null,
+              ),
+              const SizedBox(height: 16),
+    
+              // Año y Placa en fila
+              Row(
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: _FormField(
+                      controller: _anioController,
+                      label: 'Año',
+                      hint: '2024',
+                      icon: Icons.calendar_month_outlined,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        LengthLimitingTextInputFormatter(4),
+                      ],
+                      validator: (v) {
+                        if (v == null || v.isEmpty) return 'Requerido';
+                        final n = int.tryParse(v);
+                        if (n == null || n < 1950 || n > 2026) return 'Año inválido';
+                        return null;
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    flex: 3,
+                    child: _FormField(
+                      controller: _placaController,
+                      label: 'Placa / Matrícula',
+                      hint: 'ABC-123',
+                      icon: Icons.pin_outlined,
+                      textCapitalization: TextCapitalization.characters,
+                      inputFormatters: [
+                        LengthLimitingTextInputFormatter(10),
+                      ],
+                      validator: (v) => v == null || v.isEmpty ? 'La placa es necesaria' : null,
+                    ),
+                  ),
+                ],
+              ),
+    
+              const SizedBox(height: 40),
+    
+              // Botón Guardar con estilo premium
+              SizedBox(
+                height: 56,
+                child: _isLoading
+                    ? const Center(child: CircularProgressIndicator(color: AppTheme.primaryColor))
+                    : ElevatedButton(
+                        onPressed: _submit,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primaryColor,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          elevation: 0,
+                        ),
+                        child: Text(
+                          _isEditing ? 'ACTUALIZAR DATOS' : 'REGISTRAR VEHÍCULO',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                            letterSpacing: 1.1,
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-          ],
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-/// Campo de texto estilizado para el formulario
 class _FormField extends StatelessWidget {
   final TextEditingController controller;
   final String label;
@@ -224,6 +270,7 @@ class _FormField extends StatelessWidget {
   final IconData icon;
   final TextInputType keyboardType;
   final TextCapitalization textCapitalization;
+  final List<TextInputFormatter>? inputFormatters;
   final String? Function(String?) validator;
 
   const _FormField({
@@ -234,6 +281,7 @@ class _FormField extends StatelessWidget {
     required this.validator,
     this.keyboardType = TextInputType.text,
     this.textCapitalization = TextCapitalization.none,
+    this.inputFormatters,
   });
 
   @override
@@ -243,37 +291,27 @@ class _FormField extends StatelessWidget {
       keyboardType: keyboardType,
       textCapitalization: textCapitalization,
       validator: validator,
-      style: const TextStyle(
-        fontSize: 15,
-        fontWeight: FontWeight.w500,
-        color: AppTheme.textPrimary,
-      ),
+      inputFormatters: inputFormatters,
+      style: const TextStyle(fontWeight: FontWeight.w600, color: AppTheme.textPrimary),
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
-        prefixIcon: Icon(icon, size: 20, color: AppTheme.textSecondary),
+        prefixIcon: Icon(icon, size: 22),
         filled: true,
-        fillColor: AppTheme.muted,
+        fillColor: Colors.grey.shade50,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide.none,
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: Colors.grey.shade200),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide.none,
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: Colors.grey.shade200),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(16),
           borderSide: const BorderSide(color: AppTheme.primaryColor, width: 1.5),
         ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: AppTheme.danger),
-        ),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        labelStyle:
-            const TextStyle(color: AppTheme.textSecondary, fontSize: 13),
       ),
     );
   }

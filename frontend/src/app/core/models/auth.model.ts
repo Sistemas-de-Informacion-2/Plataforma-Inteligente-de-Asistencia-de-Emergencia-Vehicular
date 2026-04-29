@@ -1,3 +1,4 @@
+ // src/app/core/models/auth.model.ts
 export type Role = 'ADMINISTRADOR' | 'PERSONAL' | 'CLIENTE';
 
 export interface User {

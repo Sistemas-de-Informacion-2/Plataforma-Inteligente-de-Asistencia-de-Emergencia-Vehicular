@@ -1,3 +1,4 @@
+// src/app/core/services/theme.service.ts
 import { Injectable, Inject } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
 import { BehaviorSubject, Observable } from 'rxjs';
@@ -22,9 +23,7 @@ export class ThemeService {
     this.initTheme();
   }
 
-  /**
-   * Método preparado para cargar configuración inicial (ej. desde localStorage o JSON remoto)
-   */
+  // Método preparado para cargar configuración inicial (ej. desde localStorage o JSON remoto)
   public initTheme(): void {
     // Aquí se leería el JSON o localStorage a futuro
     const defaultPrefs: ThemePreferences = { theme: 'light', fontSize: 'md' };

@@ -1,14 +1,37 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:app_cliente/core/theme/app_theme.dart';
-import 'package:app_cliente/features/auth/providers/auth_provider.dart';
-import 'package:app_cliente/features/auth/screens/login_screen.dart';
-import 'package:app_cliente/features/vehiculos/screens/garaje_screen.dart';
-import 'package:app_cliente/features/perfil/screens/perfil_screen.dart';
-import 'package:app_cliente/features/perfil/providers/perfil_provider.dart';
+import 'package:fixo/core/theme/app_theme.dart';
+import 'package:fixo/features/auth/providers/auth_provider.dart';
+import 'package:fixo/features/perfil/providers/perfil_provider.dart';
+import 'package:fixo/features/perfil/screens/perfil_screen.dart';
+import 'package:fixo/features/vehiculos/screens/garaje_screen.dart';
+import 'package:fixo/features/auth/screens/login_screen.dart';
 
-class HomeDrawer extends StatelessWidget {
+class HomeDrawer extends StatefulWidget {
   const HomeDrawer({super.key});
+
+  @override
+  State<HomeDrawer> createState() => _HomeDrawerState();
+}
+
+class _HomeDrawerState extends State<HomeDrawer> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -18,103 +41,128 @@ class HomeDrawer extends StatelessWidget {
 
     return Drawer(
       backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.horizontal(right: Radius.circular(32)),
+      ),
       child: Column(
         children: [
-          // ── Header premium ──────────────────────────────────
+          // ── Header Premium con Gradiente ────────────────────
           Container(
             width: double.infinity,
-            padding: EdgeInsets.only(
-              top: mq.padding.top + 20,
-              left: 24,
-              right: 24,
-              bottom: 24,
-            ),
-            decoration: const BoxDecoration(
+            padding: EdgeInsets.fromLTRB(24, mq.padding.top + 20, 24, 30),
+            decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [AppTheme.primaryColor, Color(0xFF0047CC)],
+                colors: [AppTheme.primaryColor, AppTheme.primaryColor.withAlpha(220)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
+              borderRadius: const BorderRadius.only(bottomRight: Radius.circular(40)),
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.primaryColor.withOpacity(0.3),
+                  blurRadius: 15,
+                  offset: const Offset(0, 8),
+                ),
+              ],
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
               children: [
-                // Avatar
+                // Avatar con Borde Elegante
                 Container(
-                  width: 64,
-                  height: 64,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                        color: Colors.white.withOpacity(0.5), width: 2),
-                    image: perfil?.fotoPerfil != null
-                        ? DecorationImage(
-                            image: NetworkImage(perfil!.fotoPerfil!),
-                            fit: BoxFit.cover,
-                          )
+                  padding: const EdgeInsets.all(3),
+                  decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                  child: CircleAvatar(
+                    radius: 34,
+                    backgroundColor: Colors.grey.shade100,
+                    backgroundImage: perfil?.fotoPerfil != null ? NetworkImage(perfil!.fotoPerfil!) : null,
+                    child: perfil?.fotoPerfil == null
+                        ? const Icon(Icons.person_rounded, size: 38, color: AppTheme.primaryColor)
                         : null,
-                    color: Colors.white.withOpacity(0.2),
-                  ),
-                  child: perfil?.fotoPerfil == null
-                      ? const Icon(Icons.person_rounded,
-                          size: 36, color: Colors.white)
-                      : null,
-                ),
-                const SizedBox(height: 14),
-                Text(
-                  perfil?.nombre ?? 'Cargando…',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.3,
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  perfil?.email ?? 'CLIENTE',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.75),
-                    fontSize: 13,
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        perfil?.nombre ?? 'Cargando...',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white, 
+                          fontSize: 19, 
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          perfil?.email ?? 'Cliente Verificado',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w500),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
           ),
 
-          // ── Menu items ──────────────────────────────────────
+          // ── Menú Items con Animación Staggered ───────────────
           Expanded(
             child: ListView(
-              padding: const EdgeInsets.symmetric(vertical: 8),
+              padding: const EdgeInsets.fromLTRB(16, 24, 16, 24),
               children: [
-                _DrawerTile(
+                _AnimatedTile(
+                  index: 0,
+                  controller: _controller,
                   icon: Icons.person_outline_rounded,
                   label: 'Mi Perfil',
                   onTap: () {
                     Navigator.pop(context);
-                    Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => const PerfilScreen()));
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const PerfilScreen()));
                   },
                 ),
-                _DrawerTile(
+                _AnimatedTile(
+                  index: 1,
+                  controller: _controller,
                   icon: Icons.directions_car_outlined,
                   label: 'Mis Autos',
                   onTap: () {
                     Navigator.pop(context);
-                    Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => const GarajeScreen()));
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const GarajeScreen()));
                   },
                 ),
-                _DrawerTile(
+                _AnimatedTile(
+                  index: 2,
+                  controller: _controller,
                   icon: Icons.history_rounded,
                   label: 'Historial de Servicios',
                   onTap: () => Navigator.pop(context),
                 ),
-                _DrawerTile(
+                _AnimatedTile(
+                  index: 3,
+                  controller: _controller,
+                  icon: Icons.notifications_none_rounded,
+                  label: 'Notificaciones',
+                  onTap: () => Navigator.pop(context),
+                ),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  child: Divider(height: 1, color: Color(0xFFF2F2F7)),
+                ),
+                _AnimatedTile(
+                  index: 4,
+                  controller: _controller,
                   icon: Icons.settings_outlined,
                   label: 'Configuración',
                   onTap: () => Navigator.pop(context),
@@ -123,29 +171,92 @@ class HomeDrawer extends StatelessWidget {
             ),
           ),
 
-          // ── Footer ──────────────────────────────────────────
-          const Divider(height: 1),
-          _DrawerTile(
-            icon: Icons.logout_rounded,
-            label: 'Cerrar Sesión',
-            destructive: true,
-            onTap: () async {
-              Navigator.pop(context);
-              await context.read<AuthProvider>().logout();
-              if (context.mounted) {
-                Navigator.of(context).pushReplacement(
-                    MaterialPageRoute(builder: (_) => const LoginScreen()));
-              }
-            },
+          // ── Logo Fixo Footer ────────────────────────────────
+          Opacity(
+            opacity: 0.4,
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.bolt_rounded, color: AppTheme.primaryColor, size: 18),
+                  const SizedBox(width: 4),
+                  Text(
+                    'FIXO v1.0.2',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.2,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
-          SizedBox(height: mq.padding.bottom + 8),
+
+          // ── Botón Cerrar Sesión ──────────────────────────────
+          Padding(
+            padding: EdgeInsets.fromLTRB(24, 0, 24, mq.padding.bottom + 20),
+            child: _DrawerTile(
+              icon: Icons.logout_rounded,
+              label: 'Cerrar Sesión',
+              destructive: true,
+              onTap: () async {
+                Navigator.pop(context);
+                await context.read<AuthProvider>().logout();
+                if (context.mounted) {
+                  Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const LoginScreen()));
+                }
+              },
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-/// Tile reutilizable del Drawer
+class _AnimatedTile extends StatelessWidget {
+  final int index;
+  final AnimationController controller;
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _AnimatedTile({
+    required this.index,
+    required this.controller,
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final start = 0.1 * index;
+    final end = start + 0.5;
+    
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, child) {
+        final animation = CurvedAnimation(
+          parent: controller,
+          curve: Interval(start.clamp(0.0, 1.0), end.clamp(0.0, 1.0), curve: Curves.easeOutCubic),
+        );
+        return Transform.translate(
+          offset: Offset(30 * (1 - animation.value), 0),
+          child: Opacity(
+            opacity: animation.value,
+            child: child,
+          ),
+        );
+      },
+      child: _DrawerTile(icon: icon, label: label, onTap: onTap),
+    );
+  }
+}
+
 class _DrawerTile extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -162,36 +273,35 @@ class _DrawerTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = destructive ? AppTheme.danger : AppTheme.textPrimary;
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        child: ListTile(
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12)),
-          leading: Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: (destructive ? AppTheme.danger : AppTheme.primaryColor)
-                  .withOpacity(0.08),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, size: 20, color: color),
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: destructive ? color.withOpacity(0.06) : Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: ListTile(
+        onTap: onTap,
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: destructive ? Colors.transparent : Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(12),
           ),
-          title: Text(
-            label,
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w500,
-              color: color,
-            ),
-          ),
-          trailing: destructive
-              ? null
-              : const Icon(Icons.chevron_right_rounded,
-                  size: 20, color: AppTheme.textSecondary),
+          child: Icon(icon, color: color, size: 22),
         ),
+        title: Text(
+          label,
+          style: TextStyle(
+            color: color, 
+            fontSize: 15, 
+            fontWeight: destructive ? FontWeight.bold : FontWeight.w600,
+          ),
+        ),
+        trailing: destructive ? null : const Icon(Icons.chevron_right_rounded, size: 20, color: Color(0xFFC7C7CC)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+        visualDensity: VisualDensity.compact,
       ),
     );
   }

@@ -1,11 +1,15 @@
+// src/app/core/services/websocket.service.ts
 import { Injectable } from '@angular/core';
 import { Observable, Subject } from 'rxjs';
+import { environment } from '../../../environments/environment';
 
 export interface EmergencyNotification {
-  id: string;
   type: string;
-  priority: 'low' | 'medium' | 'high';
-  message: string;
+  solicitud_id?: number;
+  sucursal_id?: number;
+  latitud?: number;
+  longitud?: number;
+  [key: string]: any;
 }
 
 @Injectable({
@@ -13,25 +17,60 @@ export interface EmergencyNotification {
 })
 export class WebsocketService {
   private notificationsSubject = new Subject<EmergencyNotification>();
+  private ws: WebSocket | null = null;
 
-  constructor() {
-    // Simulación de conexión y recepción de alertas para el ejemplo base
-    // En un entorno real aquí nos conectaríamos con FastAPI vía WebSockets
-    // o usando Server-Sent Events (SSE).
-    setInterval(() => {
-      // Simula recibir un evento aleatorio solo para propósitos demostrativos
-      if(Math.random() > 0.8) {
-         this.notificationsSubject.next({
-           id: Math.random().toString(36).substring(7),
-           type: 'Problema de batería',
-           priority: 'medium',
-           message: 'Un usuario necesita asistencia técnica cerca de su ubicación.'
-         });
+  constructor() {}
+
+  public connect(): void {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      return;
+    }
+
+    if (typeof localStorage === 'undefined') return;
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      console.warn('[WS] No access_token in localStorage — skipping connect');
+      return;
+    }
+
+    // El backend extrae el userId del token, NO del path.
+    // Ruta backend: /api/v1/ws/notificaciones/?token=...
+    const wsUrl = `${environment.wsUrl}/ws/notificaciones/?token=${token}`;
+    console.log('[WS] Conectando a:', wsUrl.substring(0, 60) + '...');
+    this.ws = new WebSocket(wsUrl);
+
+    this.ws.onopen = () => {
+      console.log('[WS] ✅ Conexión WebSocket establecida exitosamente');
+    };
+
+    this.ws.onmessage = (event) => {
+      try {
+        const data: EmergencyNotification = JSON.parse(event.data);
+        console.log('[WS] Mensaje recibido:', data);
+        this.notificationsSubject.next(data);
+      } catch (e) {
+        console.error('[WS] Error parsing WS message', e);
       }
-    }, 10000);
+    };
+
+    this.ws.onerror = (error) => {
+      console.error('[WS] ❌ WebSocket Error:', error);
+    };
+
+    this.ws.onclose = (event) => {
+      console.log(`[WS] Conexión cerrada (code=${event.code}, reason=${event.reason})`);
+    };
   }
 
   public getNotifications(): Observable<EmergencyNotification> {
+    this.connect();
     return this.notificationsSubject.asObservable();
+  }
+
+  public disconnect(): void {
+    if (this.ws) {
+      this.ws.close();
+      this.ws = null;
+    }
   }
 }

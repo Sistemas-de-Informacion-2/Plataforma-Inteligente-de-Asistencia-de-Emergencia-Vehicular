@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:app_cliente/features/auth/providers/auth_provider.dart';
-import 'package:app_cliente/features/home/screens/home_screen.dart';
+import 'package:fixo/features/auth/providers/auth_provider.dart';
+import 'package:fixo/core/theme/app_theme.dart';
+
+// widgets del registro
+import 'package:fixo/features/auth/widgets/login/login_background.dart';
+import 'package:fixo/features/auth/widgets/register/register_header.dart';
+import 'package:fixo/features/auth/widgets/register/register_form.dart';
+import 'package:fixo/features/auth/widgets/register/register_footer.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -10,13 +16,44 @@ class RegisterScreen extends StatefulWidget {
   State<RegisterScreen> createState() => _RegisterScreenState();
 }
 
-class _RegisterScreenState extends State<RegisterScreen> {
+class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProviderStateMixin {
+  final _formKey = GlobalKey<FormState>();
   final _nombreController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _ciController = TextEditingController();
   final _telefonoController = TextEditingController();
+  
   bool _isLoading = false;
+  bool _obscurePassword = true;
+
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    );
+
+    _fadeAnimation = CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeIn,
+    );
+
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.05),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeOutCubic,
+    ));
+
+    _animationController.forward();
+  }
 
   @override
   void dispose() {
@@ -25,22 +62,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _passwordController.dispose();
     _ciController.dispose();
     _telefonoController.dispose();
+    _animationController.dispose();
     super.dispose();
   }
 
   void _onRegister() async {
+    if (!_formKey.currentState!.validate()) return;
+
     final nombre = _nombreController.text.trim();
     final email = _emailController.text.trim();
     final password = _passwordController.text;
     final ci = _ciController.text.trim();
     final telefono = _telefonoController.text.trim();
-
-    if (nombre.isEmpty || email.isEmpty || password.isEmpty || ci.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Por favor completa los campos obligatorios')),
-      );
-      return;
-    }
 
     setState(() => _isLoading = true);
 
@@ -58,19 +91,35 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (success) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Registro exitoso. Inicia sesión.'),
-            backgroundColor: Colors.green,
+          SnackBar(
+            content: const Row(
+              children: [
+                Icon(Icons.check_circle_outline, color: Colors.white),
+                SizedBox(width: 12),
+                Text('¡Registro exitoso! Ya puedes iniciar sesión.'),
+              ],
+            ),
+            backgroundColor: AppTheme.success,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
         );
-        Navigator.of(context).pop(); // Vuelve al login
+        Navigator.of(context).pop(); 
       }
     } else {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(authProvider.errorMessage),
-            backgroundColor: Colors.redAccent,
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(child: Text(authProvider.errorMessage)),
+              ],
+            ),
+            backgroundColor: AppTheme.danger,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
         );
       }
@@ -80,92 +129,56 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Text('Registro'),
         backgroundColor: Colors.transparent,
         elevation: 0,
-        iconTheme: IconThemeData(color: Theme.of(context).primaryColor),
-        titleTextStyle: TextStyle(
-          color: Theme.of(context).textTheme.headlineMedium?.color,
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
+        leading: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.9),
+              shape: BoxShape.circle,
+              boxShadow: AppTheme.softShadow,
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.arrow_back, color: AppTheme.primaryColor, size: 20),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+          ),
         ),
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-               Text(
-                'Crea una cuenta nueva',
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  fontSize: 24,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Completa tus datos para registrarte.',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-              const SizedBox(height: 32),
+      body: LoginBackground(
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 20),
+            child: FadeTransition(
+              opacity: _fadeAnimation,
+              child: SlideTransition(
+                position: _slideAnimation,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const RegisterHeader(), // <-- Cabecera visual
 
-              TextField(
-                controller: _nombreController,
-                decoration: const InputDecoration(
-                  labelText: 'Nombre (1er nombre de preferencia)*',
-                  prefixIcon: Icon(Icons.person_outline),
-                ),
-              ),
-              const SizedBox(height: 16),
-              
-              TextField(
-                controller: _ciController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Cédula de Identidad (CI) *',
-                  prefixIcon: Icon(Icons.badge_outlined),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              TextField(
-                controller: _telefonoController,
-                keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(
-                  labelText: 'Teléfono *',
-                  prefixIcon: Icon(Icons.phone_outlined),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              TextField(
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                decoration: const InputDecoration(
-                  labelText: 'Correo Electrónico *',
-                  prefixIcon: Icon(Icons.email_outlined),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              TextField(
-                controller: _passwordController,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: 'Contraseña *',
-                  prefixIcon: Icon(Icons.lock_outline),
-                ),
-              ),
-              const SizedBox(height: 32),
-
-              _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : ElevatedButton(
-                      onPressed: _onRegister,
-                      child: const Text('REGISTRARSE'),
+                    RegisterForm(           // <-- Lógica e inputs
+                      formKey: _formKey,
+                      nombreController: _nombreController,
+                      ciController: _ciController,
+                      telefonoController: _telefonoController,
+                      emailController: _emailController,
+                      passwordController: _passwordController,
+                      obscurePassword: _obscurePassword,
+                      isLoading: _isLoading,
+                      onTogglePassword: () => setState(() => _obscurePassword = !_obscurePassword),
+                      onRegister: _onRegister,
                     ),
-            ],
+
+                    const RegisterFooter(), // <-- Navegación extra
+                  ],
+                ),
+              ),
+            ),
           ),
         ),
       ),

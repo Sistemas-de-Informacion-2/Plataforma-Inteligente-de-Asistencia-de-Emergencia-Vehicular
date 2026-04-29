@@ -1,84 +1,207 @@
-<div class="flex h-screen bg-surface-dark overflow-hidden">
-  
-  <!-- Sidebar -->
-  <aside 
-    class="bg-surface-light border-r border-gray-200 text-text-main w-64 flex-shrink-0 transition-all duration-300 ease-in-out absolute z-20 h-full flex flex-col md:relative md:translate-x-0"
-    [ngClass]="{'translate-x-0': isSidebarOpen, '-translate-x-full': !isSidebarOpen}">
-    <div class="p-6">
-      <h2 class="text-xl font-bold text-primary-600 tracking-tight">Admin Taller</h2>
-      <p class="text-xs text-text-muted mt-1 uppercase tracking-wider font-semibold">Rescate Vehicular</p>
+<div class="flex h-screen bg-surface-dark overflow-hidden font-sans">
+
+  <!-- Sidebar Lateral -->
+  <aside
+    class="sidebar bg-surface-header text-white w-68 flex-shrink-0 flex flex-col z-30 fixed md:relative h-full shadow-2xl transition-all duration-300 ease-in-out"
+    [ngClass]="isSidebarOpen ? 'sidebar--open' : 'sidebar--closed'">
+
+    <!-- Logo Section & Sidebar Toggle (Senior Integrated Design) -->
+    <div class="h-16 flex items-center justify-between px-6 border-b border-white/10">
+
+      <div class="flex items-center gap-3.5 group cursor-pointer" routerLink="/despacho">
+        <div class="flex flex-col">
+          <span class="text-lg font-black tracking-tight text-white leading-none">
+            FIXO<span class="text-primary-500">.</span>
+          </span>
+          <span class="text-[9px] text-white/40 uppercase tracking-[0.2em] font-bold mt-1 leading-none">
+            Asistencia Vehicular
+          </span>
+        </div>
+      </div>
+
+      <button
+        (click)="toggleSidebar()"
+        class="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-white/50 hover:text-white transition-all duration-300 border border-white/5 hover:border-white/10 group shadow-inner"
+        aria-label="Cerrar menú">
+        <i class='bx transition-transform duration-500 text-xl' 
+           [ngClass]="isSidebarOpen ? 'bx-chevrons-left rotate-0' : 'bx-chevrons-right rotate-180'"></i>
+      </button>
     </div>
-    <nav class="mt-6 px-4 space-y-1 flex-1 overflow-y-auto">
-      <a routerLink="/dashboard" 
-         routerLinkActive="bg-primary-50 text-primary-600 font-bold border-r-4 border-primary-600"
-         [routerLinkActiveOptions]="{exact: true}"
-         class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-50 text-text-main font-medium cursor-pointer">
-        Dashboard
-      </a>
-      <a routerLink="/sucursales" 
-         routerLinkActive="bg-primary-50 text-primary-600 font-bold border-r-4 border-primary-600"
-         class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-50 text-text-main font-medium mt-1 cursor-pointer">
-        Gestión de Sucursales
-      </a>
-      <a routerLink="/tecnicos" 
-         routerLinkActive="bg-primary-50 text-primary-600 font-bold border-r-4 border-primary-600"
-         class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-50 text-text-main font-medium mt-1 cursor-pointer">
-        Gestión de Técnicos
-      </a>
-      <a routerLink="/perfil" 
-         routerLinkActive="bg-primary-50 text-primary-600 font-bold border-r-4 border-primary-600"
-         class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-50 text-text-main font-medium mt-1 cursor-pointer">
-        Perfil / Configuración
-      </a>
+
+    <!-- Navegación -->
+    <nav class="flex-1 overflow-y-auto py-6 px-4 space-y-6 custom-scrollbar">
+      
+      <section>
+        <h2 class="text-[10px] font-bold text-white/30 uppercase tracking-widest px-4 mb-3">Principal</h2>
+        <ul class="space-y-1.5">
+          <li>
+            <a routerLink="/despacho"
+               routerLinkActive="nav-link--active"
+               (click)="closeSidebarOnMobile()"
+               class="nav-link group flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 hover:bg-white/5 text-white/70 hover:text-white relative">
+              <i class='bx bx-grid-alt text-xl transition-colors group-hover:text-primary-400'></i>
+              <span class="font-medium text-sm">Panel de Despacho</span>
+              <span *ngIf="notificationCount() > 0" class="absolute right-4 flex h-2 w-2 rounded-full bg-alert animate-ping"></span>
+            </a>
+          </li>
+        </ul>
+      </section>
+
+      <section>
+        <h2 class="text-[10px] font-bold text-white/30 uppercase tracking-widest px-4 mb-3">Gestión</h2>
+        <ul class="space-y-1.5">
+          <li>
+            <a routerLink="/sucursales"
+               routerLinkActive="nav-link--active"
+               (click)="closeSidebarOnMobile()"
+               class="nav-link group flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 hover:bg-white/5 text-white/70 hover:text-white">
+              <i class='bx bx-store-alt text-xl transition-colors group-hover:text-primary-400'></i>
+              <span class="font-medium text-sm">Sucursales</span>
+            </a>
+          </li>
+          <li>
+            <a routerLink="/tecnicos"
+               routerLinkActive="nav-link--active"
+               (click)="closeSidebarOnMobile()"
+               class="nav-link group flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 hover:bg-white/5 text-white/70 hover:text-white">
+              <i class='bx bx-wrench text-xl transition-colors group-hover:text-primary-400'></i>
+              <span class="font-medium text-sm">Técnicos</span>
+            </a>
+          </li>
+          <li>
+            <a routerLink="/finanzas"
+               routerLinkActive="nav-link--active"
+               (click)="closeSidebarOnMobile()"
+               class="nav-link group flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 hover:bg-white/5 text-white/70 hover:text-white">
+              <i class='bx bx-wallet text-xl transition-colors group-hover:text-primary-400'></i>
+              <span class="font-medium text-sm">Finanzas y Pagos</span>
+            </a>
+          </li>
+        </ul>
+      </section>
+
     </nav>
-    <div class="p-4 border-t border-gray-200 mt-auto">
-      <button 
-        (click)="logout()" 
-        class="w-full flex items-center py-2.5 px-4 text-alert hover:bg-alert hover:bg-opacity-10 rounded transition duration-200 font-bold">
-        <svg class="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-        </svg>
+
+    <!-- Sidebar Footer -->
+    <div class="p-4 border-t border-white/10 bg-black/10">
+      <button
+        (click)="logout()"
+        class="logout-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-white/60 hover:text-alert hover:bg-alert/10 transition-all duration-300 font-medium text-sm">
+        <i class='bx bx-log-out text-xl'></i>
         Cerrar Sesión
       </button>
     </div>
   </aside>
 
-  <!-- Overlay para móviles (Cierra el sidebar con tap) -->
-  <div 
-    *ngIf="isSidebarOpen" 
+  <!-- Mobile Overlay -->
+  <div
+    *ngIf="isSidebarOpen"
     (click)="toggleSidebar()"
-    class="fixed inset-0 bg-black/40 backdrop-blur-sm z-10 md:hidden transition-opacity">
+    class="sidebar-overlay fixed inset-0 bg-surface-header/60 backdrop-blur-sm z-20 md:hidden transition-opacity">
   </div>
 
   <!-- Contenido Principal -->
-  <div class="flex-1 flex flex-col min-w-0">
-    
-    <!-- Navbar Superior -->
-    <header class="bg-surface-light border-b border-gray-200 h-16 flex items-center justify-between px-4 sm:px-6 z-10">
-      <div class="flex items-center">
-        <button 
-          (click)="toggleSidebar()" 
-          class="text-text-muted hover:text-primary-600 focus:outline-none md:hidden p-1 mr-3 rounded-md hover:bg-primary-50 transition">
-          <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-          </svg>
+  <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
+
+    <!-- Header / Topbar -->
+    <header class="bg-surface-light border-b border-border-main h-16 flex items-center justify-between px-4 sm:px-8 z-11 flex-shrink-0" role="banner">
+      
+      <!-- Left side: Hamburger + Welcome -->
+      <div class="flex items-center gap-4">
+        <button
+          (click)="toggleSidebar()"
+          *ngIf="!isSidebarOpen"
+          class="hamburger-btn relative w-10 h-10 flex items-center justify-center rounded-xl text-text-muted hover:text-primary-600 hover:bg-primary-50 focus:outline-none transition-all duration-300 shadow-sm"
+          aria-label="Abrir menú">
+          <i class='bx bx-menu text-2xl'></i>
         </button>
+
+        <div class="hidden sm:flex flex-col">
+          <h1 class="text-lg font-bold text-text-main leading-tight">Admin Dashboard</h1>
+          <p class="text-xs text-text-muted">Gestión de operaciones en tiempo real</p>
+        </div>
       </div>
 
-      <div class="flex items-center space-x-4">
-        <button class="text-text-muted hover:text-primary-600 p-2 rounded-full hover:bg-surface-dark transition-colors relative">
-           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
-           <span class="absolute top-1.5 right-1.5 block h-2 w-2 rounded-full bg-alert ring-2 ring-surface-light"></span>
+      <!-- Right side: Notifications + Profile -->
+      <div class="flex items-center gap-2 sm:gap-4">
+
+        <!-- Notificaciones -->
+        <button
+          routerLink="/despacho"
+          (click)="resetNotifications()"
+          class="notif-btn relative flex items-center justify-center w-10 h-10 rounded-xl text-text-muted hover:text-primary-600 hover:bg-primary-50 transition-all duration-300"
+          aria-label="Ver notificaciones">
+          <i class='bx bx-bell text-2xl'></i>
+          <span
+            *ngIf="notificationCount() > 0"
+            class="notification-badge absolute top-1.5 right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-alert text-[10px] text-white font-bold shadow-lg shadow-alert/30 border-2 border-surface-light">
+            {{ notificationCount() > 99 ? '99+' : notificationCount() }}
+          </span>
         </button>
-        <div routerLink="/perfil" class="w-9 h-9 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 font-bold border border-primary-200 shadow-sm cursor-pointer hover:bg-primary-200 transition">
-          T
+
+        <!-- Profile Menu -->
+        <div class="relative">
+          
+          <div *ngIf="isProfileMenuOpen" 
+               (click)="closeProfileMenu()" 
+               class="fixed inset-0 z-40 bg-transparent">
+          </div>
+
+          <button
+            (click)="toggleProfileMenu()"
+            class="avatar-btn relative z-50 flex items-center gap-3 py-1.5 px-1.5 sm:pl-3 sm:pr-2 rounded-xl hover:bg-primary-50 transition-all duration-300 cursor-pointer group border border-transparent hover:border-primary-100 shadow-sm hover:shadow-md"
+            aria-label="Menú de perfil">
+            <div class="hidden sm:flex flex-col items-end mr-1">
+              <span class="text-xs font-bold text-text-main group-hover:text-primary-600 transition-colors">
+                {{ user()?.nombre }}
+              </span>
+              <span class="text-[10px] text-text-muted">En línea</span>
+            </div>
+            <div class="w-9 h-9 rounded-xl bg-primary-600 flex items-center justify-center text-white font-bold text-sm shadow-lg shadow-primary-500/20 transition-all duration-300 group-hover:rotate-6 group-hover:scale-105">
+              {{ (user()?.nombre?.charAt(0) || 'U').toUpperCase() }}
+            </div>
+            <i class='bx bx-chevron-down text-lg text-text-muted hidden sm:block transition-transform duration-300'
+               [ngClass]="{'rotate-180': isProfileMenuOpen}"></i>
+          </button>
+
+          <!-- Dropdown Menu -->
+          <div *ngIf="isProfileMenuOpen" 
+               class="dropdown-menu absolute right-0 mt-3 w-64 bg-surface-light rounded-2xl shadow-2xl border border-border-main py-2.5 z-50 backdrop-blur-xl">
+            <div class="px-5 py-3 border-b border-border-main/50 mb-2">
+              <p class="text-xs font-semibold text-text-muted uppercase tracking-widest mb-1">Cuenta</p>
+              <p class="text-sm font-bold text-text-main truncate">{{ user()?.nombre }}</p>
+              <p class="text-[11px] text-text-muted truncate">{{ user()?.email }}</p>
+            </div>
+            
+            <a routerLink="/perfil" 
+               (click)="closeProfileMenu()"
+               class="flex items-center gap-3 px-5 py-2.5 text-sm text-text-main hover:bg-primary-50 hover:text-primary-600 transition-all duration-200">
+               <div class="w-8 h-8 rounded-lg bg-primary-50 text-primary-600 flex items-center justify-center">
+                 <i class='bx bx-user text-lg'></i>
+               </div>
+              <span class="font-medium">Ver Perfil</span>
+            </a>
+            
+            <div class="px-2 mt-2 pt-2 border-t border-border-main/50">
+              <button (click)="logout(); closeProfileMenu()" 
+                      class="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-alert hover:bg-red-50 rounded-xl transition-all duration-200 font-semibold">
+                <div class="w-8 h-8 rounded-lg bg-red-50 text-alert flex items-center justify-center">
+                  <i class='bx bx-log-out text-lg'></i>
+                </div>
+                Cerrar Sesión
+              </button>
+            </div>
+          </div>
         </div>
+
       </div>
     </header>
 
-    <!-- Main Body Dinámico donde se rutean las pages -->
-    <main class="flex-1 overflow-x-hidden overflow-y-auto bg-surface-dark p-4 md:p-6 lg:p-8">
-      <router-outlet></router-outlet>
+    <!-- Main Content Area -->
+    <main class="flex-1 overflow-x-hidden overflow-y-auto bg-surface-dark p-4 sm:p-6 lg:p-8 custom-scrollbar">
+      <div class="max-w-7xl mx-auto">
+        <router-outlet></router-outlet>
+      </div>
     </main>
 
   </div>

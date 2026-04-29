@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:app_cliente/features/emergencias/screens/inicio_screen.dart';
-import 'package:app_cliente/features/home/widgets/home_drawer.dart';
+import 'package:fixo/features/emergencias/screens/inicio_screen.dart';
+import 'package:fixo/features/home/widgets/home_drawer.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});

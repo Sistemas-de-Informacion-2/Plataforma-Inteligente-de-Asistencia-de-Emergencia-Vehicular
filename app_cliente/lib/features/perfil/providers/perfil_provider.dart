@@ -1,7 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:app_cliente/core/network/api_client.dart';
-import 'package:app_cliente/features/perfil/models/perfil.dart';
+import 'package:fixo/core/network/api_client.dart';
+import 'package:fixo/features/perfil/models/perfil.dart';
 
 class PerfilProvider extends ChangeNotifier {
   final ApiClient _apiClient = ApiClient();

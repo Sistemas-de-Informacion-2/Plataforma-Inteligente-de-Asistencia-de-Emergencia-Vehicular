@@ -13,7 +13,8 @@ from fastapi import APIRouter, Depends
 
 from app.api.v1.endpoints import ( 
     usuarios, talleres, solicitudes, ordenes, auth, notificaciones_ws,
-    empleados, servicios, vehiculos, incidentes, admin, sucursales
+    empleados, servicios, vehiculos, incidentes, admin, sucursales, rutas,
+    dispositivos, pagos
 )
 from app.api.deps import get_current_user
 
@@ -24,6 +25,9 @@ api_router.include_router(auth.router, prefix="/auth", tags=["Autenticación"])
 api_router.include_router(usuarios.router, prefix="/usuarios", tags=["Usuarios"])
 api_router.include_router(notificaciones_ws.router, prefix="/ws/notificaciones", tags=["WebSockets"])
 api_router.include_router(admin.router, prefix="/admin", tags=["Super Admin Dashboard"])
+
+from app.api.v1.endpoints import admin_roles
+api_router.include_router(admin_roles.router, prefix="/admin/roles", tags=["Super Admin Roles"])
 
 # ── Talleres y Sucursales: seguridad a nivel de endpoint ────
 api_router.include_router(
@@ -73,6 +77,22 @@ api_router.include_router(
 api_router.include_router(
     incidentes.router,
     prefix="/incidentes",
-    tags=["Reporte de Incidentes"],
+    tags=["Reporte de Incidentes"]
+)
+api_router.include_router(
+    rutas.router,
+    prefix="/rutas",
+    tags=["Rutas"],
     dependencies=[Depends(get_current_user)]
+)
+api_router.include_router(
+    dispositivos.router,
+    prefix="/dispositivos",
+    tags=["Dispositivos FCM"],
+    dependencies=[Depends(get_current_user)]
+)
+api_router.include_router(
+    pagos.router,
+    prefix="/pagos",
+    tags=["Pagos"],
 )

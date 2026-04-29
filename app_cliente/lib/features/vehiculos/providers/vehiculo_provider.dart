@@ -1,7 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:app_cliente/core/network/api_client.dart';
-import 'package:app_cliente/features/vehiculos/models/vehiculo.dart';
+import 'package:fixo/core/network/api_client.dart';
+import 'package:fixo/features/vehiculos/models/vehiculo.dart';
 
 class VehiculoProvider extends ChangeNotifier {
   final ApiClient _apiClient = ApiClient();

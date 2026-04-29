@@ -21,13 +21,38 @@ class NotificacionService:
         return await self.repo.create(data.model_dump())
 
     async def enviar_a_usuario(
-        self, usuario_id: int, mensaje: str
+        self, usuario_id: int, mensaje: str, data_push: dict | None = None
     ) -> Notificacion:
-        """Atajo: crea y 'envía' una notificación con un mensaje simple."""
-        return await self.repo.create({
+        """
+        Atajo: crea y 'envía' una notificación con un mensaje simple.
+        También intenta enviar push FCM como fallback.
+        """
+        notificacion = await self.repo.create({
             "usuario_id": usuario_id,
             "mensaje": mensaje,
         })
+
+        # Push FCM como fallback (si el usuario tiene token registrado)
+        try:
+            from sqlalchemy import select
+            from app.models.usuario import Usuario
+            stmt = select(Usuario.fcm_token).where(Usuario.id == usuario_id)
+            result = await self.session.execute(stmt)
+            fcm_token = result.scalar_one_or_none()
+
+            if fcm_token:
+                from app.services.firebase_push_service import enviar_push
+                enviar_push(
+                    token_fcm=fcm_token,
+                    titulo="Fixo - Emergencia Vehicular",
+                    cuerpo=mensaje,
+                    data=data_push or {"usuario_id": str(usuario_id)},
+                )
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"[Notificación] Error enviando push FCM: {e}")
+
+        return notificacion
 
     async def listar_por_usuario(
         self,

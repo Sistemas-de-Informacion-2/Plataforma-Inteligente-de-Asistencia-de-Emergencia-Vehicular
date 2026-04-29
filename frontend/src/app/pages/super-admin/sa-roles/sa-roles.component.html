@@ -1,0 +1,140 @@
+<!-- src/app/pages/super-admin/sa-roles/sa-roles.component.html -->
+<div class="max-w-7xl mx-auto space-y-6 lg:space-y-8 pb-12 relative">
+
+  <!-- Header -->
+  <div class="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
+    <div>
+      <h1 class="text-2xl md:text-3xl font-bold text-text-main tracking-tight">Gestión de Roles</h1>
+      <p class="text-text-muted mt-1 text-sm md:text-base">Configura los roles del sistema y asígnales permisos.</p>
+    </div>
+    <button (click)="abrirModalNuevo()" class="px-6 py-2.5 bg-primary-600 hover:bg-primary-700 text-white font-bold rounded-xl shadow-md transition-all transform hover:-translate-y-0.5 focus:outline-none focus:ring-4 focus:ring-primary-300 flex items-center">
+      <i class='bx bx-plus w-5 h-5 mr-2 text-lg'></i>
+      Nuevo Rol
+    </button>
+  </div>
+
+  <!-- Tabla de Roles -->
+  <div class="bg-surface-light border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full text-left border-collapse">
+        <thead>
+          <tr class="bg-gray-50 border-b border-gray-200 text-xs md:text-sm font-bold text-gray-600 uppercase tracking-wider">
+            <th class="px-6 py-4">Rol</th>
+            <th class="px-6 py-4">Permisos Asignados</th>
+            <th class="px-6 py-4 text-center w-40">Acciones</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100 text-sm text-gray-700">
+          @if (roles().length === 0) {
+            <tr>
+              <td colspan="3" class="px-6 py-12 text-center text-gray-500 font-medium">
+                No hay roles registrados.
+              </td>
+            </tr>
+          }
+
+          @for (rol of roles(); track rol.id) {
+            <tr class="hover:bg-gray-50 transition-colors group">
+              <td class="px-6 py-4">
+                <span class="font-bold text-gray-900">{{ rol.nombre }}</span>
+              </td>
+              <td class="px-6 py-4">
+                <div class="flex flex-wrap gap-2">
+                  @for (permiso of rol.permisos; track permiso.id) {
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                      {{ permiso.nombre }}
+                    </span>
+                  }
+                  @if (rol.permisos.length === 0) {
+                    <span class="text-gray-400 italic text-xs">Sin permisos</span>
+                  }
+                </div>
+              </td>
+              <td class="px-6 py-4 text-center whitespace-nowrap">
+                <div class="flex justify-center items-center space-x-2">
+                  <button (click)="abrirModalEditar(rol)" class="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors focus:outline-none" title="Editar">
+                    <i class='bx bx-edit text-xl'></i>
+                  </button>
+                  <button (click)="eliminarRol(rol.id)" class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors focus:outline-none" title="Eliminar">
+                    <i class='bx bx-trash text-xl'></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Crear/Editar Rol -->
+@if (isModalOpen()) {
+  <div class="fixed inset-0 z-[2000] flex items-center justify-center p-4">
+    <div class="fixed inset-0 bg-gray-900/40 backdrop-blur-sm transition-opacity" (click)="cerrarModal()"></div>
+
+    <div class="relative bg-white rounded-2xl w-full max-w-2xl max-h-[95vh] overflow-y-auto shadow-2xl flex flex-col">
+      <!-- Header -->
+      <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white/95 backdrop-blur z-10 shrink-0">
+        <h2 class="text-xl font-bold text-gray-800">
+          {{ isEditing() ? 'Editar Rol' : 'Nuevo Rol' }}
+        </h2>
+        <button (click)="cerrarModal()" class="text-gray-400 hover:text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-full p-2 transition-colors focus:outline-none">
+          <i class='bx bx-x text-xl'></i>
+        </button>
+      </div>
+
+      <!-- Formulario -->
+      <div class="flex flex-col flex-1">
+        <div class="p-6 space-y-6">
+          <!-- Nombre del Rol -->
+          <div>
+            <label class="block text-sm font-semibold text-text-main mb-1">Nombre del Rol <span class="text-red-500">*</span></label>
+            <input type="text" [(ngModel)]="rolActual().nombre" placeholder="Ej: SUPER_ADMIN, GESTOR_FINANZAS"
+              class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none transition-all bg-white uppercase">
+            <p class="text-xs text-gray-500 mt-1">El nombre se usará en el código, utiliza mayúsculas y guiones bajos (ej: NUEVO_ROL).</p>
+          </div>
+
+          <!-- Permisos -->
+          <div>
+            <h3 class="block text-sm font-semibold text-text-main mb-3 border-b pb-2">Permisos Disponibles</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              @for (permiso of permisos(); track permiso.id) {
+                <label class="flex items-start space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+                  [class.border-primary-500]="permisosSeleccionados().has(permiso.id)"
+                  [class.bg-primary-50]="permisosSeleccionados().has(permiso.id)">
+                  
+                  <div class="flex items-center h-5">
+                    <input type="checkbox" 
+                      [checked]="permisosSeleccionados().has(permiso.id)"
+                      (change)="togglePermiso(permiso.id)"
+                      class="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500 cursor-pointer">
+                  </div>
+                  <div class="flex flex-col">
+                    <span class="text-sm font-bold text-gray-900">{{ permiso.nombre }}</span>
+                    @if (permiso.descripcion) {
+                      <span class="text-xs text-gray-500">{{ permiso.descripcion }}</span>
+                    }
+                  </div>
+                </label>
+              }
+              @if (permisos().length === 0) {
+                <p class="text-sm text-gray-500 col-span-2">No hay permisos estáticos cargados en el sistema.</p>
+              }
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="mt-auto px-6 py-4 bg-gray-50 border-t border-gray-200 sticky bottom-0 z-10 flex justify-end gap-3 shrink-0 rounded-b-2xl">
+          <button (click)="cerrarModal()" class="px-6 py-2.5 text-gray-600 bg-white border border-gray-300 hover:bg-gray-50 font-bold rounded-xl transition-colors focus:outline-none">
+            Cancelar
+          </button>
+          <button (click)="guardarRol()" class="px-6 py-2.5 bg-primary-600 hover:bg-primary-700 text-white font-bold rounded-xl shadow-md transition-all">
+            {{ isEditing() ? 'Guardar Cambios' : 'Crear Rol' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+}

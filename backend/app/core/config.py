@@ -22,6 +22,10 @@ class Settings(BaseSettings):
     APP_TITLE: str = "Plataforma Inteligente de Emergencias Vehiculares"
     DEBUG: bool = False
     API_V1_PREFIX: str = "/api/v1"
+    BACKEND_URL: str = "http://192.168.0.214:8000"
+
+    # ── CORS (orígenes permitidos, separados por coma) ────────
+    ALLOWED_ORIGINS: str = "http://localhost:4200,http://localhost"
 
     # ── Seguridad / JWT ────────────────────────────────────────
     SECRET_KEY: str = "cambiar-en-produccion"
@@ -30,6 +34,13 @@ class Settings(BaseSettings):
 
     # IA
     gemini_api_key: Optional[str] = None
+
+    # ── Firebase Push Notifications ────────────────────────────
+    FIREBASE_CREDENTIALS_PATH: Optional[str] = "firebase-service-account.json"
+
+    # ── Stripe Pagos ───────────────────────────────────────────
+    STRIPE_SECRET_KEY: Optional[str] = None
+    STRIPE_PUBLICABLE: Optional[str] = None
 
 
 @lru_cache

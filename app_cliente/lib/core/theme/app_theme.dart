@@ -2,19 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 class AppTheme {
-  // ── Brand Palette ──────────────────────────────────────────
-  static const Color primaryColor    = Color(0xFF0066FF);
-  static const Color secondaryColor  = Color(0xFF00C6FF);
-  static const Color backgroundColor = Color(0xFFF4F7FB);
-  static const Color surfaceColor    = Colors.white;
-  static const Color textPrimary     = Color(0xFF1A1D26);
-  static const Color textSecondary   = Color(0xFF6B7280);
-  static const Color danger          = Color(0xFFEF4444);
+  // ── Brand Palette (Sincronizado con Frontend) ─────────────
+  static const Color primaryColor    = Color(0xFF2563EB); // primary-500
+  static const Color secondaryColor  = Color(0xFF1D4ED8); // primary-600
+  static const Color backgroundColor = Color(0xFFF9FAFB); // surface-dark
+  static const Color surfaceColor    = Colors.white;      // surface-light
+  static const Color textPrimary     = Color(0xFF0A1F44); // text-main
+  static const Color textSecondary   = Color(0xFF475569); // text-muted
+  static const Color danger          = Color(0xFFEF4444); // Rojo estándar
   static const Color dangerSoft      = Color(0xFFFEE2E2);
-  static const Color success         = Color(0xFF10B981);
-  static const Color warning         = Color(0xFFF59E0B);
+  static const Color success         = Color(0xFF22C55E); // success
+  static const Color warning         = Color(0xFFF59E0B); // alert
   static const Color muted           = Color(0xFFF3F4F6);
-  static const Color inkDark         = Color(0xFF1C1C1E);
+  static const Color inkDark         = Color(0xFF0A1F44); // surface-header
 
   // ── Shadows ────────────────────────────────────────────────
   static List<BoxShadow> get softShadow => [
@@ -84,12 +84,12 @@ class AppTheme {
         error: danger,
       ),
       appBarTheme: const AppBarTheme(
-        backgroundColor: primaryColor,
+        backgroundColor: inkDark,
         elevation: 0,
         centerTitle: true,
         systemOverlayStyle: SystemUiOverlayStyle(
           statusBarColor: Colors.transparent,
-          statusBarIconBrightness: Brightness.dark,
+          statusBarIconBrightness: Brightness.light,
         ),
         titleTextStyle: TextStyle(
           color: Colors.white,

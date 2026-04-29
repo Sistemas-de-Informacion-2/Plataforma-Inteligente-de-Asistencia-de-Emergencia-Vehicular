@@ -184,23 +184,24 @@ class EmpleadoService:
         }
         return await self.repo.update(empleado_id, update_data)
 
-    # ── Eliminación (Soft-Delete Inteligente) ────────────────────
+    # ── Eliminación (Soft-Delete con Ofuscación) ────────────────────
     async def eliminar(self, empleado_id: int) -> bool:
         """
-        Baja inteligente de un empleado (técnico):
+        Baja de un empleado (técnico):
           1. Soft-delete del registro Empleado (es_eliminado=True)
-          2. Retirar el rol TECNICO del UsuarioRol (hard delete de la fila)
-          3. Ofuscar email y CI del Usuario → libera constraints UNIQUE
-          4. Soft-delete del Usuario (es_eliminado=True)
-
-        Esto permite que la misma persona se re-registre en el futuro
-        como dueño de taller u otro rol, usando su email/CI original.
+          2. Retirar el rol TECNICO del UsuarioRol
+          3. Ofuscar email y CI para liberar restricciones UNIQUE
+          4. Soft-delete del Usuario base
+        
+        Esto obliga al usuario a registrarse de nuevo si desea volver
+        a usar la plataforma (ej. para ser dueño de su propio taller),
+        lo cual es la vía más directa de "ascenso".
         """
-        from datetime import datetime
         from sqlalchemy import delete as sa_delete
-        from sqlalchemy.sql import func
+        from sqlalchemy import select
+        from datetime import datetime
 
-        # Obtener el empleado con su usuario
+        # Obtener el empleado
         empleado = await self.repo.get_by_id(empleado_id)
         if not empleado:
             return False
@@ -222,12 +223,16 @@ class EmpleadoService:
             )
             await self.session.execute(stmt_del)
 
-        # ── Paso 3: Ofuscar email y CI del Usuario ────────────
+        # ── Paso 3: Ofuscar credenciales del Usuario ──────────
         usuario = await self.usuario_repo.get_by_id(usuario_id)
         if usuario:
-            timestamp = int(datetime.utcnow().timestamp())
-            email_ofuscado = f"eliminado_{timestamp}_{usuario.email}"
-            ci_ofuscado = f"eliminado_{timestamp}_{usuario.ci}"
+            # Usamos el ID del usuario (único) para no exceder el límite de VARCHAR(20) del CI
+            email_base = usuario.email if usuario.email else "none"
+            ci_base = usuario.ci if usuario.ci else "none"
+            
+            # Formato: d28_email@... (truncado al límite de la DB si es necesario)
+            email_ofuscado = f"d{usuario.id}_{email_base}"[:150]
+            ci_ofuscado = f"d{usuario.id}_{ci_base}"[:20]
 
             await self.usuario_repo.update(usuario_id, {
                 "email": email_ofuscado,

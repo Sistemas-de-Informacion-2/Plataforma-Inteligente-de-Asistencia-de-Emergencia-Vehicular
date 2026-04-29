@@ -1,7 +1,8 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:app_cliente/core/network/api_client.dart';
-import 'package:app_cliente/core/storage/secure_storage.dart';
+import 'package:fixo/core/network/api_client.dart';
+import 'package:fixo/core/storage/secure_storage.dart';
+import 'package:fixo/features/notificaciones/services/push_notification_service.dart';
 
 enum AuthStatus { checking, authenticated, unauthenticated }
 
@@ -9,6 +10,10 @@ class AuthProvider extends ChangeNotifier {
   final ApiClient _apiClient = ApiClient();
   AuthStatus authStatus = AuthStatus.checking;
   String errorMessage = '';
+  int? _userId;
+
+  /// ID del usuario autenticado (cargado desde /usuarios/me).
+  int? get userId => _userId;
 
   AuthProvider() {
     checkAuthStatus();
@@ -28,7 +33,10 @@ class AuthProvider extends ChangeNotifier {
       // Por ahora, si hay token, asumimos autenticado hasta que una llamada falle por 401.
       final response = await _apiClient.instance.get('/usuarios/me');
       if (response.statusCode == 200) {
+        _userId = response.data['id'] as int?;
         authStatus = AuthStatus.authenticated;
+        // Registrar token FCM tras confirmar autenticación
+        PushNotificationService.registrarTokenEnBackend();
       } else {
         await logout();
       }
@@ -67,6 +75,8 @@ class AuthProvider extends ChangeNotifier {
         authStatus = AuthStatus.authenticated;
         errorMessage = '';
         notifyListeners();
+        // Registrar token FCM tras login exitoso
+        PushNotificationService.registrarTokenEnBackend();
         return true;
       }
     } on DioException catch (e) {
@@ -133,6 +143,7 @@ class AuthProvider extends ChangeNotifier {
   // Logout
   Future<void> logout() async {
     await SecureStorage.deleteToken();
+    _userId = null;
     authStatus = AuthStatus.unauthenticated;
     errorMessage = '';
     notifyListeners();

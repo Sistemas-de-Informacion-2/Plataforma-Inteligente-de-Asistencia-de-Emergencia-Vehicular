@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "941663165259",
+    "project_id": "fixo-64f3b",
+    "storage_bucket": "fixo-64f3b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:941663165259:android:9c74deb2b748aa125aa6ce",
+        "android_client_info": {
+          "package_name": "com.emergencias.fixo"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD7xtq21FoTlkq7t-8Mm0gkFygP7xfmvAY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

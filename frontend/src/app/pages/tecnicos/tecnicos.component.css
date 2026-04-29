@@ -1,0 +1,60 @@
+/* src/app/pages/tecnicos/tecnicos.component.css */
+
+/* Animaciones de entrada escalonadas */
+.animate-scale-up {
+  animation: scaleUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes scaleUp {
+  from { opacity: 0; transform: scale(0.95) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* Shimmer Loading Effect */
+.shimmer {
+  background: #f6f7f8;
+  background-image: linear-gradient(to right, #f6f7f8 0%, #edeef1 20%, #f6f7f8 40%, #f6f7f8 100%);
+  background-repeat: no-repeat;
+  background-size: 800px 100%;
+  display: inline-block;
+  position: relative;
+  animation: shimmer-ani 1.5s infinite linear forwards;
+}
+
+@keyframes shimmer-ani {
+  0% { background-position: -468px 0; }
+  100% { background-position: 468px 0; }
+}
+
+/* Efecto de borde brillante (Glow) */
+.card-border-glow:hover {
+  border-color: var(--primary-400);
+  box-shadow: 0 0 0 1px var(--primary-400), 0 10px 40px -15px rgba(var(--primary-rgb), 0.3);
+}
+
+/* Indicador de Disponibilidad (Pulso) */
+.status-pulse {
+  position: relative;
+}
+
+.status-pulse::after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  border-radius: 50%;
+  background: inherit;
+  animation: pulse-ring 1.5s infinite cubic-bezier(0.215, 0.61, 0.355, 1);
+  opacity: 0.6;
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(0.8); opacity: 0.8; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+
+.gradient-avatar {
+  background: linear-gradient(135deg, var(--primary-500), var(--primary-800));
+}

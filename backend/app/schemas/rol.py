@@ -22,7 +22,11 @@ class RolBase(BaseModel):
     nombre: str = Field(..., max_length=50)
 
 class RolCreate(RolBase):
-    pass
+    permisos_ids: list[int] = []
+
+class RolUpdate(BaseModel):
+    nombre: str | None = Field(None, max_length=50)
+    permisos_ids: list[int] | None = None
 
 class RolOut(RolBase):
     model_config = ConfigDict(from_attributes=True)

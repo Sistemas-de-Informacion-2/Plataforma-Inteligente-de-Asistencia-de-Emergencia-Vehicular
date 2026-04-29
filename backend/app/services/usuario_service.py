@@ -126,5 +126,5 @@ class UsuarioService:
                     setattr(usuario.perfil, field, update_data[field])
 
         await self.session.flush()
-        await self.session.refresh(usuario)
-        return usuario
+        # En lugar de refresh, obtenemos el objeto limpio con sus relaciones cargadas
+        return await self.obtener_con_perfil(usuario_id)

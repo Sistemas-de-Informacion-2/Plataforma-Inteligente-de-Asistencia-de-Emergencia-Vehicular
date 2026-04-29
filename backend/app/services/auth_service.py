@@ -34,7 +34,12 @@ class AuthService:
         roles = [r.rol.nombre for r in user.roles]
         
         access_token = create_access_token(
-            data={"sub": str(user.id), "roles": roles}
+            data={
+                "sub": str(user.id),
+                "nombre": user.nombre,
+                "email": user.email,
+                "roles": roles
+            }
         )
         
         return Token(access_token=access_token, token_type="bearer")

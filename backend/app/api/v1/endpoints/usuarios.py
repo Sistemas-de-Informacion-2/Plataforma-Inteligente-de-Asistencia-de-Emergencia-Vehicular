@@ -1,13 +1,63 @@
 # backend/app/api/v1/endpoints/usuarios.py
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 from app.core.database import get_db
 from app.api.deps import get_current_user
 from app.schemas.usuario import UsuarioCreate, UsuarioOut, UsuarioUpdate, UsuarioConRoles, UsuarioPerfilCompletoUpdate
 from app.services.usuario_service import UsuarioService
+from app.services.storage_service import StorageService, get_storage_service
+from app.models.admin import Admin
 
 router = APIRouter()
+
+
+@router.post("/me/foto", summary="Sube una foto de perfil y retorna la URL")
+async def subir_foto_perfil(
+    file: UploadFile = File(...),
+    current_user=Depends(get_current_user),
+    storage: StorageService = Depends(get_storage_service),
+):
+    """
+    Guarda el archivo físicamente y devuelve la URL relativa para ser guardada en la base de datos.
+    """
+    url = await storage.upload_file(file, "perfiles")
+    return {"url": url}
+
+@router.post("/admins/me/qr", summary="Sube el QR personalizado del taller")
+async def subir_qr_admin(
+    file: UploadFile = File(...),
+    current_user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    storage: StorageService = Depends(get_storage_service),
+):
+    stmt = select(Admin).where(Admin.usuario_id == current_user.id)
+    result = await db.execute(stmt)
+    admin = result.scalar_one_or_none()
+    
+    if not admin:
+        raise HTTPException(status_code=403, detail="No eres admin de un taller")
+        
+    url = await storage.upload_file(file, "qrs")
+    admin.qr_imagen_url = url
+    await db.commit()
+    
+    return {"url": url}
+
+@router.get("/admins/me/qr", summary="Obtiene el QR personalizado del taller del admin")
+async def obtener_mi_qr_admin(
+    current_user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    stmt = select(Admin).where(Admin.usuario_id == current_user.id)
+    result = await db.execute(stmt)
+    admin = result.scalar_one_or_none()
+    
+    if not admin:
+        raise HTTPException(status_code=403, detail="No eres admin de un taller")
+        
+    return {"qr_url": admin.qr_imagen_url}
 
 @router.post("/", response_model=UsuarioOut, status_code=status.HTTP_201_CREATED)
 async def registrar_usuario(

@@ -1,3 +1,4 @@
+// src/app/core/interceptors/jwt.interceptor.ts
 import { HttpInterceptorFn } from '@angular/common/http';
 
 export const jwtInterceptor: HttpInterceptorFn = (req, next) => {

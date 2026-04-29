@@ -6,7 +6,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:audioplayers/audioplayers.dart';
-import 'package:app_cliente/features/vehiculos/models/vehiculo.dart';
+import 'package:fixo/features/vehiculos/models/vehiculo.dart';
 
 class InicioProvider extends ChangeNotifier {
   final TextEditingController descripcionController = TextEditingController();

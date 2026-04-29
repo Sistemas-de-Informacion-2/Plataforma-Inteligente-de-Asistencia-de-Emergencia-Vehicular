@@ -7,11 +7,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.core.database import get_db
-from app.api.deps import get_current_admin
+from app.api.deps import get_current_admin, get_current_user
 from app.models.usuario import Usuario
 from app.models.admin import Admin
 from app.schemas.servicio import SucursalServicioOut
+from app.schemas.taller import RespuestaTaller
+from app.schemas.solicitud_emergencia import SolicitudDetallada
 from app.services.taller_service import SucursalService
+from app.services.solicitud_service import SolicitudService
 
 router = APIRouter()
 
@@ -89,3 +92,128 @@ async def quitar_servicio_de_sucursal(
     except ValueError as e:
         raise HTTPException(status_code=403, detail=str(e))
     return None
+
+
+@router.post(
+    "/{sucursal_id}/solicitudes/{solicitud_id}/respuesta",
+    summary="Aceptar o rechazar una solicitud de emergencia",
+    description="Permite al admin de la sucursal responder a una solicitud. Si acepta, se crea la asignación y se notifica al técnico."
+)
+async def responder_solicitud_taller(
+    sucursal_id: int,
+    solicitud_id: int,
+    respuesta: RespuestaTaller,
+    current_user: Usuario = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Endpoint para que el taller responda a la solicitud del cliente.
+    """
+    admin_id = await obtener_admin_id(current_user, db)
+    service = SolicitudService(db)
+    
+    exito = await service.responder_solicitud(
+        solicitud_id=solicitud_id,
+        sucursal_id=sucursal_id,
+        admin_id=admin_id,
+        respuesta=respuesta
+    )
+    
+    if not exito:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No se pudo procesar la respuesta. Verifica la propiedad de la sucursal, el estado de la solicitud y la disponibilidad del técnico."
+        )
+        
+    return {"message": "Respuesta procesada exitosamente."}
+
+
+@router.get(
+    "/{sucursal_id}/solicitudes/pendientes",
+    response_model=list[SolicitudDetallada],
+    summary="Listar solicitudes pendientes de aceptación para una sucursal",
+    description=(
+        "Retorna las solicitudes en estado ESPERANDO_ACEPTACION_TALLER. "
+        "Se usa para la carga inicial del Panel de Despacho."
+    ),
+)
+async def listar_solicitudes_pendientes_sucursal(
+    sucursal_id: int,
+    current_user: Usuario = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Carga inicial del panel de despacho: retorna todas las solicitudes
+    en ESPERANDO_ACEPTACION_TALLER con evidencias y diagnóstico embebidos.
+    """
+    admin_id = await obtener_admin_id(current_user, db)
+
+    # Validar que la sucursal pertenezca al admin
+    from app.repositories.taller_repository import TallerRepository
+    taller_repo = TallerRepository(db)
+    sucursales_propias = await taller_repo.get_sucursal_ids_by_admin(admin_id)
+    if sucursal_id not in sucursales_propias:
+        raise HTTPException(status_code=403, detail="Esta sucursal no te pertenece")
+
+    service = SolicitudService(db)
+    solicitudes = await service.listar_esperando_aceptacion()
+    return solicitudes
+
+
+@router.get(
+    "/{sucursal_id}/solicitudes/en-proceso",
+    response_model=list[SolicitudDetallada],
+    summary="Listar solicitudes en proceso para una sucursal",
+    description="Retorna las solicitudes en estado EN_PROCESO que ya fueron aceptadas pero aún no se ha cobrado.",
+)
+async def listar_solicitudes_en_proceso_sucursal(
+    sucursal_id: int,
+    current_user: Usuario = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Solicitudes aceptadas (EN_PROCESO) para el panel de cobro."""
+    admin_id = await obtener_admin_id(current_user, db)
+
+    from app.repositories.taller_repository import TallerRepository
+    taller_repo = TallerRepository(db)
+    sucursales_propias = await taller_repo.get_sucursal_ids_by_admin(admin_id)
+    if sucursal_id not in sucursales_propias:
+        raise HTTPException(status_code=403, detail="Esta sucursal no te pertenece")
+
+    service = SolicitudService(db)
+    from app.models.solicitud_emergencia import EstadoSolicitud
+    solicitudes = await service.listar_por_estado(EstadoSolicitud.EN_PROCESO)
+    return solicitudes
+
+
+from pydantic import BaseModel, Field
+
+class ResenaCreate(BaseModel):
+    puntuacion: int = Field(..., ge=1, le=5)
+    comentario: str | None = None
+
+@router.post(
+    "/{sucursal_id}/resenas",
+    status_code=status.HTTP_201_CREATED,
+    summary="Dejar una reseña al taller",
+    description="Permite al cliente calificar y dejar un comentario al finalizar el servicio."
+)
+async def crear_resena_taller(
+    sucursal_id: int,
+    resena: ResenaCreate,
+    current_user: Usuario = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.models.resena import ResenaForo
+    
+    nueva_resena = ResenaForo(
+        puntuacion=resena.puntuacion,
+        comentario=resena.comentario,
+        sucursal_id=sucursal_id,
+        usuario_id=current_user.id
+    )
+    
+    db.add(nueva_resena)
+    await db.commit()
+    
+    return {"message": "Reseña guardada exitosamente"}

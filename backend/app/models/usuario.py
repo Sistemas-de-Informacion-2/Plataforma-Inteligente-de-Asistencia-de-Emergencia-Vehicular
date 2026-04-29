@@ -24,6 +24,7 @@ class Usuario(AuditableMixin, Base):
     ci: Mapped[str] = mapped_column(
         String(20), unique=True, index=True, nullable=False
     )
+    fcm_token: Mapped[str | None] = mapped_column(String(500), nullable=True, comment="Token FCM para push notifications")
 
     # ── Relaciones ────────────────────────────────────────────
     perfil: Mapped["UsuarioPerfil"] = relationship(

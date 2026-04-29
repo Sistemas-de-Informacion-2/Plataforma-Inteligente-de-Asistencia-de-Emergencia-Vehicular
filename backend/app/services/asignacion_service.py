@@ -14,10 +14,9 @@ from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.models.asignacion import Asignacion, EstadoAsignacion
-from app.models.taller import Sucursal
+from app.models.taller import Sucursal, Taller
 from app.models.servicio import SucursalServicio, Servicio
 from app.models.empleado import Empleado
 from app.repositories.taller_repository import SucursalRepository
@@ -35,54 +34,32 @@ class AsignacionService:
         self.empleado_repo = EmpleadoRepository(session)
         self.asignacion_repo = AsignacionRepository(session)
 
-    async def buscar_mejor_taller(
+    async def buscar_sucursales_aptas(
         self,
-        solicitud_id: int,
         latitud_incidente: float,
         longitud_incidente: float,
         tipo_problema: str,
         *,
         radio_km: float = 15.0,
         max_candidatos: int = 10,
-    ) -> dict[str, Any]:
+    ) -> list[dict[str, Any]]:
         """
-        Algoritmo de asignación inteligente. Pasos:
-
-        1. Buscar sucursales cercanas al incidente (PostGIS)
-        2. Filtrar por compatibilidad de servicios
-        3. Verificar disponibilidad de técnicos
-        4. Rankear candidatos y seleccionar el mejor
-        5. Crear la asignación
-
-        Args:
-            solicitud_id:       ID de la solicitud de emergencia
-            latitud_incidente:  Latitud del incidente
-            longitud_incidente: Longitud del incidente
-            tipo_problema:      Tipo de problema detectado (ej: "Auxilio eléctrico")
-            radio_km:           Radio de búsqueda en km
-            max_candidatos:     Máximo sucursales candidatas
+        Busca y rankea sucursales aptas SIN crear asignación.
+        Usado en Fase 1 del flujo 'Uber para Mecánicos Inverso':
+        el cliente recibe la lista y elige.
 
         Returns:
-            {
-                "asignacion": Asignacion | None,
-                "candidatos": list[dict],
-                "seleccionado": dict | None,
-                "motivo": str,
-            }
+            Lista de candidatos ordenados por score descendente.
+            Cada candidato contiene: sucursal_id, nombre, taller_nombre,
+            distancia_km, tiene_servicio, tecnicos_disponibles, score, eta_minutos.
         """
-        resultado = {
-            "asignacion": None,
-            "candidatos": [],
-            "seleccionado": None,
-            "motivo": "",
-        }
-
-        # ── Paso 1: Sucursales cercanas ───────────────────────
         logger.info(
-            f"[Asignación] Buscando sucursales en radio de {radio_km}km "
-            f"desde ({latitud_incidente}, {longitud_incidente})"
+            f"[Recomendación] Buscando sucursales aptas en radio de {radio_km}km "
+            f"desde ({latitud_incidente}, {longitud_incidente}) "
+            f"para tipo: '{tipo_problema}'"
         )
 
+        # ── Paso 1: Sucursales cercanas (PostGIS) ─────────────
         sucursales_cercanas = await self.sucursal_repo.buscar_cercanas(
             latitud_incidente,
             longitud_incidente,
@@ -91,47 +68,46 @@ class AsignacionService:
         )
 
         if not sucursales_cercanas:
-            resultado["motivo"] = (
-                f"No se encontraron sucursales en un radio de {radio_km}km"
-            )
-            logger.warning(f"[Asignación] {resultado['motivo']}")
-            return resultado
+            logger.warning(f"[Recomendación] No se encontraron sucursales en radio de {radio_km}km")
+            return []
 
-        logger.info(
-            f"[Asignación] {len(sucursales_cercanas)} sucursales encontradas"
-        )
+        logger.info(f"[Recomendación] {len(sucursales_cercanas)} sucursales encontradas")
 
         # ── Paso 2: Filtrar por servicio compatible ───────────
-        candidatos_con_servicio = []
-
+        candidatos: list[dict[str, Any]] = []
         for item in sucursales_cercanas:
             sucursal: Sucursal = item["sucursal"]
             distancia_km: float = item["distancia_km"]
 
-            # Verificar si la sucursal ofrece el servicio requerido
             tiene_servicio = await self._sucursal_ofrece_servicio(
                 sucursal.id, tipo_problema
             )
 
+            # Obtener nombre del taller padre
+            taller_nombre = ""
+            if sucursal.taller_id:
+                taller = await self.session.get(Taller, sucursal.taller_id)
+                taller_nombre = taller.nombre if taller else ""
+
             candidato = {
                 "sucursal_id": sucursal.id,
                 "sucursal_nombre": sucursal.nombre,
+                "sucursal_direccion": sucursal.direccion,
+                "sucursal_telefono": sucursal.telefono,
+                "sucursal_latitud": sucursal.latitud,
+                "sucursal_longitud": sucursal.longitud,
                 "taller_id": sucursal.taller_id,
+                "taller_nombre": taller_nombre,
                 "distancia_km": distancia_km,
                 "tiene_servicio": tiene_servicio,
                 "tecnicos_disponibles": [],
-                "score": 0.0,
+                "score": -10.0 if not tiene_servicio else 0.0,
             }
 
-            if tiene_servicio:
-                candidatos_con_servicio.append(candidato)
-            else:
-                # Incluir igualmente pero con score penalty
-                candidato["score"] = -10.0
-                candidatos_con_servicio.append(candidato)
+            candidatos.append(candidato)
 
         # ── Paso 3: Verificar técnicos disponibles ────────────
-        for candidato in candidatos_con_servicio:
+        for candidato in candidatos:
             tecnicos = await self.empleado_repo.get_disponibles(
                 sucursal_id=candidato["sucursal_id"],
             )
@@ -141,58 +117,19 @@ class AsignacionService:
             ]
 
         # ── Paso 4: Calcular score y rankear ──────────────────
-        for candidato in candidatos_con_servicio:
+        for candidato in candidatos:
             candidato["score"] = self._calcular_score(candidato)
 
-        # Ordenar por score descendente
-        candidatos_con_servicio.sort(key=lambda c: c["score"], reverse=True)
-        resultado["candidatos"] = candidatos_con_servicio
-
-        # ── Paso 5: Seleccionar el mejor y crear asignación ──
-        mejor = self._seleccionar_mejor(candidatos_con_servicio)
-
-        if mejor is None:
-            resultado["motivo"] = (
-                "Ninguna sucursal cercana tiene técnicos disponibles "
-                "con el servicio requerido"
-            )
-            logger.warning(f"[Asignación] {resultado['motivo']}")
-            return resultado
-
-        resultado["seleccionado"] = mejor
-
-        # Elegir el primer técnico disponible de la sucursal seleccionada
-        tecnico_id = None
-        if mejor["tecnicos_disponibles"]:
-            tecnico_id = mejor["tecnicos_disponibles"][0]["id"]
-
-        # Calcular tiempo estimado de llegada (aprox 3 min/km)
-        eta_minutos = max(5, round(mejor["distancia_km"] * 3))
-
-        # Crear la asignación en BD
-        asignacion_data = AsignacionCreate(
-            solicitud_id=solicitud_id,
-            empleado_id=tecnico_id,
-            sucursal_id=mejor["sucursal_id"],
-            estado=EstadoAsignacion.PENDIENTE,
-            tiempo_estimado_llegada=eta_minutos,
+        candidatos.sort(key=lambda c: c["score"], reverse=True)
+        logger.info(
+            f"[Recomendación] {len(candidatos)} candidatos rankeados. "
+            f"Mejor: {candidatos[0]['sucursal_nombre']} "
+            f"(score={candidatos[0]['score']})" if candidatos else ""
         )
+        return candidatos
 
-        asignacion = await self.asignacion_repo.create(
-            asignacion_data.model_dump()
-        )
-
-        resultado["asignacion"] = asignacion
-        resultado["motivo"] = (
-            f"Asignado a '{mejor['sucursal_nombre']}' "
-            f"({mejor['distancia_km']}km, ETA ~{eta_minutos}min)"
-        )
-        logger.info(f"[Asignación] {resultado['motivo']}")
-
-        return resultado
 
     # ── Gestión de asignaciones existentes ────────────────────
-
     async def aceptar_asignacion(self, asignacion_id: int) -> Asignacion | None:
         return await self.asignacion_repo.actualizar_estado(
             asignacion_id, EstadoAsignacion.ACEPTADA
@@ -218,22 +155,14 @@ class AsignacionService:
             asignacion_id, EstadoAsignacion.COMPLETADA
         )
 
-    async def obtener_asignaciones_solicitud(
-        self, solicitud_id: int
-    ) -> list[Asignacion]:
-        return list(
-            await self.asignacion_repo.get_by_solicitud(solicitud_id)
-        )
+    async def obtener_asignaciones_solicitud(self, solicitud_id: int) -> list[Asignacion]:
+        return list(await self.asignacion_repo.get_by_solicitud(solicitud_id))
 
-    async def obtener_asignacion_activa(
-        self, solicitud_id: int
-    ) -> Asignacion | None:
+    async def obtener_asignacion_activa(self, solicitud_id: int) -> Asignacion | None:
         return await self.asignacion_repo.get_activa_de_solicitud(solicitud_id)
 
     #  Métodos internos del algoritmo
-    async def _sucursal_ofrece_servicio(
-        self, sucursal_id: int, tipo_problema: str
-    ) -> bool:
+    async def _sucursal_ofrece_servicio(self, sucursal_id: int, tipo_problema: str) -> bool:
         """Verifica si una sucursal tiene un servicio que coincida con el problema."""
         stmt = (
             select(SucursalServicio)
@@ -249,7 +178,6 @@ class AsignacionService:
     def _calcular_score(self, candidato: dict) -> float:
         """
         Calcula un puntaje para cada sucursal candidata.
-
         Factores (mayor = mejor):
           - Distancia: -2 puntos por km (más cerca = mejor)
           - Servicio: +20 si tiene el servicio requerido
@@ -267,12 +195,9 @@ class AsignacionService:
         # Bonificar por técnicos disponibles (máx 3 cuentan)
         num_tecnicos = min(len(candidato["tecnicos_disponibles"]), 3)
         score += num_tecnicos * 5.0
-
         return round(score, 2)
 
-    def _seleccionar_mejor(
-        self, candidatos: list[dict]
-    ) -> dict | None:
+    def _seleccionar_mejor(self, candidatos: list[dict]) -> dict | None:
         """
         Selecciona el mejor candidato:
         Debe tener al menos un técnico disponible.

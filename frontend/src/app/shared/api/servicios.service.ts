@@ -1,6 +1,8 @@
+// src/app/shared/api/servicios.service.ts
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { environment } from '../../../environments/environment';
 
 export interface Servicio {
   id: number;
@@ -13,7 +15,7 @@ export interface Servicio {
 })
 export class ServiciosService {
   private http = inject(HttpClient);
-  private apiUrl = 'http://localhost:8000/api/v1/servicios';
+  private apiUrl = `${environment.apiUrl}/servicios`;
 
   getServicios(): Observable<Servicio[]> {
     return this.http.get<Servicio[]>(this.apiUrl);

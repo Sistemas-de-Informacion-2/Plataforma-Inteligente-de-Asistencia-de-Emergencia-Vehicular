@@ -1,4 +1,4 @@
-package com.emergencias.app_cliente
+package com.emergencias.fixo
 
 import io.flutter.embedding.android.FlutterActivity
 

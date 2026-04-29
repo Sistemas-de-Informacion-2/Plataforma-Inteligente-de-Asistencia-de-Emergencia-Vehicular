@@ -1,12 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:app_cliente/core/theme/app_theme.dart';
+import 'package:fixo/core/theme/app_theme.dart';
 
 class EmergenciaMapWidget extends StatefulWidget {
   final LatLng? userLocation;
+  final LatLng? mechanicLocation;
+  final List<LatLng> polylineCoords;
 
-  const EmergenciaMapWidget({super.key, this.userLocation});
+  const EmergenciaMapWidget({
+    super.key, 
+    this.userLocation,
+    this.mechanicLocation,
+    this.polylineCoords = const [],
+  });
 
   @override
   State<EmergenciaMapWidget> createState() => _EmergenciaMapWidgetState();
@@ -70,6 +77,20 @@ class _EmergenciaMapWidgetState extends State<EmergenciaMapWidget>
           urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
           userAgentPackageName: 'com.it_nomads.app_cliente',
         ),
+        
+        // Capa de ruta
+        if (widget.polylineCoords.isNotEmpty)
+          PolylineLayer(
+            polylines: [
+              Polyline(
+                points: widget.polylineCoords,
+                color: AppTheme.primaryColor.withValues(alpha: 0.8),
+                strokeWidth: 5.0,
+              ),
+            ],
+          ),
+
+        // Marcador del Cliente
         if (widget.userLocation != null)
           MarkerLayer(
             markers: [
@@ -85,7 +106,7 @@ class _EmergenciaMapWidgetState extends State<EmergenciaMapWidget>
                   ),
                   child: Container(
                     decoration: BoxDecoration(
-                      color: AppTheme.danger.withOpacity(0.15),
+                      color: AppTheme.danger.withValues(alpha: 0.15),
                       shape: BoxShape.circle,
                     ),
                     child: Center(
@@ -111,7 +132,57 @@ class _EmergenciaMapWidgetState extends State<EmergenciaMapWidget>
               ),
             ],
           ),
+
+        // Marcador Animado del Mecánico
+        if (widget.mechanicLocation != null)
+          TweenAnimationBuilder<LatLng>(
+            tween: _LatLngTween(
+              begin: widget.mechanicLocation!,
+              end: widget.mechanicLocation!,
+            ),
+            duration: const Duration(seconds: 3),
+            curve: Curves.linear,
+            builder: (context, animatedPos, child) {
+              return MarkerLayer(
+                markers: [
+                  Marker(
+                    point: animatedPos,
+                    width: 60,
+                    height: 60,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: AppTheme.floatShadow,
+                        border: Border.all(color: AppTheme.primaryColor, width: 2),
+                      ),
+                      child: const Center(
+                        child: Icon(
+                          Icons.engineering_rounded,
+                          color: AppTheme.primaryColor,
+                          size: 32,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
       ],
+    );
+  }
+}
+
+class _LatLngTween extends Tween<LatLng> {
+  _LatLngTween({required LatLng begin, required LatLng end})
+      : super(begin: begin, end: end);
+
+  @override
+  LatLng lerp(double t) {
+    return LatLng(
+      begin!.latitude + (end!.latitude - begin!.latitude) * t,
+      begin!.longitude + (end!.longitude - begin!.longitude) * t,
     );
   }
 }

@@ -18,7 +18,7 @@ class EmpleadoRepository(BaseRepository[Empleado]):
 
     async def get_by_usuario(self, usuario_id: int) -> Empleado | None:
         """Obtiene el empleado vinculado a un usuario."""
-        stmt = select(Empleado).where(Empleado.usuario_id == usuario_id)
+        stmt = select(Empleado).where(Empleado.usuario_id == usuario_id, Empleado.es_eliminado == False)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
@@ -29,7 +29,7 @@ class EmpleadoRepository(BaseRepository[Empleado]):
         solo_disponibles: bool = False,
     ) -> Sequence[Empleado]:
         """Obtiene empleados de una sucursal, opcionalmente solo los disponibles."""
-        stmt = select(Empleado).where(Empleado.sucursal_id == sucursal_id)
+        stmt = select(Empleado).where(Empleado.sucursal_id == sucursal_id, Empleado.es_eliminado == False)
         if solo_disponibles:
             stmt = stmt.where(Empleado.disponible == True)  # noqa: E712
         result = await self.session.execute(stmt)
@@ -45,7 +45,7 @@ class EmpleadoRepository(BaseRepository[Empleado]):
         Obtiene empleados disponibles, opcionalmente filtrados por
         sucursal y/o especialidad. Útil para el motor de asignación.
         """
-        stmt = select(Empleado).where(Empleado.disponible == True)  # noqa: E712
+        stmt = select(Empleado).where(Empleado.disponible == True, Empleado.es_eliminado == False)  # noqa: E712
         if sucursal_id is not None:
             stmt = stmt.where(Empleado.sucursal_id == sucursal_id)
         if especialidad is not None:

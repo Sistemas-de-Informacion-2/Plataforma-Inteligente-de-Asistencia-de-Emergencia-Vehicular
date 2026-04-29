@@ -1,20 +1,107 @@
+# ═══════════════════════════════════════════════════════════════
+# Plataforma Inteligente de Emergencias Vehiculares
+# Docker Compose — Producción (AWS EC2)
+# ═══════════════════════════════════════════════════════════════
+# Uso:
+#   1. Copiar .env.production como .env y ajustar valores
+#   2. docker compose build
+#   3. docker compose up -d
+# ═══════════════════════════════════════════════════════════════
+
 services:
+
+  # ── Base de Datos (PostGIS) ──────────────────────────────────
   db:
     image: postgis/postgis:15-3.3
     container_name: emergencia_db
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: secretpassword
-      POSTGRES_DB: emergencia_vehicular
-    ports:
-      - "5433:5432"
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     deploy:
       resources:
         limits:
           cpus: '1'
           memory: 512M
 
+  # ── Backend (FastAPI + Alembic) ─────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: emergencia_backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      APP_TITLE: ${APP_TITLE}
+      DEBUG: ${DEBUG:-False}
+      API_V1_PREFIX: ${API_V1_PREFIX:-/api/v1}
+      SECRET_KEY: ${SECRET_KEY}
+      ALGORITHM: ${ALGORITHM:-HS256}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-60}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
+      STRIPE_PUBLICABLE: ${STRIPE_PUBLICABLE}
+      FIREBASE_CREDENTIALS_PATH: ${FIREBASE_CREDENTIALS_PATH:-firebase-service-account.json}
+      BACKEND_URL: ${BACKEND_URL:-http://backend:8000}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost}
+    volumes:
+      - uploads_data:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 1G
+
+  # ── Nginx (Frontend + Proxy Reverso) ────────────────────────
+  nginx:
+    build:
+      context: .
+      dockerfile: nginx/Dockerfile
+    container_name: emergencia_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+# ── Volúmenes persistentes ────────────────────────────────────
 volumes:
   postgres_data:
+    driver: local
+  uploads_data:
+    driver: local
+
+# ── Red interna ───────────────────────────────────────────────
+networks:
+  app_network:
+    driver: bridge

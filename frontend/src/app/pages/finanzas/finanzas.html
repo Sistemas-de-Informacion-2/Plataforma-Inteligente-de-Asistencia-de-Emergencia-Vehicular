@@ -1,0 +1,118 @@
+<div class="profile-wrapper">
+  
+  @if (isLoading()) {
+    <div class="space-y-6 animate-pulse">
+      <div class="h-[200px] bg-white rounded-2xl"></div>
+    </div>
+  } @else {
+    <div class="animate-fade-in grid grid-cols-1 md:grid-cols-2 gap-8">
+      
+      <!-- Card Deuda -->
+      <div class="bg-white rounded-3xl p-8 shadow-xl shadow-black/5 relative overflow-hidden">
+        <div class="absolute top-0 right-0 p-6 opacity-10">
+          <i class='bx bx-wallet text-9xl text-primary-500'></i>
+        </div>
+        
+        <div class="relative z-10">
+          <div class="flex items-center gap-3 mb-6">
+            <div class="w-12 h-12 rounded-xl bg-red-50 text-alert flex items-center justify-center text-2xl">
+              <i class='bx bx-line-chart-down'></i>
+            </div>
+            <div>
+              <h2 class="text-xl font-bold text-text-main">Deuda por Comisiones</h2>
+              <p class="text-xs text-text-muted">Acumulada por pagos en efectivo o QR</p>
+            </div>
+          </div>
+
+          <div class="mb-8">
+            <p class="text-5xl font-black text-alert mb-2">Bs. {{ deudaActual() | number:'1.2-2' }}</p>
+            <div class="flex justify-between text-sm mb-2">
+              <span class="text-text-muted font-medium">Progreso al límite</span>
+              <span class="text-alert font-bold">Bs. {{ limiteDeuda() | number:'1.2-2' }} (Límite)</span>
+            </div>
+            <!-- Progress Bar -->
+            <div class="w-full bg-gray-100 rounded-full h-3 mb-2 overflow-hidden">
+              <div class="bg-alert h-3 rounded-full transition-all duration-500" 
+                   [style.width]="(deudaActual() / limiteDeuda()) * 100 + '%'"></div>
+            </div>
+            @if (!puedeAceptar()) {
+              <div class="mt-4 p-4 bg-red-50 border border-red-100 rounded-xl flex items-start gap-3">
+                <i class='bx bx-error-circle text-alert text-xl mt-0.5'></i>
+                <p class="text-sm text-alert font-medium leading-snug">
+                  Has superado el límite de deuda. No podrás aceptar nuevas solicitudes hasta que regularices tu pago con la plataforma.
+                </p>
+              </div>
+            } @else {
+               <div class="mt-4 p-4 bg-green-50 border border-green-100 rounded-xl flex items-center gap-3">
+                <i class='bx bx-check-circle text-success text-xl'></i>
+                <p class="text-sm text-green-700 font-medium">
+                  Tu cuenta está activa y puedes aceptar solicitudes.
+                </p>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+
+      <!-- Card QR -->
+      <div class="bg-white rounded-3xl p-8 shadow-xl shadow-black/5">
+        <div class="flex items-center gap-3 mb-6">
+          <div class="w-12 h-12 rounded-xl bg-primary-50 text-primary-600 flex items-center justify-center text-2xl">
+            <i class='bx bx-qr-scan'></i>
+          </div>
+          <div>
+            <h2 class="text-xl font-bold text-text-main">Mi QR de Pago</h2>
+            <p class="text-xs text-text-muted">Sube el código QR de tu banco</p>
+          </div>
+        </div>
+
+        <div class="flex flex-col items-center justify-center">
+          
+          <div class="relative group w-48 h-48 mb-6 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden transition-all hover:border-primary-500">
+            @if (isUploading()) {
+              <div class="absolute inset-0 bg-white/90 z-20 flex flex-col items-center justify-center">
+                <i class='bx bx-loader-alt animate-spin text-3xl text-primary-600 mb-2'></i>
+                <span class="text-xs font-bold text-primary-600">Subiendo...</span>
+              </div>
+            }
+
+            @if (qrUrl()) {
+              <img [src]="qrUrl()" alt="QR Banco" class="w-full h-full object-contain p-2">
+            } @else {
+              <div class="text-center p-4">
+                <i class='bx bx-image-add text-4xl text-gray-400 mb-2'></i>
+                <p class="text-xs text-gray-500 font-medium">Aún no has subido tu QR</p>
+              </div>
+            }
+
+            <!-- Overlay for upload -->
+            <label for="qr-upload" class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center cursor-pointer transition-opacity z-10 text-white">
+              <i class='bx bx-upload text-3xl mb-1'></i>
+              <span class="text-sm font-bold">{{ qrUrl() ? 'Cambiar QR' : 'Subir QR' }}</span>
+            </label>
+            <input type="file" id="qr-upload" class="hidden" accept="image/*" (change)="onQrSelected($event)" [disabled]="isUploading()">
+          </div>
+
+          <p class="text-sm text-center text-text-muted max-w-xs leading-relaxed">
+            Este QR será mostrado a tus clientes al momento de finalizar el servicio para que puedan transferirte.
+          </p>
+        </div>
+      </div>
+
+    </div>
+  }
+
+</div>
+
+@if (toastMessage(); as msg) {
+  <div class="fixed bottom-10 right-10 z-[100]">
+    <div class="toast-premium" 
+         [ngClass]="{
+           'bg-white text-green-600 border-l-4 border-green-500': msg.type === 'success',
+           'bg-white text-red-600 border-l-4 border-red-500': msg.type === 'error'
+         }">
+      <i class='bx' [ngClass]="msg.type === 'success' ? 'bx-check-circle' : 'bx-error-circle'" class="text-2xl"></i>
+      <p class="font-bold text-sm tracking-tight">{{ msg.text }}</p>
+    </div>
+  </div>
+}

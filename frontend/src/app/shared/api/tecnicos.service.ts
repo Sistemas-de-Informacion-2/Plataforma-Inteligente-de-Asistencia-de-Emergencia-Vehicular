@@ -1,6 +1,8 @@
+// src/app/shared/api/tecnicos.service.ts
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { environment } from '../../../environments/environment';
 
 export interface Tecnico {
   id: number;
@@ -14,7 +16,7 @@ export interface Tecnico {
   providedIn: 'root'
 })
 export class TecnicosService {
-  private readonly API_URL = 'http://localhost:8000/api/v1/usuarios/tecnicos';
+  private readonly API_URL = `${environment.apiUrl}/usuarios/tecnicos`;
 
   constructor(private http: HttpClient) {}
 

@@ -1,6 +1,8 @@
+// src/app/shared/api/usuario.service.ts
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, tap } from 'rxjs';
+import { environment } from '../../../environments/environment';
 
 export interface UsuarioPerfil {
   segundo_nombre: string | null;
@@ -35,7 +37,7 @@ export interface UsuarioPerfilUpdatePayload {
 })
 export class UsuarioService {
   private http = inject(HttpClient);
-  private readonly API_URL = 'http://localhost:8000/api/v1/usuarios';
+  private readonly API_URL = `${environment.apiUrl}/usuarios`;
 
   // Usamos signals para almacenar la sesión actual o perfil actual del usaurio
   public currentUser = signal<UsuarioData | null>(null);
@@ -55,5 +57,21 @@ export class UsuarioService {
         this.currentUser.set(data);
       })
     );
+  }
+
+  uploadProfilePhoto(file: File): Observable<{ url: string }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.http.post<{ url: string }>(`${this.API_URL}/me/foto`, formData);
+  }
+
+  uploadQrAdmin(file: File): Observable<{ url: string }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.http.post<{ url: string }>(`${this.API_URL}/admins/me/qr`, formData);
+  }
+
+  getMiQr(): Observable<{ qr_url: string }> {
+    return this.http.get<{ qr_url: string }>(`${this.API_URL}/admins/me/qr`);
   }
 }

@@ -1,3 +1,4 @@
+// src/app/pages/sucursales/sucursales.component.ts
 import { Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -9,7 +10,8 @@ import { MapSelectorComponent } from '../../shared/ui/map-selector/map-selector.
   selector: 'app-sucursales',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, MapSelectorComponent],
-  templateUrl: './sucursales.component.html'
+  templateUrl: './sucursales.component.html',
+  styleUrls: ['./sucursales.component.css']
 })
 export class SucursalesComponent implements OnInit {
   private sucursalesService = inject(SucursalesService);

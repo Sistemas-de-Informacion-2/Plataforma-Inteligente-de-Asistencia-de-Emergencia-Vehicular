@@ -1,0 +1,169 @@
+/* Premium Registration Aesthetics */
+@reference "../../../../styles.css";
+
+:host {
+  display: block;
+}
+
+.reg-container {
+  background: var(--surface-dark);
+  min-height: 100vh;
+}
+
+.split-card {
+  background: white;
+  min-height: 700px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+  animation: cardScaleIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes cardScaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* --- Left Side: Hero --- */
+.hero-side {
+  background: linear-gradient(135deg, var(--primary-700), var(--primary-500));
+  position: relative;
+  overflow: hidden;
+}
+
+.hero-pattern {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle at 2px 2px, rgba(255,255,255,0.05) 1px, transparent 0);
+  background-size: 32px 32px;
+  z-index: 1;
+}
+
+.benefit-image {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 82%;
+  max-width: 500px;
+  height: auto;
+  object-contain: cover;
+  transition: all 1.2s ease-in-out;
+  opacity: 0;
+  transform: scale(1.05);
+  z-index: 0;
+  filter: drop-shadow(0 20px 30px rgba(0,0,0,0.2));
+  border-radius: 2rem;
+}
+
+.benefit-image.active {
+  opacity: 1;
+  transform: scale(1);
+  z-index: 10;
+}
+
+.hero-overlay {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at center, transparent, rgba(10, 31, 68, 0.2));
+  z-index: 1;
+}
+
+/* --- Right Side: Form --- */
+.form-side {
+  padding: 3rem;
+}
+
+/* Stepper UI */
+.step-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 99px;
+  background: var(--gray-200);
+  transition: all 0.4s ease;
+}
+
+.step-dot.active {
+  background: var(--primary-500);
+  width: 30px;
+}
+
+.step-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.step-label.active {
+  color: var(--primary-600);
+}
+
+/* Input Styles */
+.input-group {
+  margin-bottom: 1.5rem;
+}
+
+.input-field {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.input-field:focus {
+  background: white;
+  border-color: var(--primary-300);
+  box-shadow: 0 0 0 4px var(--primary-50);
+}
+
+.input-icon {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--gray-400);
+  transition: color 0.3s ease;
+}
+
+.group:focus-within .input-icon {
+  color: var(--primary-500);
+}
+
+/* Buttons */
+.btn-primary {
+  background: var(--primary-600);
+  color: white;
+  transition: all 0.3s ease;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--primary-700);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+}
+
+.btn-secondary {
+  background: var(--gray-50);
+  color: var(--text-main);
+  border: 1px solid var(--gray-200);
+  transition: all 0.3s ease;
+}
+
+.btn-secondary:hover {
+  background: var(--gray-100);
+}
+
+/* Step Animations */
+.step-container {
+  animation: stepIn 0.5s ease-out;
+}
+
+@keyframes stepIn {
+  from { opacity: 0; transform: translateX(10px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* Glass Card for the Map */
+.map-glass {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 1.5rem;
+  overflow: hidden;
+}

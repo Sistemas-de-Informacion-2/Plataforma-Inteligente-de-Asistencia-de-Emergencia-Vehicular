@@ -16,6 +16,9 @@ from app.models.auditable import AuditableMixin
 class EstadoSolicitud(str, enum.Enum):
     """Estados posibles de una solicitud de emergencia."""
     PENDIENTE = "PENDIENTE"
+    PENDIENTE_SELECCION_CLIENTE = "PENDIENTE_SELECCION_CLIENTE"
+    ESPERANDO_ACEPTACION_TALLER = "ESPERANDO_ACEPTACION_TALLER"
+    RECHAZADO_POR_TALLER = "RECHAZADO_POR_TALLER"
     EN_PROCESO = "EN_PROCESO"
     ATENDIDO = "ATENDIDO"
     CANCELADO = "CANCELADO"

@@ -77,6 +77,7 @@ class SolicitudRepository(BaseRepository[SolicitudEmergencia]):
             .options(
                 selectinload(SolicitudEmergencia.evidencias),
                 selectinload(SolicitudEmergencia.diagnostico),
+                selectinload(SolicitudEmergencia.vehiculo),
             )
             .where(
                 SolicitudEmergencia.id == solicitud_id,
@@ -85,6 +86,32 @@ class SolicitudRepository(BaseRepository[SolicitudEmergencia]):
         )
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def get_detalladas_por_estado(
+        self,
+        estado: EstadoSolicitud,
+        *,
+        skip: int = 0,
+        limit: int = 100,
+    ) -> Sequence[SolicitudEmergencia]:
+        """Solicitudes filtradas por estado CON evidencias y diagnóstico precargados."""
+        stmt = (
+            select(SolicitudEmergencia)
+            .options(
+                selectinload(SolicitudEmergencia.evidencias),
+                selectinload(SolicitudEmergencia.diagnostico),
+                selectinload(SolicitudEmergencia.vehiculo),
+            )
+            .where(
+                SolicitudEmergencia.estado == estado,
+                SolicitudEmergencia.es_eliminado == False
+            )
+            .order_by(SolicitudEmergencia.fecha_creacion.desc())
+            .offset(skip)
+            .limit(limit)
+        )
+        result = await self.session.execute(stmt)
+        return result.scalars().all()
 
     async def actualizar_estado(
         self,

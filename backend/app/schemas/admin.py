@@ -19,3 +19,5 @@ class AdminOut(AdminBase):
 
     id: int
     usuario_id: int
+    deuda_comision: float
+    qr_imagen_url: str | None = None

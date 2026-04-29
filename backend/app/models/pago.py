@@ -2,13 +2,15 @@
 """
 Modelos: Pago y MetodoPago.
 El taller paga 10% de comisión a la plataforma.
+Incluye tracking de Stripe y sistema de deuda para pagos en efectivo.
 """
 import enum
 from datetime import datetime
-from sqlalchemy import String, Float, ForeignKey, DateTime, Enum as SAEnum
+from sqlalchemy import String, Float, ForeignKey, DateTime, Enum as SAEnum, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 from app.core.database import Base
+
 
 class EstadoPago(str, enum.Enum):
     """Estados de un pago."""
@@ -16,6 +18,13 @@ class EstadoPago(str, enum.Enum):
     COMPLETADO = "COMPLETADO"
     FALLIDO = "FALLIDO"
     REEMBOLSADO = "REEMBOLSADO"
+
+
+class TipoPago(str, enum.Enum):
+    """Tipos de método de pago."""
+    TARJETA = "TARJETA"
+    EFECTIVO = "EFECTIVO"
+    QR = "QR"
 
 
 class MetodoPago(Base):
@@ -41,6 +50,10 @@ class Pago(Base):
         default=EstadoPago.PENDIENTE,
         nullable=False,
     )
+    tipo_pago: Mapped[TipoPago | None] = mapped_column(
+        SAEnum(TipoPago, name="tipo_pago", create_constraint=True),
+        nullable=True,
+    )
     fecha: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -52,6 +65,13 @@ class Pago(Base):
         Float, nullable=False, default=0.0,
         comment="90% del monto total que recibe el taller"
     )
+
+    # Stripe
+    stripe_session_id: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    stripe_payment_intent_id: Mapped[str | None] = mapped_column(String(300), nullable=True)
+
+    # QR — URL del comprobante subido por el cliente
+    comprobante_url: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # FK
     orden_id: Mapped[int] = mapped_column(

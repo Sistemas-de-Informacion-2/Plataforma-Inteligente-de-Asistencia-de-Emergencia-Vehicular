@@ -1,3 +1,4 @@
+// src/app/pages/super-admin/sa-usuarios/sa-usuarios.component.ts
 import { Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { SuperAdminService, UsuarioOut } from '../../../shared/api/super-admin.service';

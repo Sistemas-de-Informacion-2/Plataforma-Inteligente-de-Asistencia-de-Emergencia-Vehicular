@@ -1,102 +1,111 @@
-<div class="min-h-screen flex items-center justify-center bg-surface-dark px-4 sm:px-6 lg:px-8">
-  <div class="max-w-md w-full space-y-8 bg-surface-light p-8 md:p-10 rounded-2xl shadow-xl shadow-gray-200/50 border border-gray-100">
+<div class="login-container min-h-screen flex items-center justify-center p-0 lg:p-6 bg-surface-dark">
+  
+  <div class="split-card w-full max-w-[1100px] flex rounded-none lg:rounded-[2.5rem] overflow-hidden">
     
-    <!-- Encabezado / Logo mock -->
-    <div class="text-center">
-      <div class="mx-auto h-14 w-14 bg-primary-50 rounded-2xl flex items-center justify-center ring-1 ring-primary-100 mb-6 drop-shadow-sm">
-        <svg class="w-8 h-8 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4"></path>
-        </svg>
-      </div>
-      <h2 class="text-3xl font-extrabold text-text-main tracking-tight">
-        Bienvenido
-      </h2>
-      <p class="mt-2 text-sm text-text-muted">
-        Accede al panel administrativo de tu taller
-      </p>
-    </div>
-
-    <!-- Formulario Reactive -->
-    <form class="mt-8 space-y-6" [formGroup]="loginForm" (ngSubmit)="onSubmit()">
+    <!-- Columna Izquierda: Formulario -->
+    <div class="form-side w-full lg:w-[45%] flex flex-col justify-center bg-white">
       
-      <!-- Mensaje de Error (si falla login) -->
-      <div *ngIf="errorMessage" class="p-3 bg-alert bg-opacity-10 rounded-lg text-sm text-alert text-center font-medium border border-alert border-opacity-20 animate-fade-in">
-        {{ errorMessage }}
-      </div>
-
-      <div class="space-y-5">
-        <!-- Campo Correo -->
-        <div>
-          <label for="email" class="block text-sm font-medium text-text-main mb-1.5 shadow-sm">
-            Correo electrónico
-          </label>
-          <div>
-            <input id="email" type="email" formControlName="email"
-              class="appearance-none block w-full px-4 py-3 border border-gray-200 rounded-xl bg-surface-dark text-text-main placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition duration-200"
-              placeholder="tu@taller.com">
-          </div>
-          <div *ngIf="loginForm.get('email')?.touched && loginForm.get('email')?.invalid" class="mt-1 text-sm text-alert font-medium animate-fade-in pl-1">
-            <span *ngIf="loginForm.get('email')?.errors?.['required']">El correo es requerido.</span>
-            <span *ngIf="loginForm.get('email')?.errors?.['email']">Debes ingresar un correo válido.</span>
-          </div>
+      <!-- Logo Mobile (Solo se ve en pantallas pequeñas) -->
+      <div class="flex lg:hidden flex-col items-center gap-2 mb-10">
+        <div class="w-12 h-12 rounded-xl bg-primary-600 flex items-center justify-center shadow-lg">
+          <i class='bx bxs-bolt text-2xl text-white'></i>
         </div>
-
-        <!-- Campo Contraseña -->
-        <div>
-          <label for="password" class="block text-sm font-medium text-text-main mb-1.5 shadow-sm">
-            Contraseña
-          </label>
-          <div>
-            <input id="password" type="password" formControlName="password"
-              class="appearance-none block w-full px-4 py-3 border border-gray-200 rounded-xl bg-surface-dark text-text-main placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition duration-200"
-              placeholder="••••••••">
-          </div>
-           <div *ngIf="loginForm.get('password')?.touched && loginForm.get('password')?.invalid" class="mt-1 text-sm text-alert font-medium animate-fade-in pl-1">
-            <span *ngIf="loginForm.get('password')?.errors?.['required']">La contraseña es requerida.</span>
-            <span *ngIf="loginForm.get('password')?.errors?.['minlength']">Mínimo 4 caracteres.</span>
-          </div>
-        </div>
+        <h1 class="text-2xl font-black text-text-main">FIXO<span class="text-primary-500">.</span></h1>
       </div>
 
-      <!-- Action Button -->
-      <div class="pt-2">
-        <button type="submit" 
-          [disabled]="isLoading"
-          class="w-full flex justify-center items-center py-3.5 px-4 border border-transparent rounded-xl shadow-md text-sm font-semibold text-white bg-primary-600 hover:bg-primary-500 focus:outline-none focus:ring-2 focus:ring-offset-2 hover:shadow-lg focus:ring-primary-500 transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed">
-          
-          <!-- Loader SVG si isLoading = true -->
-          <span *ngIf="isLoading" class="flex items-center">
-            <svg class="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            Ingresando...
-          </span>
-          <!-- Texto Normal -->
-          <span *ngIf="!isLoading">Iniciar Sesión</span>
-          
-        </button>
-      </div>
-    </form>
+      <div class="max-w-sm mx-auto w-full">
+        <header class="mb-10">
+          <h2 class="text-3xl font-black text-text-main tracking-tight mb-2">Bienvenido</h2>
+          <p class="text-sm text-text-muted font-medium">Ingresa tus credenciales para administrar tu taller.</p>
+        </header>
 
-    <!-- Enlace de Registro -->
-    <div class="mt-6 text-center">
-      <p class="text-sm text-text-muted">
-        ¿Aún no tienes cuenta?
-        <a routerLink="/registro-taller" class="font-bold text-primary-600 hover:text-primary-500 hover:underline transition-colors">
-          Registra tu Taller
-        </a>
-      </p>
+        <!-- Formulario -->
+        <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="space-y-6">
+          
+          <div *ngIf="errorMessage" 
+               class="error-shake p-4 bg-red-50 rounded-2xl text-xs text-alert font-bold border border-red-100 flex items-center gap-2">
+            <i class='bx bx-error-circle text-lg'></i>
+            {{ errorMessage }}
+          </div>
+
+          <div class="space-y-5">
+            <div>
+              <label for="email" class="block text-[10px] font-black text-text-muted uppercase tracking-[0.15em] mb-2 ml-1">Email</label>
+              <div class="relative group">
+                <i class='bx bx-envelope absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors text-xl'></i>
+                <input id="email" type="email" formControlName="email"
+                  class="input-field w-full pl-12 pr-4 py-3.5 border border-gray-100 rounded-2xl bg-gray-50/50 text-sm focus:outline-none focus:border-primary-300"
+                  placeholder="usuario@gmail.com">
+              </div>
+            </div>
+
+            <div>
+              <label for="password" class="block text-[10px] font-black text-text-muted uppercase tracking-[0.15em] mb-2 ml-1">Contraseña</label>
+              <div class="relative group">
+                <i class='bx bx-lock-alt absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors text-xl'></i>
+                <input id="password" [type]="showPassword ? 'text' : 'password'" formControlName="password"
+                  class="input-field w-full pl-12 pr-12 py-3.5 border border-gray-100 rounded-2xl bg-gray-50/50 text-sm focus:outline-none focus:border-primary-300"
+                  placeholder="••••••••">
+                
+                <button type="button" (click)="togglePasswordVisibility()" 
+                        class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-primary-600">
+                  <i class='bx' [ngClass]="showPassword ? 'bx-hide' : 'bx-show'" style="font-size: 1.25rem;"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between">
+            <label class="flex items-center group cursor-pointer">
+              <input type="checkbox" class="peer hidden">
+              <div class="w-5 h-5 border-2 border-gray-100 rounded-md bg-white peer-checked:bg-primary-600 peer-checked:border-primary-600 transition-all flex items-center justify-center">
+                <i class='bx bx-check text-white text-xs opacity-0 peer-checked:opacity-100 transition-opacity'></i>
+              </div>
+              <span class="ml-2 text-xs font-bold text-text-muted group-hover:text-text-main transition-colors">Recordarme</span>
+            </label>
+            <a href="#" class="text-xs font-bold text-primary-600 hover:underline">¿Olvidaste tu contraseña?</a>
+          </div>
+
+          <button type="submit" [disabled]="isLoading"
+            class="btn-primary-premium w-full py-4 rounded-2xl bg-primary-600 text-white text-sm font-black shadow-lg shadow-primary-500/30 hover:bg-primary-700 transition-all disabled:opacity-70">
+            <span *ngIf="isLoading" class="flex items-center justify-center"><i class='bx bx-loader-alt animate-spin mr-2 text-xl'></i> Verificando...</span>
+            <span *ngIf="!isLoading">Entrar al Sistema</span>
+          </button>
+        </form>
+
+        <footer class="mt-10 pt-8 border-t border-gray-50 text-center">
+          <p class="text-xs text-text-muted font-medium">
+            ¿No tienes cuenta? 
+            <a routerLink="/registro-taller" class="text-primary-600 font-black hover:underline">Registra tu Taller</a>
+          </p>
+        </footer>
+      </div>
     </div>
+
+    <!-- Columna Derecha: Solo Publicidad (Senior Look) -->
+    <div class="hero-side flex-1 hidden lg:flex relative bg-surface-dark overflow-hidden">
+      <div class="hero-overlay absolute inset-0 bg-gradient-to-b from-transparent to-black/20 z-[1]"></div>
+  
+      @for (img of adImages; track $index) {
+        <img [src]="img" 
+          [alt]="'Publicidad ' + $index" 
+          class="absolute inset-0 m-auto w-[78%] max-w-lg h-auto object-contain transition-all duration-[1200ms] ease-in-out drop-shadow-2xl rounded-2xl"
+          [ngClass]="{
+           'opacity-100 z-10 scale-100': $index === currentAdIndex(),
+           'opacity-0 z-0 scale-105': $index !== currentAdIndex()
+          }"
+         loading="eager">
+      }
+
+      <div class="absolute bottom-10 left-1/2 -translate-x-1/2 flex gap-3 z-20">
+        @for (img of adImages; track $index) {
+          <div (click)="goToAd($index)"
+           class="h-1.5 rounded-full transition-all duration-500 shadow-sm cursor-pointer hover:bg-white/50"
+           [ngClass]="$index === currentAdIndex() ? 'w-10 bg-white' : 'w-3 bg-white/30'">
+          </div>
+        }
+      </div>
+    </div>
+
   </div>
 </div>
-
-<style>
-  .animate-fade-in {
-    animation: fadeIn 0.3s ease-out;
-  }
-  @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(-5px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-</style>

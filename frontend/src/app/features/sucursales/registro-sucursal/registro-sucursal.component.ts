@@ -1,3 +1,4 @@
+// src/app/features/sucursales/registro-sucursal/registro-sucursal.component.ts
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -54,7 +55,7 @@ export class RegistroSucursalComponent {
     // Simulación de respuesta exitosa
     setTimeout(() => {
       this.isSubmitting = false;
-      this.router.navigate(['/dashboard']);
+      this.router.navigate(['/despacho']);
     }, 1200);
   }
 }

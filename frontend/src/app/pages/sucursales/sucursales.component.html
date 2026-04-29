@@ -1,213 +1,259 @@
-<div class="max-w-7xl mx-auto space-y-6 lg:space-y-8 animate-fade-in pb-12">
+<!-- src/app/pages/sucursales/sucursales.component.html -->
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6 lg:space-y-10 animate-fade-in pb-16">
   
-  <div class="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
-    <div>
-      <h1 class="text-2xl md:text-3xl font-bold text-text-main tracking-tight">Sucursales</h1>
-      <p class="text-text-muted mt-1 text-sm md:text-base">Gestiona las diferentes ubicaciones físicas de tu taller.</p>
+  <!-- Header Section -->
+  <div class="flex flex-col md:flex-row justify-between items-center gap-6 bg-white p-6 sm:p-8 rounded-[2rem] border border-border-main shadow-sm mt-4">
+    <div class="text-center md:text-left">
+      <h1 class="text-3xl md:text-4xl font-black text-text-main tracking-tight flex items-center justify-center md:justify-start gap-4">
+        <div class="w-12 h-12 bg-primary-50 rounded-2xl flex items-center justify-center">
+          <i class='bx bx-store-alt text-primary-600 text-3xl'></i>
+        </div>
+        Sucursales
+      </h1>
+      <p class="text-text-muted mt-2 text-sm md:text-base font-semibold max-w-md">Administración inteligente de ubicaciones físicas y catálogo de servicios.</p>
     </div>
     
-    <button (click)="openModal()" class="px-6 py-2.5 bg-primary-600 hover:bg-primary-700 text-white font-bold rounded-xl shadow-md transition-all transform hover:-translate-y-0.5 focus:outline-none focus:ring-4 focus:ring-primary-300 flex items-center">
-      <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-      Nueva Sucursal
+    <button (click)="openModal()" class="w-full md:w-auto px-8 py-4 bg-primary-600 hover:bg-primary-700 text-white font-black rounded-2xl shadow-xl shadow-primary-100 transition-all transform hover:-translate-y-1 active:scale-95 flex items-center justify-center gap-3">
+      <i class='bx bx-plus-circle text-2xl'></i>
+      NUEVA SUCURSAL
     </button>
   </div>
 
-  <!-- Loading Skeleton -->
-  <div *ngIf="isLoading()" class="bg-surface-light border border-gray-200 rounded-2xl p-8 flex justify-center items-center h-64">
-    <svg class="animate-spin h-8 w-8 text-primary-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-    </svg>
-  </div>
-
-  <!-- Tabla de Resultados -->
-  <div *ngIf="!isLoading()" class="bg-surface-light border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
-    <div class="overflow-x-auto">
-      <table class="w-full text-left border-collapse">
-        <thead>
-          <tr class="bg-gray-50 border-b border-gray-200 text-sm font-bold text-gray-600 uppercase tracking-wider">
-            <th class="px-6 py-4">Nombre de Sucursal</th>
-            <th class="px-6 py-4">Dirección Físicamente</th>
-            <th class="px-6 py-4">Teléfono</th>
-            <th class="px-6 py-4 text-center">Acciones</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-gray-100 text-sm text-gray-700">
-          <tr *ngIf="sucursales().length === 0">
-            <td colspan="4" class="px-6 py-12 text-center text-gray-500 font-medium">
-              No tienes sucursales registradas. ¡Añade tu primera ubicación!
-            </td>
-          </tr>
-          
-          <tr *ngFor="let s of sucursales()" class="hover:bg-gray-50 transition-colors">
-            <td class="px-6 py-4 font-bold text-gray-900 flex items-center">
-              <svg class="w-5 h-5 text-primary-500 mr-3 hidden sm:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
-              {{ s.nombre }}
-            </td>
-            <td class="px-6 py-4 text-gray-600 truncate max-w-xs">{{ s.direccion || 'Sin dirección específica' }}</td>
-            <td class="px-6 py-4 text-gray-600">{{ s.telefono || '-' }}</td>
-            <td class="px-6 py-4 flex justify-center space-x-3">
-              <button (click)="openServicesModal(s)" class="text-indigo-600 hover:text-indigo-800 focus:outline-none transition-colors" title="Gestionar Servicios">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-              </button>
-              <button (click)="openViewModal(s)" class="text-primary-600 hover:text-primary-800 focus:outline-none transition-colors" title="Ver Mapeo">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-              </button>
-              <button (click)="openModal(s)" class="text-amber-500 hover:text-amber-700 focus:outline-none transition-colors" title="Editar">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
-              </button>
-              <button (click)="eliminarSucursal(s.id)" class="text-red-500 hover:text-red-700 focus:outline-none transition-colors" title="Eliminar">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+  <!-- Content Section -->
+  @if (isLoading()) {
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      @for (i of [1,2,3]; track i) {
+        <div class="bg-white border border-border-main rounded-[2rem] p-6 h-64 flex flex-col">
+          <div class="shimmer w-14 h-14 rounded-2xl mb-4"></div>
+          <div class="shimmer w-3/4 h-6 rounded-lg mb-3"></div>
+          <div class="shimmer w-1/2 h-4 rounded-md"></div>
+          <div class="mt-auto pt-4 flex gap-3">
+            <div class="shimmer w-10 h-10 rounded-xl"></div>
+            <div class="shimmer w-10 h-10 rounded-xl"></div>
+          </div>
+        </div>
+      }
     </div>
-  </div>
+  } @else {
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      @if (sucursales().length === 0) {
+        <div class="col-span-full py-24 flex flex-col items-center justify-center bg-white rounded-[3rem] border-2 border-dashed border-gray-200">
+          <div class="w-24 h-24 bg-gray-50 rounded-full flex items-center justify-center mb-6">
+            <i class='bx bx-map-pin text-5xl text-gray-300'></i>
+          </div>
+          <h3 class="text-2xl font-black text-gray-800">No hay sucursales registradas</h3>
+          <p class="text-gray-500 mt-2 font-medium">Registra tu primera ubicación para empezar a operar.</p>
+          <button (click)="openModal()" class="mt-8 px-8 py-3 bg-surface-dark text-primary-600 font-black rounded-xl hover:bg-gray-100 transition-colors uppercase tracking-widest text-xs">
+            Añadir Sucursal
+          </button>
+        </div>
+      }
+
+      @for (s of sucursales(); track s.id) {
+        <div class="bg-white border border-border-main rounded-[2rem] p-6 transition-all hover:shadow-2xl hover:shadow-primary-50 card-border-glow flex flex-col h-full group">
+          <div class="flex-1">
+            <div class="w-14 h-14 bg-surface-dark rounded-2xl flex items-center justify-center text-primary-600 mb-6 group-hover:scale-110 transition-transform">
+              <i class='bx bxs-business text-2xl'></i>
+            </div>
+            
+            <h3 class="text-xl font-black text-gray-900 mb-4 leading-tight">{{ s.nombre }}</h3>
+            
+            <div class="space-y-3">
+              <div class="flex items-start gap-3 text-sm text-gray-500 font-medium">
+                <i class='bx bx-map-pin text-primary-500 text-lg shrink-0'></i>
+                <span class="line-clamp-2">{{ s.direccion || 'Sin dirección registrada' }}</span>
+              </div>
+              
+              <div class="flex items-center gap-3 text-sm text-gray-500 font-medium">
+                <i class='bx bx-phone text-primary-500 text-lg shrink-0'></i>
+                <span>{{ s.telefono || 'Sin teléfono' }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Botones de Acción Responsivos -->
+          <div class="mt-8 pt-6 border-t border-gray-50 flex items-center justify-between gap-2">
+            <div class="flex gap-2">
+              <button (click)="openServicesModal(s)" class="p-3 bg-surface-dark text-gray-600 rounded-xl hover:bg-indigo-50 hover:text-indigo-600 transition-all active:scale-90" title="Servicios">
+                <i class='bx bx-wrench text-xl'></i>
+              </button>
+              <button (click)="openViewModal(s)" class="p-3 bg-surface-dark text-gray-600 rounded-xl hover:bg-primary-50 hover:text-primary-600 transition-all active:scale-90" title="Mapa">
+                <i class='bx bx-map-alt text-xl'></i>
+              </button>
+            </div>
+            
+            <div class="flex gap-2">
+              <button (click)="openModal(s)" class="p-3 bg-surface-dark text-gray-600 rounded-xl hover:bg-amber-50 hover:text-amber-600 transition-all active:scale-90" title="Editar">
+                <i class='bx bx-edit-alt text-xl'></i>
+              </button>
+              <button (click)="eliminarSucursal(s.id)" class="p-3 bg-surface-dark text-gray-600 rounded-xl hover:bg-red-50 hover:text-red-600 transition-all active:scale-90" title="Eliminar">
+                <i class='bx bx-trash text-xl'></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  }
 </div>
 
-<!-- Modal Nueva Sucursal con Backdrop Blur -->
-<div *ngIf="isModalOpen()" class="fixed inset-0 z-[2000] flex items-center justify-center p-4">
-  <div class="fixed inset-0 bg-gray-900/40 backdrop-blur-sm transition-opacity" (click)="closeModal()"></div>
-  
-  <div class="relative bg-white rounded-2xl w-full max-w-4xl max-h-[95vh] overflow-y-auto shadow-2xl animate-fade-in flex flex-col">
-    <!-- Modal Header -->
-    <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white/95 backdrop-blur z-10 shrink-0">
-      <h2 class="text-xl font-bold text-gray-800">
-        {{ viewingSucursal() ? 'Mapa de Sucursal' : (editingId() ? 'Editar Sucursal' : 'Añadir Nueva Sucursal') }}
-      </h2>
-      <button (click)="closeModal()" class="text-gray-400 hover:text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-full p-2 transition-colors focus:outline-none">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-      </button>
-    </div>
-
-    <!-- Modal Body (Formulario) -->
-    <form [formGroup]="sucursalForm" (ngSubmit)="onSubmit()" class="flex flex-col flex-1">
-      <div class="p-6 md:p-8 space-y-8">
-        
-        <!-- Vista en modo View Data (solo si estamos viendo) -->
-        <div *ngIf="viewingSucursal() as v" class="bg-gray-50 p-4 rounded-xl border border-gray-200 mb-4 shadow-inner">
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-            <div>
-              <p class="text-gray-500 font-semibold mb-1">Nombre Comercial</p>
-              <p class="text-gray-900 font-bold">{{ v.nombre }}</p>
-            </div>
-            <div>
-              <p class="text-gray-500 font-semibold mb-1">Teléfono</p>
-              <p class="text-gray-900">{{ v.telefono || 'No registrado' }}</p>
-            </div>
-            <div class="col-span-2">
-              <p class="text-gray-500 font-semibold mb-1">Dirección Escrita</p>
-              <p class="text-gray-900">{{ v.direccion || 'Sin detalles extra' }}</p>
-            </div>
-          </div>
-        </div>
-
-        <!-- Bloque de Texto (oculto en modo Vista) -->
-        <div *ngIf="!viewingSucursal()" class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label class="block text-sm font-semibold text-text-main mb-1">Nombre Comercial de Sucursal <span class="text-alert">*</span></label>
-            <input type="text" formControlName="nombre" placeholder="Ej. Sucursal Central Equipetrol" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none transition-all">
-            <div *ngIf="sucursalForm.get('nombre')?.touched && sucursalForm.get('nombre')?.invalid" class="text-alert text-xs mt-1">El nombre es requerido.</div>
-          </div>
-          
-          <div>
-            <label class="block text-sm font-semibold text-text-main mb-1">Teléfono Fijo / Móvil</label>
-            <input type="text" formControlName="telefono" placeholder="Ej. 33345678" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none transition-all">
-          </div>
-
-          <div class="md:col-span-2">
-            <label class="block text-sm font-semibold text-text-main mb-1">Dirección Escrita <span class="font-normal text-gray-400 bg-gray-100 rounded px-1 ml-1 text-xs">Opcional</span></label>
-            <input type="text" formControlName="direccion" placeholder="Ej. Av. San Martin, 3er Anillo Interno" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none transition-all">
-          </div>
-        </div>
-
-        <!-- Inputs ocultos para Latitud y Longitud -->
-        <input *ngIf="!viewingSucursal()" type="hidden" formControlName="latitud">
-        <input *ngIf="!viewingSucursal()" type="hidden" formControlName="longitud">
-
-        <!-- Bloque Mapa -->
+<!-- Modal Principal -->
+@if (isModalOpen()) {
+  <div class="fixed inset-0 z-[2000] flex items-center justify-center p-4">
+    <div class="fixed inset-0 bg-gray-900/60 backdrop-blur-md transition-opacity" (click)="closeModal()"></div>
+    
+    <div class="relative bg-white rounded-[2.5rem] w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl animate-scale-up flex flex-col">
+      <!-- Modal Header -->
+      <div class="px-8 py-6 border-b border-gray-100 flex justify-between items-center bg-white shrink-0">
         <div>
-          <label class="block text-sm font-semibold text-text-main mb-2">Ubicación Estratégica (GPS) <span *ngIf="!viewingSucursal()" class="text-alert">*</span></label>
+          <h2 class="text-2xl font-black text-gray-900 tracking-tight">
+            {{ viewingSucursal() ? 'UBICACIÓN GPS' : (editingId() ? 'EDITAR SUCURSAL' : 'NUEVA SUCURSAL') }}
+          </h2>
+          <p class="text-sm text-gray-500 font-bold uppercase tracking-widest text-[10px] mt-1">{{ viewingSucursal() ? 'Modo lectura' : 'Información requerida' }}</p>
+        </div>
+        <button (click)="closeModal()" class="text-gray-400 hover:text-gray-900 bg-gray-100 rounded-2xl p-3 transition-transform active:scale-90">
+          <i class='bx bx-x text-2xl'></i>
+        </button>
+      </div>
+
+      <!-- Modal Body -->
+      <form [formGroup]="sucursalForm" (ngSubmit)="onSubmit()" class="flex flex-col flex-1 overflow-y-auto bg-gray-50/30">
+        <div class="p-8 space-y-8">
           
-          <div *ngIf="locationError() && !viewingSucursal()" class="mb-3 p-3 bg-red-50 border border-red-200 text-red-600 text-sm font-bold rounded-lg flex items-center shadow-sm animate-fade-in">
-            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-            ¡Alto ahí! Debes marcar la ubicación exacta haciendo clic en el mapa.
+          @if (viewingSucursal(); as v) {
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div class="bg-white p-5 rounded-2xl border border-border-main shadow-sm">
+                <p class="text-[10px] font-black text-gray-400 uppercase mb-2">Sucursal</p>
+                <p class="text-gray-900 font-bold">{{ v.nombre }}</p>
+              </div>
+              <div class="bg-white p-5 rounded-2xl border border-border-main shadow-sm">
+                <p class="text-[10px] font-black text-gray-400 uppercase mb-2">Contacto</p>
+                <p class="text-gray-900 font-bold">{{ v.telefono || 'No reg.' }}</p>
+              </div>
+              <div class="bg-white p-5 rounded-2xl border border-border-main shadow-sm">
+                <p class="text-[10px] font-black text-gray-400 uppercase mb-2">Ubicación</p>
+                <p class="text-gray-900 font-bold truncate">{{ v.direccion || 'S/D' }}</p>
+              </div>
+            </div>
+          } @else {
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div class="space-y-2">
+                <label class="text-[11px] font-black text-gray-500 ml-1 tracking-widest uppercase">Nombre Comercial</label>
+                <input type="text" formControlName="nombre" placeholder="Ej. Taller Central" class="w-full px-5 py-3.5 bg-white border border-border-main rounded-2xl focus:ring-4 focus:ring-primary-50 focus:border-primary-500 outline-none transition-all font-bold">
+                @if (sucursalForm.get('nombre')?.touched && sucursalForm.get('nombre')?.invalid) {
+                  <p class="text-red-500 text-[10px] font-bold mt-1 ml-1 uppercase">El nombre es obligatorio</p>
+                }
+              </div>
+              
+              <div class="space-y-2">
+                <label class="text-[11px] font-black text-gray-500 ml-1 tracking-widest uppercase">Teléfono / WhatsApp</label>
+                <input type="text" formControlName="telefono" placeholder="Ej. +591 70000000" class="w-full px-5 py-3.5 bg-white border border-border-main rounded-2xl focus:ring-4 focus:ring-primary-50 focus:border-primary-500 outline-none transition-all font-bold">
+              </div>
+
+              <div class="md:col-span-2 space-y-2">
+                <label class="text-[11px] font-black text-gray-500 ml-1 tracking-widest uppercase">Dirección Física</label>
+                <input type="text" formControlName="direccion" placeholder="Ej. Av. Principal #123" class="w-full px-5 py-3.5 bg-white border border-border-main rounded-2xl focus:ring-4 focus:ring-primary-50 focus:border-primary-500 outline-none transition-all font-bold">
+              </div>
+            </div>
+          }
+
+          <!-- Mapa -->
+          <div class="space-y-4">
+            <label class="text-sm font-black text-gray-800 ml-1 flex items-center gap-3">
+              <div class="w-8 h-8 bg-primary-100 rounded-lg flex items-center justify-center">
+                <i class='bx bx-map-pin text-primary-600'></i>
+              </div>
+              GEOLOCALIZACIÓN ESTRATÉGICA
+            </label>
+            
+            @if (locationError() && !viewingSucursal()) {
+              <div class="p-4 bg-red-50 border-l-4 border-red-500 text-red-700 text-xs font-black rounded-r-2xl flex items-center gap-3 animate-shake">
+                <i class='bx bxs-error-circle text-xl'></i>
+                ¡ACCIÓN REQUERIDA! MARCA EL PUNTO EN EL MAPA PARA CONTINUAR.
+              </div>
+            }
+            
+            <div class="rounded-[2rem] overflow-hidden border-4 border-white shadow-xl min-h-[350px]">
+              <app-map-selector 
+                [readonly]="viewingSucursal() !== null"
+                [fixedLocation]="viewingSucursal() ? {lat: viewingSucursal()!.latitud || 0, lng: viewingSucursal()!.longitud || 0} : (sucursalForm.get('latitud')?.value ? {lat: sucursalForm.get('latitud')?.value, lng: sucursalForm.get('longitud')?.value} : null)"
+                (locationSelected)="onLocationSelected($event)">
+              </app-map-selector>
+            </div>
           </div>
-          
-          <!-- En modo edicion, si existe latitud y longitud previas, lo pasamos al fixedLocation para inicializar -->
-          <app-map-selector 
-            [readonly]="viewingSucursal() !== null"
-            [fixedLocation]="viewingSucursal() ? {lat: viewingSucursal()!.latitud || 0, lng: viewingSucursal()!.longitud || 0} : (sucursalForm.get('latitud')?.value ? {lat: sucursalForm.get('latitud')?.value, lng: sucursalForm.get('longitud')?.value} : null)"
-            (locationSelected)="onLocationSelected($event)">
-          </app-map-selector>
         </div>
 
-      </div>
-
-      <!-- Modal Footer -->
-      <div class="mt-auto px-6 py-4 bg-gray-50 border-t border-gray-200 sticky bottom-0 z-10 flex justify-end gap-3 shrink-0 rounded-b-2xl">
-        <button type="button" (click)="closeModal()" class="px-6 py-2.5 text-gray-600 bg-white border border-gray-300 hover:bg-gray-50 font-bold rounded-xl transition-colors focus:outline-none">
-          {{ viewingSucursal() ? 'Cerrar Vista' : 'Cancelar' }}
-        </button>
-        <button *ngIf="!viewingSucursal()" type="submit" [disabled]="isSubmitting()" class="px-6 py-2.5 bg-primary-600 hover:bg-primary-700 text-white font-bold rounded-xl shadow-md transition-all flex items-center disabled:opacity-50 disabled:cursor-not-allowed">
-          <svg *ngIf="isSubmitting()" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
-          {{ isSubmitting() ? 'Guardando...' : (editingId() ? 'Guardar Cambios' : 'Crear Sucursal') }}
-        </button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<!-- Modal Gestión de Servicios -->
-<div *ngIf="isServicesModalOpen()" class="fixed inset-0 z-[2000] flex items-center justify-center p-4">
-  <div class="fixed inset-0 bg-gray-900/40 backdrop-blur-sm transition-opacity" (click)="closeServicesModal()"></div>
-  
-  <div class="relative bg-white rounded-2xl w-full max-w-2xl max-h-[85vh] overflow-y-auto shadow-2xl animate-fade-in flex flex-col">
-    <!-- Modal Header -->
-    <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white/95 backdrop-blur z-10 shrink-0">
-      <div>
-        <h2 class="text-xl font-bold text-gray-800">Servicios Ofrecidos</h2>
-        <p class="text-sm text-gray-500 mt-1">Sucursal: {{ activeSucursalForServices()?.nombre }}</p>
-      </div>
-      <button (click)="closeServicesModal()" class="text-gray-400 hover:text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-full p-2 transition-colors focus:outline-none">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-      </button>
+        <!-- Footer -->
+        <div class="p-8 bg-white border-t border-gray-100 flex flex-col sm:flex-row justify-end gap-4 shrink-0">
+          <button type="button" (click)="closeModal()" class="px-8 py-4 text-gray-500 font-black hover:text-gray-900 transition-colors uppercase tracking-widest text-[11px]">
+            CERRAR
+          </button>
+          @if (!viewingSucursal()) {
+            <button type="submit" [disabled]="isSubmitting()" class="px-12 py-4 bg-primary-600 hover:bg-primary-700 text-white font-black rounded-2xl shadow-2xl shadow-primary-100 transition-all flex items-center justify-center gap-3 active:scale-95 disabled:opacity-50">
+              @if (isSubmitting()) { <i class='bx bx-loader-alt animate-spin text-xl'></i> }
+              {{ isSubmitting() ? 'PROCESANDO...' : (editingId() ? 'GUARDAR CAMBIOS' : 'CREAR SUCURSAL') }}
+            </button>
+          }
+        </div>
+      </form>
     </div>
+  </div>
+}
 
-    <!-- Modal Body -->
-    <div class="p-6">
-      <div *ngIf="isServicesLoading()" class="flex justify-center items-center py-12">
-        <svg class="animate-spin h-8 w-8 text-primary-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-      </div>
-
-      <div *ngIf="!isServicesLoading()" class="space-y-4">
-        <div *ngIf="allServicios().length === 0" class="text-center py-8 text-gray-500">
-          No hay servicios en el catálogo maestro.
-        </div>
-
-        <!-- Lista de Servicios con Checkbox/Toggle -->
-        <div *ngFor="let srv of allServicios()" class="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200 hover:bg-gray-100 transition-colors">
+<!-- Modal Servicios (Rediseñado con Grid) -->
+@if (isServicesModalOpen()) {
+  <div class="fixed inset-0 z-[2000] flex items-center justify-center p-4">
+    <div class="fixed inset-0 bg-gray-900/60 backdrop-blur-md transition-opacity" (click)="closeServicesModal()"></div>
+    
+    <div class="relative bg-white rounded-[3rem] w-full max-w-2xl max-h-[85vh] overflow-hidden shadow-2xl animate-scale-up flex flex-col">
+      <div class="p-10 border-b border-gray-100 shrink-0">
+        <div class="flex justify-between items-start">
           <div>
-            <h3 class="font-bold text-gray-800">{{ srv.nombre }}</h3>
-            <p class="text-sm text-gray-500 mt-0.5 max-w-sm truncate" [title]="srv.descripcion">{{ srv.descripcion || 'Sin descripción' }}</p>
+            <span class="text-[11px] font-black text-primary-600 uppercase tracking-[0.3em] mb-3 block">Catálogo Oficial</span>
+            <h2 class="text-3xl font-black text-gray-900 tracking-tight">{{ activeSucursalForServices()?.nombre }}</h2>
+            <p class="text-sm text-gray-500 font-medium mt-2">Habilita los servicios especializados de esta sucursal.</p>
           </div>
-          
-          <button (click)="toggleService(srv.id)"
-                  [disabled]="loadingServiceToggleIds().includes(srv.id)"
-                  [ngClass]="assignedServiceIds().includes(srv.id) ? 'bg-primary-600' : 'bg-gray-300'"
-                  class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none disabled:opacity-50 disabled:cursor-wait">
-            <span [ngClass]="assignedServiceIds().includes(srv.id) ? 'translate-x-5' : 'translate-x-0'" class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out">
-               <!-- Spinner for loading state -->
-               <svg *ngIf="loadingServiceToggleIds().includes(srv.id)" class="animate-spin h-5 w-5 text-gray-400 absolute" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="gray" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-            </span>
+          <button (click)="closeServicesModal()" class="text-gray-400 hover:text-gray-900 bg-gray-50 rounded-2xl p-4 transition-transform active:scale-90">
+            <i class='bx bx-x text-3xl'></i>
           </button>
         </div>
       </div>
+
+      <div class="p-8 overflow-y-auto flex-1 bg-gray-50/50">
+        @if (isServicesLoading()) {
+          <div class="flex flex-col items-center justify-center py-24 gap-6">
+            <i class='bx bx-loader-alt animate-spin text-6xl text-primary-600'></i>
+            <p class="text-gray-400 font-black uppercase tracking-[0.2em] text-[10px]">Sincronizando catálogo...</p>
+          </div>
+        } @else {
+          <div class="grid gap-4">
+            @for (srv of allServicios(); track srv.id) {
+              <div class="group flex items-center justify-between p-6 bg-white rounded-[2rem] border border-border-main transition-all hover:border-primary-300 hover:shadow-xl hover:shadow-primary-50">
+                <div class="flex items-center gap-5">
+                  <div class="w-14 h-14 rounded-2xl bg-gray-50 flex items-center justify-center text-primary-600 group-hover:bg-primary-600 group-hover:text-white transition-all duration-300">
+                    <i class='bx bx-wrench text-2xl'></i>
+                  </div>
+                  <div>
+                    <h3 class="font-black text-gray-900 text-lg leading-none">{{ srv.nombre }}</h3>
+                    <p class="text-xs text-gray-400 font-bold mt-2 uppercase tracking-wide">{{ srv.descripcion || 'Servicio de mantenimiento' }}</p>
+                  </div>
+                </div>
+                
+                <button (click)="toggleService(srv.id)"
+                        [disabled]="loadingServiceToggleIds().includes(srv.id)"
+                        [ngClass]="assignedServiceIds().includes(srv.id) ? 'bg-primary-600 text-white shadow-lg shadow-primary-200' : 'bg-gray-100 text-gray-400'"
+                        class="w-14 h-14 rounded-2xl flex items-center justify-center transition-all active:scale-90 disabled:opacity-50">
+                  @if (loadingServiceToggleIds().includes(srv.id)) {
+                    <i class='bx bx-loader-alt animate-spin text-2xl'></i>
+                  } @else {
+                    <i [ngClass]="assignedServiceIds().includes(srv.id) ? 'bx bxs-check-shield' : 'bx bx-plus'" class="text-3xl"></i>
+                  }
+                </button>
+              </div>
+            }
+          </div>
+        }
+      </div>
     </div>
   </div>
-</div>
+}

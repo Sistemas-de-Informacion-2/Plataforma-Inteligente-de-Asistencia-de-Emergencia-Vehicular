@@ -1,3 +1,4 @@
+// src/app/shared/ui/map-selector/map-selector.component.ts
 import { Component, AfterViewInit, OnDestroy, Output, EventEmitter, Inject, PLATFORM_ID, Input, signal, inject } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';

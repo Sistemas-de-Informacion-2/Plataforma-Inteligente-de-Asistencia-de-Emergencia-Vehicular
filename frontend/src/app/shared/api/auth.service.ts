@@ -1,7 +1,9 @@
+// src/app/shared/api/auth.service.ts
 import { Injectable, signal, inject } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Observable, tap } from 'rxjs';
+import { environment } from '../../../environments/environment';
 
 export interface LoginResponse {
   access_token: string;
@@ -16,10 +18,26 @@ export class AuthService {
   private router = inject(Router);
 
   // Endpoint base de FastAPI
-  private readonly API_URL = 'http://localhost:8000/api/v1';
+  private readonly API_URL = environment.apiUrl;
   
-  // Signals para manejar el estado de autenticación (isAuthenticated)
+  // Signals para manejar el estado de autenticación
   public isAuthenticated = signal<boolean>(this.hasToken());
+  public currentUser = signal<any>(this.getUserData());
+
+  private getUserData(): any {
+    const token = typeof localStorage !== 'undefined' ? localStorage.getItem('access_token') : null;
+    if (!token) return null;
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return {
+        nombre: payload.nombre || 'Usuario',
+        email: payload.email,
+        rol: payload.roles?.[0] || 'ADMIN'
+      };
+    } catch (e) {
+      return null;
+    }
+  }
 
   login(username: string, password: string): Observable<LoginResponse> {
     const body = new HttpParams()
@@ -35,6 +53,7 @@ export class AuthService {
         if (response && response.access_token) {
           localStorage.setItem('access_token', response.access_token);
           this.isAuthenticated.set(true);
+          this.currentUser.set(this.getUserData());
         }
       })
     );

@@ -1,34 +1,42 @@
-# 1. Usa una imagen base oficial y ligera de Python (Versión 3.11 recomendada)
+# ── Backend Dockerfile ────────────────────────────────────────
+# Imagen base ligera de Python 3.11
 FROM python:3.11-slim
 
-# 2. Variables de entorno globales
-# PYTHONDONTWRITEBYTECODE: Evita que python cree los archivos basura de caché (.pyc)
-# PYTHONUNBUFFERED: Permite que los logs salgan directo en la consola de AWS sin demoras
+# Variables de entorno globales
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-# 3. Establece la carpeta principal de trabajo DENTRO de la máquina / contenedor
+# Carpeta de trabajo dentro del contenedor
 WORKDIR /app
 
-# 4. Instalar utilidades del sistema base por si asyncpg o passlib requieren compilar
-RUN apt-get update && apt-get install -y \
+# Instalar dependencias del sistema necesarias para:
+#   - gcc: compilar extensiones C (asyncpg, bcrypt)
+#   - libpq-dev: driver nativo de PostgreSQL
+#   - ffmpeg: requerido por faster-whisper para procesamiento de audio
+RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
+    libpq-dev \
+    ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
-# 5. Copia SOLAMENTE el archivo de dependencias primero 
-# (Truco para acelerar Docker: si solo cambias el código de FastAPI, Docker no volverá a instalar librerías)
+# Copiar SOLO requirements primero (cache de Docker)
 COPY requirements.txt .
 
-# 6. Instala las dependencias usando pip
+# Instalar dependencias Python
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# 7. Copia TODO el resto de tu código de backend (tu carpeta app/, alembic/, etc.)
+# Copiar el resto del código
 COPY . .
 
-# 8. Expone el puerto por el que FastAPI escuchará el tráfico en internet
+# Crear directorio de uploads
+RUN mkdir -p /app/uploads
+
+# Dar permisos de ejecución al entrypoint
+RUN chmod +x /app/entrypoint.sh
+
+# Puerto de FastAPI
 EXPOSE 8000
 
-# 9. El comando mágico que corre cuando el contenedor (o tu servidor en AWS) se enciende.
-# app.main:app le dice a Uvicorn que busque la variable "app" dentro de la carpeta "app", archivo "main.py"
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Entrypoint: espera BD → migra → inicia
+ENTRYPOINT ["/app/entrypoint.sh"]

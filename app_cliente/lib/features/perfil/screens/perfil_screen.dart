@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:app_cliente/features/perfil/providers/perfil_provider.dart';
+import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
+import 'package:fixo/features/perfil/providers/perfil_provider.dart';
+import 'package:fixo/core/theme/app_theme.dart';
+
+// Widgets del perfil
+import 'package:fixo/features/perfil/widgets/perfil_header.dart';
+import 'package:fixo/features/perfil/widgets/perfil_form.dart';
 
 class PerfilScreen extends StatefulWidget {
   const PerfilScreen({super.key});
@@ -9,8 +15,14 @@ class PerfilScreen extends StatefulWidget {
   State<PerfilScreen> createState() => _PerfilScreenState();
 }
 
-class _PerfilScreenState extends State<PerfilScreen> {
+class _PerfilScreenState extends State<PerfilScreen> with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
+
+  final _dateMaskFormatter = MaskTextInputFormatter(
+    mask: '####-##-##',
+    filter: {"#": RegExp(r'[0-9]')},
+    type: MaskAutoCompletionType.lazy,
+  );
 
   final _emailController = TextEditingController();
   final _ciController = TextEditingController();
@@ -22,25 +34,71 @@ class _PerfilScreenState extends State<PerfilScreen> {
   final _telefonoController = TextEditingController();
   final _fechaNacimientoController = TextEditingController();
 
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
+
   @override
   void initState() {
     super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+
+    _fadeAnimation = CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeIn,
+    );
+
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.05),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeOutCubic,
+    ));
+
+    // Cargar datos actuales del provider si existen
     _loadData();
+    
+    // Obtener los datos más recientes del servidor en segundo plano
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<PerfilProvider>().fetchPerfil().then((_) {
+          if (mounted) {
+            _loadData();
+          }
+        });
+      }
+    });
+
+    _animationController.forward();
   }
 
   void _loadData() {
     final provider = context.read<PerfilProvider>();
     final perfil = provider.perfil;
+    
     if (perfil != null) {
-      _emailController.text = perfil.email;
-      _ciController.text = perfil.ci;
-
-      _nombreController.text = perfil.nombre;
-      _segundoNombreController.text = perfil.segundoNombre ?? '';
-      _apellidoPaternoController.text = perfil.apellidoPaterno ?? '';
-      _apellidoMaternoController.text = perfil.apellidoMaterno ?? '';
-      _telefonoController.text = perfil.telefono ?? '';
-      _fechaNacimientoController.text = perfil.fechaNacimiento ?? '';
+      if (_emailController.text != perfil.email) _emailController.text = perfil.email;
+      if (_ciController.text != perfil.ci) _ciController.text = perfil.ci;
+      if (_nombreController.text != perfil.nombre) _nombreController.text = perfil.nombre;
+      
+      final segNombre = perfil.segundoNombre ?? '';
+      if (_segundoNombreController.text != segNombre) _segundoNombreController.text = segNombre;
+      
+      final apPat = perfil.apellidoPaterno ?? '';
+      if (_apellidoPaternoController.text != apPat) _apellidoPaternoController.text = apPat;
+      
+      final apMat = perfil.apellidoMaterno ?? '';
+      if (_apellidoMaternoController.text != apMat) _apellidoMaternoController.text = apMat;
+      
+      final tel = perfil.telefono ?? '';
+      if (_telefonoController.text != tel) _telefonoController.text = tel;
+      
+      final fechaNac = perfil.fechaNacimiento ?? '';
+      if (_fechaNacimientoController.text != fechaNac) _fechaNacimientoController.text = fechaNac;
     }
   }
 
@@ -54,7 +112,42 @@ class _PerfilScreenState extends State<PerfilScreen> {
     _apellidoMaternoController.dispose();
     _telefonoController.dispose();
     _fechaNacimientoController.dispose();
+    _animationController.dispose();
     super.dispose();
+  }
+
+  Future<void> _selectDate(BuildContext context) async {
+    DateTime initialDate = DateTime.now().subtract(const Duration(days: 365 * 18));
+    if (_fechaNacimientoController.text.isNotEmpty) {
+      try {
+        initialDate = DateTime.parse(_fechaNacimientoController.text);
+      } catch (_) {}
+    }
+
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: DateTime(1940),
+      lastDate: DateTime.now(),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: AppTheme.primaryColor,
+              onPrimary: Colors.white,
+              onSurface: AppTheme.textPrimary,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      setState(() {
+        _fechaNacimientoController.text = picked.toString().split(' ')[0];
+      });
+    }
   }
 
   void _saveProfile() async {
@@ -65,19 +158,32 @@ class _PerfilScreenState extends State<PerfilScreen> {
         apellidoPaterno: _apellidoPaternoController.text.trim(),
         apellidoMaterno: _apellidoMaternoController.text.trim(),
         telefono: _telefonoController.text.trim(),
-        fechaNacimiento: _fechaNacimientoController.text.trim(), // Formato "YYYY-MM-DD" esperado
+        fechaNacimiento: _fechaNacimientoController.text.trim(),
       );
 
       if (mounted) {
         if (success) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Perfil actualizado correctamente'), backgroundColor: Colors.green),
+            SnackBar(
+              content: const Row(
+                children: [
+                  Icon(Icons.check_circle_outline, color: Colors.white),
+                  SizedBox(width: 12),
+                  Text('Perfil actualizado correctamente'),
+                ],
+              ),
+              backgroundColor: AppTheme.success,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
           );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(context.read<PerfilProvider>().errorMessage),
-              backgroundColor: Colors.redAccent,
+              backgroundColor: AppTheme.danger,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
           );
         }
@@ -85,122 +191,54 @@ class _PerfilScreenState extends State<PerfilScreen> {
     }
   }
 
-  Widget _buildImmutableField(String label, TextEditingController controller, IconData icon) {
-    return TextFormField(
-      controller: controller,
-      readOnly: true,
-      style: TextStyle(color: Colors.grey.shade600),
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon, color: Colors.grey),
-        suffixIcon: const Icon(Icons.lock_outline, color: Colors.grey, size: 18),
-        filled: true,
-        fillColor: Colors.grey.shade100,
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.shade300),
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<PerfilProvider>();
 
     return Scaffold(
+      backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
         title: const Text('Mi Perfil'),
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: AppTheme.textPrimary),
+        titleTextStyle: const TextStyle(
+          color: AppTheme.textPrimary,
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+        ),
       ),
       body: provider.isLoading && provider.perfil == null
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Center(
-                      child: Stack(
-                        alignment: Alignment.bottomRight,
-                        children: [
-                          CircleAvatar(
-                            radius: 50,
-                            backgroundColor: Theme.of(context).primaryColor.withOpacity(0.1),
-                            backgroundImage: provider.perfil?.fotoPerfil != null 
-                              ? NetworkImage(provider.perfil!.fotoPerfil!) 
-                              : null,
-                            child: provider.perfil?.fotoPerfil == null 
-                              ? Icon(Icons.person, size: 50, color: Theme.of(context).primaryColor)
-                              : null,
-                          ),
-                          Container(
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).primaryColor,
-                              shape: BoxShape.circle,
-                            ),
-                            padding: const EdgeInsets.all(8),
-                            child: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
-                          ),
-                        ],
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              child: FadeTransition(
+                opacity: _fadeAnimation,
+                child: SlideTransition(
+                  position: _slideAnimation,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const PerfilHeader(), // <-- Cabecera visual
+                      
+                      PerfilForm(           // <-- Lógica del formulario
+                        formKey: _formKey,
+                        emailController: _emailController,
+                        ciController: _ciController,
+                        nombreController: _nombreController,
+                        segundoNombreController: _segundoNombreController,
+                        apellidoPaternoController: _apellidoPaternoController,
+                        apellidoMaternoController: _apellidoMaternoController,
+                        telefonoController: _telefonoController,
+                        fechaNacimientoController: _fechaNacimientoController,
+                        dateMaskFormatter: _dateMaskFormatter,
+                        isLoading: provider.isLoading,
+                        onSelectDate: _selectDate,
+                        onSave: _saveProfile,
                       ),
-                    ),
-                    const SizedBox(height: 32),
-
-                    const Text('Datos Fijos', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
-                    const SizedBox(height: 12),
-                    _buildImmutableField('Correo Electrónico', _emailController, Icons.email_outlined),
-                    const SizedBox(height: 16),
-                    _buildImmutableField('Cédula de Identidad', _ciController, Icons.badge_outlined),
-                    
-                    const SizedBox(height: 32),
-                    const Text('Datos Editables', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
-                    const SizedBox(height: 12),
-
-                    TextFormField(
-                      controller: _nombreController,
-                      decoration: const InputDecoration(labelText: 'Primer Nombre *', prefixIcon: Icon(Icons.person_outline)),
-                      validator: (v) => v == null || v.isEmpty ? 'Requerido' : null,
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _segundoNombreController,
-                      decoration: const InputDecoration(labelText: 'Segundo Nombre', prefixIcon: Icon(Icons.person_outline)),
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _apellidoPaternoController,
-                      decoration: const InputDecoration(labelText: 'Apellido Paterno', prefixIcon: Icon(Icons.group_outlined)),
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _apellidoMaternoController,
-                      decoration: const InputDecoration(labelText: 'Apellido Materno', prefixIcon: Icon(Icons.group_outlined)),
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _telefonoController,
-                      keyboardType: TextInputType.phone,
-                      decoration: const InputDecoration(labelText: 'Teléfono', prefixIcon: Icon(Icons.phone_outlined)),
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _fechaNacimientoController,
-                      decoration: const InputDecoration(
-                        labelText: 'Fecha de Nacimiento (YYYY-MM-DD)', 
-                        prefixIcon: Icon(Icons.calendar_today_outlined),
-                      ),
-                    ),
-
-                    const SizedBox(height: 32),
-                    provider.isLoading
-                        ? const Center(child: CircularProgressIndicator())
-                        : ElevatedButton(
-                            onPressed: _saveProfile,
-                            child: const Text('GUARDAR CAMBIOS'),
-                          ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),

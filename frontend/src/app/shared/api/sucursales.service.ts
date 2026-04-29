@@ -1,6 +1,8 @@
+// src/app/shared/api/sucursales.service.ts
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { environment } from '../../../environments/environment';
 
 export interface Sucursal {
   id: number;
@@ -26,7 +28,7 @@ export interface SucursalCreatePayload {
 })
 export class SucursalesService {
   private http = inject(HttpClient);
-  private apiTallerUrl = 'http://localhost:8000/api/v1/talleres';
+  private apiTallerUrl = `${environment.apiUrl}/talleres`;
 
   // Usamos Observable simple para mantener FSD. La UI usará Signals internamente.
   
@@ -51,7 +53,7 @@ export class SucursalesService {
   }
 
   // --- GESTIÓN DE SERVICIOS N:M ---
-  private apiSucursalUrl = 'http://localhost:8000/api/v1/sucursales';
+  private apiSucursalUrl = `${environment.apiUrl}/sucursales`;
 
   obtenerServiciosAsignados(sucursalId: number): Observable<any[]> {
     return this.http.get<any[]>(`${this.apiSucursalUrl}/${sucursalId}/servicios`);
