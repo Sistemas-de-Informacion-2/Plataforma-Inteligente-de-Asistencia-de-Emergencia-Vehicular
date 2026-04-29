@@ -145,6 +145,10 @@ android/local.properties
 android/key.properties
 *.jks
 *.keystore
+*service-account*.json
+*secret*.json
+firebase-service-account.json
+google-services.json
 
 # Archivos sensibles
 *.pem
