@@ -4,8 +4,8 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:web_socket_channel/io.dart';
-import 'package:fixo/core/config/environment.dart';
-import 'package:fixo/core/storage/secure_storage.dart';
+import '../config/environment.dart';
+import '../storage/secure_storage.dart';
 
 /// Servicio de WebSocket para recibir notificaciones en tiempo real.
 /// Se conecta al canal WS del backend usando el JWT almacenado.

@@ -3,23 +3,23 @@ import 'package:flutter/services.dart';
 
 class AppTheme {
   // ── Brand Palette (Sincronizado con Frontend) ─────────────
-  static const Color primaryColor    = Color(0xFF2563EB); // primary-500
-  static const Color secondaryColor  = Color(0xFF1D4ED8); // primary-600
+  static const Color primaryColor = Color(0xFF2563EB); // primary-500
+  static const Color secondaryColor = Color(0xFF1D4ED8); // primary-600
   static const Color backgroundColor = Color(0xFFF9FAFB); // surface-dark
-  static const Color surfaceColor    = Colors.white;      // surface-light
-  static const Color textPrimary     = Color(0xFF0A1F44); // text-main
-  static const Color textSecondary   = Color(0xFF475569); // text-muted
-  static const Color danger          = Color(0xFFEF4444); // Rojo estándar
-  static const Color dangerSoft      = Color(0xFFFEE2E2);
-  static const Color success         = Color(0xFF22C55E); // success
-  static const Color warning         = Color(0xFFF59E0B); // alert
-  static const Color muted           = Color(0xFFF3F4F6);
-  static const Color inkDark         = Color(0xFF0A1F44); // surface-header
+  static const Color surfaceColor = Colors.white; // surface-light
+  static const Color textPrimary = Color(0xFF0A1F44); // text-main
+  static const Color textSecondary = Color(0xFF475569); // text-muted
+  static const Color danger = Color(0xFFEF4444); // Rojo estándar
+  static const Color dangerSoft = Color(0xFFFEE2E2);
+  static const Color success = Color(0xFF22C55E); // success
+  static const Color warning = Color(0xFFF59E0B); // alert
+  static const Color muted = Color(0xFFF3F4F6);
+  static const Color inkDark = Color(0xFF0A1F44); // surface-header
 
   // ── Shadows ────────────────────────────────────────────────
   static List<BoxShadow> get softShadow => [
     BoxShadow(
-      color: Colors.black.withOpacity(0.06),
+      color: Colors.black.withValues(alpha: 0.06),
       blurRadius: 16,
       offset: const Offset(0, 4),
     ),
@@ -27,7 +27,7 @@ class AppTheme {
 
   static List<BoxShadow> get cardShadow => [
     BoxShadow(
-      color: Colors.black.withOpacity(0.04),
+      color: Colors.black.withValues(alpha: 0.04),
       blurRadius: 12,
       offset: const Offset(0, 2),
     ),
@@ -36,13 +36,13 @@ class AppTheme {
   /// Sombra para elementos flotantes sobre el mapa (pills, botones circulares)
   static List<BoxShadow> get floatShadow => [
     BoxShadow(
-      color: Colors.black.withOpacity(0.12),
+      color: Colors.black.withValues(alpha: 0.12),
       blurRadius: 24,
       spreadRadius: 0,
       offset: const Offset(0, 6),
     ),
     BoxShadow(
-      color: Colors.black.withOpacity(0.06),
+      color: Colors.black.withValues(alpha: 0.06),
       blurRadius: 8,
       spreadRadius: 0,
       offset: const Offset(0, 2),
@@ -52,7 +52,7 @@ class AppTheme {
   /// Sombra ascendente para la barra inferior
   static List<BoxShadow> get bottomBarShadow => [
     BoxShadow(
-      color: Colors.black.withOpacity(0.10),
+      color: Colors.black.withValues(alpha: 0.10),
       blurRadius: 32,
       spreadRadius: 0,
       offset: const Offset(0, -8),
@@ -61,13 +61,13 @@ class AppTheme {
 
   // ── Glassmorphism helper ───────────────────────────────────
   static BoxDecoration glassPill({double radius = 50}) => BoxDecoration(
-    color: Colors.white.withOpacity(0.95),
+    color: Colors.white.withValues(alpha: 0.95),
     borderRadius: BorderRadius.circular(radius),
     boxShadow: floatShadow,
   );
 
   static BoxDecoration glassCircle() => BoxDecoration(
-    color: Colors.white.withOpacity(0.95),
+    color: Colors.white.withValues(alpha: 0.95),
     shape: BoxShape.circle,
     boxShadow: floatShadow,
   );
@@ -134,7 +134,10 @@ class AppTheme {
           borderRadius: BorderRadius.circular(14),
           borderSide: const BorderSide(color: danger),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 20,
+          vertical: 16,
+        ),
         labelStyle: const TextStyle(color: textSecondary),
         hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
       ),
@@ -161,16 +164,8 @@ class AppTheme {
           fontSize: 18,
           fontWeight: FontWeight.w600,
         ),
-        bodyLarge: TextStyle(
-          color: textPrimary,
-          fontSize: 16,
-          height: 1.5,
-        ),
-        bodyMedium: TextStyle(
-          color: textSecondary,
-          fontSize: 14,
-          height: 1.4,
-        ),
+        bodyLarge: TextStyle(color: textPrimary, fontSize: 16, height: 1.5),
+        bodyMedium: TextStyle(color: textSecondary, fontSize: 14, height: 1.4),
         labelLarge: TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.w600,

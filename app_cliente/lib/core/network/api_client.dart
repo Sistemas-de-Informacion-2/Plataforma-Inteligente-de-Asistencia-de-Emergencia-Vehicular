@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
-import 'package:fixo/core/config/environment.dart';
-import 'package:fixo/core/storage/secure_storage.dart';
+import '../config/environment.dart';
+import '../storage/secure_storage.dart';
 
 class ApiClient {
   late Dio dio;

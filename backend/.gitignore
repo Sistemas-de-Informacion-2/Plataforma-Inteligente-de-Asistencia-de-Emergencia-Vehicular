@@ -1,0 +1,38 @@
+# Entornos virtuales
+venv/
+.venv/
+env/
+.env_venv/
+
+# Variables de entorno y secretos
+.env
+.env.*
+*.env
+*.json
+!package.json
+!tsconfig.json
+
+# Cache de Python y compilados
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Bases de datos locales
+*.sqlite3
+*.sqlite
+*.db
+
+# Logs
+*.log
+
+# Entornos de desarrollo
+.vscode/
+.idea/
+.DS_Store
+
+# Archivos subidos por usuarios (si tienes carpeta de uploads local)
+uploads/
+media/

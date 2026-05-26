@@ -43,3 +43,27 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# =========================
+# Security & Credentials
+# =========================
+
+# Entornos y variables
+.env
+.env.*
+*.env
+
+# Firebase y Google Cloud
+google-services.json
+GoogleService-Info.plist
+firebase-service-account.json
+firebase_credentials.json
+firebase.json
+
+# Keystores de Android (claves de firma)
+*.jks
+*.keystore
+android/key.properties
+
+# Archivos de configuración locales que pueden tener secretos
+local.properties

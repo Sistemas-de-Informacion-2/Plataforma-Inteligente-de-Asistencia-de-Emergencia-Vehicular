@@ -1,6 +1,6 @@
 # backend/app/services/empleado_service.py
 """
-Servicio: Empleado (Técnico).
+Servicio: Empleado (Mecanico).
 CRUD + gestión de disponibilidad + creación transaccional Usuario→Empleado.
 """
 
@@ -63,13 +63,13 @@ class EmpleadoService:
         self.session.add(usuario)
         await self.session.flush()  # Obtener usuario.id
 
-        # ── Paso 3: Asignar rol TECNICO ───────────────────────
-        stmt = select(Rol).where(Rol.nombre == "TECNICO")
+        # ── Paso 3: Asignar rol MECANICO ───────────────────────
+        stmt = select(Rol).where(Rol.nombre == "MECANICO")
         result = await self.session.execute(stmt)
         rol_tecnico = result.scalar_one_or_none()
 
         if not rol_tecnico:
-            raise ValueError("Rol 'TECNICO' no encontrado en la base de datos. Ejecute el seeder.")
+            raise ValueError("Rol 'MECANICO' no encontrado en la base de datos. Ejecute el seeder.")
 
         usuario_rol = UsuarioRol(
             usuario_id=usuario.id,
