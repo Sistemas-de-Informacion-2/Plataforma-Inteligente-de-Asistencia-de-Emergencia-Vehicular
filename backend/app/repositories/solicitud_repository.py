@@ -113,6 +113,37 @@ class SolicitudRepository(BaseRepository[SolicitudEmergencia]):
         result = await self.session.execute(stmt)
         return result.scalars().all()
 
+    async def get_detalladas_por_sucursal_y_estado(
+        self,
+        sucursal_id: int,
+        estado: EstadoSolicitud,
+        *,
+        skip: int = 0,
+        limit: int = 100,
+    ) -> Sequence[SolicitudEmergencia]:
+        """Filtra por sucursal (mediante asignacion) y estado."""
+        from app.models.asignacion import Asignacion
+        stmt = (
+            select(SolicitudEmergencia)
+            .join(Asignacion, Asignacion.solicitud_id == SolicitudEmergencia.id)
+            .options(
+                selectinload(SolicitudEmergencia.evidencias),
+                selectinload(SolicitudEmergencia.diagnostico),
+                selectinload(SolicitudEmergencia.vehiculo),
+                selectinload(SolicitudEmergencia.asignaciones)
+            )
+            .where(
+                SolicitudEmergencia.estado == estado,
+                SolicitudEmergencia.es_eliminado == False,
+                Asignacion.sucursal_id == sucursal_id
+            )
+            .order_by(SolicitudEmergencia.fecha_creacion.desc())
+            .offset(skip)
+            .limit(limit)
+        )
+        result = await self.session.execute(stmt)
+        return result.scalars().all()
+
     async def actualizar_estado(
         self,
         solicitud_id: int,

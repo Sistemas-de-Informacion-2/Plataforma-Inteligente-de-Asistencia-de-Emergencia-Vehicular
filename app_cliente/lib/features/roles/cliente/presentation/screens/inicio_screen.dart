@@ -7,13 +7,13 @@ import '../providers/emergencia_provider.dart';
 import '../providers/inicio_provider.dart';
 //import '../../../../auth/presentation/providers/auth_provider.dart';
 import 'tracking_screen.dart';
+import 'radar_espera_screen.dart';
 
 import '../widgets/emergencia_map_widget.dart';
 import '../widgets/map_circle_button.dart';
 import '../widgets/vehicle_pill_selector.dart';
 import '../widgets/attach_option_tile.dart';
 import '../widgets/sos_bottom_bar.dart';
-import '../widgets/recommendations_bottom_sheet.dart';
 
 class InicioScreen extends StatefulWidget {
   /// Callback que abre el Drawer del [HomeScreen] padre.
@@ -189,7 +189,13 @@ class _InicioScreenState extends State<InicioScreen> {
     if (result != null) {
       emProvider.connectWebSocket();
       formProvider.limpiarFormulario();
-      _showRecommendationsSheet(emProvider);
+      // Navegar a la pantalla de Radar para esperar las pujas en tiempo real
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const RadarEsperaScreen()),
+        );
+      }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -204,47 +210,7 @@ class _InicioScreenState extends State<InicioScreen> {
     }
   }
 
-  // ── Recommendations Bottom Sheet ───────────────────────────
-  void _showRecommendationsSheet(EmergenciaProvider emProvider) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      isDismissible: false,
-      enableDrag: false,
-      builder: (_) => ListenableBuilder(
-        listenable: emProvider,
-        builder: (context, _) {
-          if (emProvider.recomendaciones == null) {
-            return const SizedBox.shrink();
-          }
-          return RecommendationsBottomSheet(
-            result: emProvider.recomendaciones!,
-            isSending:
-                emProvider.flowState == EmergenciaFlowState.sendingSelection,
-            waitingSucursalId: emProvider.waitingSucursalId,
-            onSelectShop: (sucursal) async {
-              final success = await emProvider.seleccionarTaller(sucursal.id);
-              if (!success && context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(emProvider.errorMessage),
-                    backgroundColor: AppTheme.danger,
-                  ),
-                );
-              }
-            },
-          );
-        },
-      ),
-    ).then((_) {
-      if (emProvider.flowState != EmergenciaFlowState.accepted) {
-        emProvider.reset();
-      }
-    });
-  }
-
-  // ── Build ──────────────────────────────────────────────────
+  // Build 
   @override
   Widget build(BuildContext context) {
     final vehiculoProvider = context.watch<VehiculoProvider>();

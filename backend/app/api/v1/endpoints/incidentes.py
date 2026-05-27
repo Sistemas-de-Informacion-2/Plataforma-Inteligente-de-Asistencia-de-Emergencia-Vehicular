@@ -2,12 +2,12 @@
 """
 Endpoint: POST /api/v1/incidentes/
 Flujo principal de reporte de emergencia vehicular.
-Fase 1 — Modelo 'Uber para Mecánicos Inverso':
+Marketplace de Pujas (estilo inDrive):
   1. Recibe multipart (ubicación, imágenes, audio, descripción).
   2. Procesa con Whisper (transcripción local) + Gemini (diagnóstico IA).
   3. Persiste Solicitud, Evidencias y DiagnosticoIA en BD.
-  4. Busca sucursales aptas con PostGIS (sin asignar).
-  5. Retorna SolicitudRecomendacionOut para que el cliente elija.
+  4. Busca talleres cercanos con PostGIS y emite SOS vía WebSocket.
+  5. Retorna SolicitudSOSOut (sin lista de sucursales — las pujas llegan en vivo).
 """
 from typing import List, Optional
 from fastapi import APIRouter, Depends, File, Form, UploadFile, HTTPException, status
@@ -18,9 +18,10 @@ from app.api.deps import get_current_user
 from app.models.usuario import Usuario
 from app.models.evidencia import TipoEvidencia
 from app.schemas.solicitud_emergencia import (
-    SolicitudCreate, SolicitudOut, SolicitudDetallada, SolicitudRecomendacionOut,
-    SucursalRecomendada, SolicitudSeleccionTaller,
+    SolicitudCreate, SolicitudOut, SolicitudDetallada, SolicitudSOSOut,
+    SolicitudSeleccionTaller,
 )
+from app.schemas.puja import PujaSeleccion
 from app.schemas.evidencia import EvidenciaCreate
 from app.schemas.diagnostico_ia import DiagnosticoIAOut
 from app.services.solicitud_service import SolicitudService
@@ -32,12 +33,12 @@ router = APIRouter()
 
 @router.post(
     "/",
-    response_model=SolicitudRecomendacionOut,
+    response_model=SolicitudSOSOut,
     status_code=status.HTTP_201_CREATED,
     summary="Reportar emergencia vehicular (SOS)",
     description=(
-        "Procesa un reporte de emergencia con IA y retorna "
-        "una lista de talleres recomendados para que el cliente elija."
+        "Procesa un reporte de emergencia con IA, emite un SOS a talleres cercanos "
+        "vía WebSocket y retorna la solicitud creada. Las pujas llegarán en tiempo real."
     ),
 )
 async def crear_incidente_multipart(
@@ -52,18 +53,16 @@ async def crear_incidente_multipart(
     storage: StorageService = Depends(get_storage_service),
 ):
     """
-    Endpoint SOS — Fase 1: Recomendación sin auto-asignación.
+    Endpoint SOS — Marketplace de Pujas (inDrive).
     Flujo:
       1. Guarda archivos multimedia via StorageService.
       2. Procesa audio con Whisper + imagen/descripción con Gemini.
       3. Persiste Solicitud, Evidencias y DiagnosticoIA.
-      4. Busca talleres cercanos y aptos (PostGIS).
-      5. Retorna recomendaciones al cliente.
-
-    El cliente usará otro endpoint (Fase 2) para confirmar su elección.
+      4. Broadcast SOS a admins de talleres cercanos vía WebSocket.
+      5. Retorna solicitud + diagnóstico (las pujas llegan en vivo por WS).
     """
     try:
-        # ── 1. Construir el payload de entrada ────────────────
+        # 1. Construir el payload de entrada
         solicitud_in = SolicitudCreate(
             cliente_id=current_user.id,
             vehiculo_id=vehiculo_id,
@@ -76,80 +75,58 @@ async def crear_incidente_multipart(
         rutas_fisicas_imgs: List[str] = []
         ruta_fisica_audio = None
 
-        # ── 2. Procesar imágenes (TODAS van a Gemini) ─────────
+        # 2. Procesar imágenes (TODAS van a Gemini)
         for img_file in imagenes:
             if img_file.filename:
                 r_rel, r_fis = await storage.upload_file_with_path(img_file, "evidencias")
                 evidencias_in.append(EvidenciaCreate(tipo=TipoEvidencia.IMAGEN, url=r_rel))
                 rutas_fisicas_imgs.append(r_fis)
 
-        # ── 3. Procesar audio ─────────────────────────────────
+        # 3. Procesar audio
         if audio and audio.filename:
             r_rel, r_fis = await storage.upload_file_with_path(audio, "evidencias")
             evidencias_in.append(EvidenciaCreate(tipo=TipoEvidencia.AUDIO, url=r_rel))
             ruta_fisica_audio = r_fis
 
-        # ── 4. Pipeline de IA: Whisper + Gemini ───────────────
+        # 4. Pipeline de IA: Whisper + Gemini
         diagnostico_ia = asistente_ia.procesar_sos(
             descripcion=descripcion,
             ruta_audio=ruta_fisica_audio,
             rutas_imagenes=rutas_fisicas_imgs or None,
         )
 
-        # ── 5. Lógica de confianza → estado inicial ──────────
+        # 5. Lógica de confianza → estado inicial
         confianza = diagnostico_ia.get("confianza", 0.0)
-        
+
         if confianza < 0.4:
             estado_calculado = "RECHAZADO_POR_IA"
         elif confianza < 0.7:
             estado_calculado = "REQUIERE_VALIDACION"
         else:
-            estado_calculado = "PENDIENTE"  # Se actualizará a PENDIENTE_SELECCION_CLIENTE si hay talleres
+            estado_calculado = "PENDIENTE"  # Se actualizará a ESPERANDO_PUJAS si hay talleres
 
-        # ── 6. Orquestar: BD + PostGIS (sin auto-asignación) ─
+        # 6. Orquestar: BD + PostGIS + Broadcast SOS
         service = SolicitudService(db)
-        
-        resultado_db = await service.crear_solicitud_con_recomendaciones(
+
+        resultado_db = await service.crear_solicitud_y_emitir_sos(
             solicitud_in=solicitud_in,
             evidencias_in=evidencias_in,
             diagnostico=diagnostico_ia,
             estado_inicial=estado_calculado
         )
 
-        # ── 7. Serializar respuesta ──────────────────────────
+        # 7. Serializar respuesta
         solicitud_obj = resultado_db["solicitud"]
         diagnostico_obj = resultado_db["diagnostico"]
-        candidatos_raw = resultado_db.get("sucursales_recomendadas", [])
+        talleres_notificados = resultado_db.get("talleres_notificados", 0)
 
         # Refrescar la solicitud para obtener el estado actualizado
         await db.refresh(solicitud_obj)
 
-        # Construir lista de SucursalRecomendada
-        sucursales_out = [
-            SucursalRecomendada(
-                id=c["sucursal_id"],
-                nombre=c["sucursal_nombre"],
-                direccion=c.get("sucursal_direccion"),
-                telefono=c.get("sucursal_telefono"),
-                latitud=c["sucursal_latitud"],
-                longitud=c["sucursal_longitud"],
-                taller_id=c["taller_id"],
-                taller_nombre=c["taller_nombre"],
-                distancia_km=c["distancia_km"],
-                tiene_servicio=c["tiene_servicio"],
-                rating=c.get("rating", 0.0),
-                rating_count=c.get("rating_count", 0),
-                tecnicos_disponibles=len(c.get("tecnicos_disponibles", [])),
-                score=c["score"],
-                eta_minutos=max(5, round(c["distancia_km"] * 3)),
-            )
-            for c in candidatos_raw
-        ]
-
-        return SolicitudRecomendacionOut(
+        return SolicitudSOSOut(
             solicitud=SolicitudOut.model_validate(solicitud_obj),
             diagnostico_ia=DiagnosticoIAOut.model_validate(diagnostico_obj),
-            sucursales_recomendadas=sucursales_out,
+            talleres_notificados=talleres_notificados,
         )
 
     except Exception as e:
@@ -161,33 +138,48 @@ async def crear_incidente_multipart(
         )
 
 @router.post(
-    "/{solicitud_id}/seleccionar-taller",
-    summary="Seleccionar un taller para el incidente",
-    description="Permite al cliente elegir un taller de la lista de recomendaciones. Cambia el estado a ESPERANDO_ACEPTACION_TALLER y notifica al taller."
+    "/{solicitud_id}/seleccionar-puja",
+    summary="Seleccionar la puja ganadora (Match Final)",
+    description=(
+        "El cliente elige su oferta favorita de las pujas recibidas. "
+        "Crea la asignación, notifica al ganador y rechaza las demás pujas."
+    ),
 )
-async def seleccionar_taller(
+async def seleccionar_puja(
     solicitud_id: int,
-    seleccion: SolicitudSeleccionTaller,
+    seleccion: PujaSeleccion,
     current_user: Usuario = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
-    Endpoint para que el cliente confirme su elección de taller.
+    Endpoint Match Final — el cliente confirma su puja favorita.
+    Flujo:
+      1. Valida pertenencia y estado ESPERANDO_PUJAS.
+      2. Marca puja como ACEPTADA, rechaza las demás.
+      3. Cambia solicitud a EN_PROCESO.
+      4. Crea Asignación.
+      5. Notifica a ganador, perdedores y cliente vía WebSocket.
     """
-    service = SolicitudService(db)
-    exito = await service.seleccionar_taller(
-        solicitud_id=solicitud_id,
-        sucursal_id=seleccion.sucursal_id,
-        current_user_id=current_user.id
-    )
+    from app.services.puja_service import PujaService
+    service = PujaService(db)
 
-    if not exito:
+    try:
+        resultado = await service.seleccionar_puja(
+            solicitud_id=solicitud_id,
+            puja_id=seleccion.puja_id,
+            current_user_id=current_user.id,
+        )
+    except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No se pudo procesar la selección. Verifica que la solicitud exista, te pertenezca y esté en el estado correcto."
+            detail=str(e),
         )
-
-    return {"message": "Taller seleccionado exitosamente. El taller ha sido notificado y debe aceptar la solicitud."}
+    return {
+        "message": "¡Oferta seleccionada exitosamente! El taller ha sido notificado.",
+        "asignacion_id": resultado["asignacion_id"],
+        "puja_ganadora": resultado["puja_ganadora"],
+        "sucursal": resultado["sucursal"],
+    }
 
 
 @router.get(

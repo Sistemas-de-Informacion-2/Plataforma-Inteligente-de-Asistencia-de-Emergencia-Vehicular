@@ -2,6 +2,7 @@
 import { Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import Swal from 'sweetalert2';
 import { SuperAdminService, Servicio } from '../../../shared/api/super-admin.service';
 
 @Component({
@@ -104,18 +105,27 @@ export class SaServiciosComponent implements OnInit {
   }
 
   eliminarServicio(servicio: Servicio): void {
-    if (!confirm(`¿Eliminar el servicio "${servicio.nombre}" del catálogo? Esta acción es permanente.`)) {
-      return;
-    }
-
-    this.api.eliminarServicio(servicio.id).subscribe({
-      next: () => {
-        this.loadServicios();
-        this.triggerToast('Servicio eliminado del catálogo');
-      },
-      error: (err: any) => {
-        console.error('Error eliminando servicio:', err);
-        alert('Ocurrió un error al eliminar el servicio.');
+    Swal.fire({
+      title: '¿Eliminar servicio?',
+      text: `¿Estás seguro de eliminar el servicio "${servicio.nombre}" del catálogo? Esta acción es permanente.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        this.api.eliminarServicio(servicio.id).subscribe({
+          next: () => {
+            this.loadServicios();
+            this.triggerToast('Servicio eliminado del catálogo');
+          },
+          error: (err: any) => {
+            console.error('Error eliminando servicio:', err);
+            Swal.fire('Error', 'Ocurrió un error al eliminar el servicio.', 'error');
+          }
+        });
       }
     });
   }

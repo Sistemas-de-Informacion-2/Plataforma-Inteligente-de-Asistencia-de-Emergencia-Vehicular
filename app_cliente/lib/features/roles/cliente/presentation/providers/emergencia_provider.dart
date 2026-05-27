@@ -69,6 +69,14 @@ class EmergenciaProvider extends ChangeNotifier {
   
   VoidCallback? onServiceFinished;
   void Function(Map<String, dynamic> pagoData)? onPaymentRequired;
+  VoidCallback? onPujaAceptadaCallback;
+
+  // ── Pujas (Bids) State ─────────────────────────────────────
+  final List<Map<String, dynamic>> _pujasActivas = [];
+  List<Map<String, dynamic>> get pujasActivas => _pujasActivas;
+  
+  bool _esperandoPujas = false;
+  bool get esperandoPujas => _esperandoPujas;
 
   /// Compatibilidad: indica si hay una carga en curso.
   bool get isUploading => _flowState == EmergenciaFlowState.loadingIA;
@@ -88,17 +96,71 @@ class EmergenciaProvider extends ChangeNotifier {
   void _onWsMessage(Map<String, dynamic> msg) async {
     debugPrint('[WS DEBUG] Provider onWsMessage: $msg');
     final type = msg['type'];
-    if (type == 'SOLICITUD_ACEPTADA_TALLER') {
+
+    if (type == 'NUEVA_PUJA_RECIBIDA') {
+      _pujasActivas.add({
+        'id': msg['puja_id'],
+        'sucursal_id': msg['sucursal_id'],
+        'taller_nombre': msg['taller_nombre'],
+        'sucursal_nombre': msg['sucursal_nombre'],
+        'precio_estimado': (msg['precio_estimado'] as num).toDouble(),
+        'tiempo_llegada_minutos': msg['tiempo_llegada_minutos'],
+        'rating': (msg['rating'] as num).toDouble(),
+        'distancia_km': msg['distancia_km'],
+      });
+
+      _pujasActivas.sort((a, b) {
+        int cmp = a['precio_estimado'].compareTo(b['precio_estimado']);
+        if (cmp != 0) return cmp;
+        return a['tiempo_llegada_minutos'].compareTo(b['tiempo_llegada_minutos']);
+      });
+
+      notifyListeners();
+    } 
+    else if (type == 'PUJA_ACEPTADA') {
+      _esperandoPujas = false;
       _timeoutTimer?.cancel();
       _timeoutTimer = null;
-      _recomendaciones = null; // Evita que se vuelva a abrir el BottomSheet
+      _recomendaciones = null;
       
-      // Parsear la asignación directamente del websocket
+      // Parsear la asignación y cargar coords para el tracking
+      if (msg['sucursal'] != null) {
+        _asignacion = AsignacionModel(
+          tiempoEstimado: (msg['tiempo_estimado'] as num?)?.toDouble(),
+          sucursal: msg['sucursal'],
+        );
+      }
+
+      if (_solicitudId != null) {
+        final detalle = await _repository.obtenerDetalleIncidente(_solicitudId!);
+        if (detalle != null && _asignacion?.sucursal != null) {
+          final latTaller = _asignacion!.sucursal!['latitud'] as double?;
+          final lngTaller = _asignacion!.sucursal!['longitud'] as double?;
+          final latCliente = detalle['latitud'] as double?;
+          final lngCliente = detalle['longitud'] as double?;
+
+          if (latTaller != null && lngTaller != null && latCliente != null && lngCliente != null) {
+            _mechanicLocation = LatLng(latTaller, lngTaller);
+            await _fetchRoute(lngTaller, latTaller, lngCliente, latCliente);
+            _startMechanicSimulation(LatLng(latTaller, lngTaller), LatLng(latCliente, lngCliente));
+          }
+        }
+      }
+
+      _flowState = EmergenciaFlowState.accepted;
+      onPujaAceptadaCallback?.call();
+      notifyListeners();
+    }
+    // Mantener compatibilidad con el flujo antiguo temporalmente
+    else if (type == 'SOLICITUD_ACEPTADA_TALLER') {
+      _timeoutTimer?.cancel();
+      _timeoutTimer = null;
+      _recomendaciones = null; 
+      
       if (msg['asignacion_resultado'] != null) {
         _asignacion = AsignacionModel.fromJson(msg['asignacion_resultado']);
       }
 
-      // Obtener detalles del incidente para sacar coordenadas del cliente
       if (_solicitudId != null) {
         final detalle = await _repository.obtenerDetalleIncidente(_solicitudId!);
         if (detalle != null && _asignacion?.sucursal != null) {
@@ -124,7 +186,6 @@ class EmergenciaProvider extends ChangeNotifier {
       _flowState = EmergenciaFlowState.rejected;
       notifyListeners();
       
-      // Volver a mostrar recomendaciones tras un breve delay para que la UI procese el rejected
       Future.delayed(const Duration(milliseconds: 100), () {
         _flowState = EmergenciaFlowState.showRecommendations;
         notifyListeners();
@@ -133,7 +194,6 @@ class EmergenciaProvider extends ChangeNotifier {
       _timeoutTimer?.cancel();
       _mechanicSimTimer?.cancel();
       
-      // Llamar al callback ANTES de resetear para que TrackingScreen pueda leer asignacion.sucursal['id'] para el ReviewModal
       if (onServiceFinished != null) {
         onServiceFinished!();
       }
@@ -227,6 +287,8 @@ class EmergenciaProvider extends ChangeNotifier {
     _solicitudId = null;
     _waitingSucursalId = null;
     _asignacion = null;
+    _esperandoPujas = false;
+    _pujasActivas.clear();
     notifyListeners();
 
     try {
@@ -256,6 +318,7 @@ class EmergenciaProvider extends ChangeNotifier {
       _recomendaciones = result;
       _solicitudId = result.solicitud.id;
       _flowState = EmergenciaFlowState.showRecommendations;
+      _esperandoPujas = true;
       notifyListeners();
       return result;
     } catch (e) {
@@ -301,6 +364,22 @@ class EmergenciaProvider extends ChangeNotifier {
       _flowState = EmergenciaFlowState.error;
       notifyListeners();
       return false;
+    }
+  }
+
+  // ── Fase 3: Aceptar Puja ────────────────────────────
+  Future<void> aceptarPuja(int pujaId) async {
+    if (_solicitudId == null) return;
+    try {
+      await _repository.seleccionarPuja(
+        solicitudId: _solicitudId!,
+        pujaId: pujaId,
+      );
+      // La navegación se manejará al recibir PUJA_ACEPTADA por WebSocket
+    } catch (e) {
+      _errorMessage = e.toString();
+      notifyListeners();
+      rethrow;
     }
   }
 

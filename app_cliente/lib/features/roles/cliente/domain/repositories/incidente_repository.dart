@@ -24,6 +24,14 @@ abstract class IncidenteRepository {
     required int sucursalId,
   });
 
+  /// Envía la elección de la puja ganadora por parte del cliente.
+  /// POST /api/v1/incidentes/{solicitudId}/seleccionar-puja
+  /// Retorna un mapa con los datos de la asignación y la sucursal.
+  Future<Map<String, dynamic>> seleccionarPuja({
+    required int solicitudId,
+    required int pujaId,
+  });
+
   /// Obtiene los detalles de un incidente (incluyendo la asignación)
   Future<Map<String, dynamic>?> obtenerDetalleIncidente(int solicitudId);
 }

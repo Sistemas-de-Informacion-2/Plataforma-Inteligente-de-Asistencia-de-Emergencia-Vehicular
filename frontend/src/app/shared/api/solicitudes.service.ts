@@ -44,6 +44,8 @@ export interface SolicitudEmergencia {
   montoCobro?: number | null;
   metodoPago?: 'APP' | 'EFECTIVO' | 'QR';
   mostrandoCobro?: boolean;
+  asignaciones?: any[];
+  monto_cobrado?: number | null;
   // Campos legacy (usados por DashboardComponent)
   tipo_incidente?: string;
   prioridad?: 'ALTA' | 'MEDIA' | 'BAJA';

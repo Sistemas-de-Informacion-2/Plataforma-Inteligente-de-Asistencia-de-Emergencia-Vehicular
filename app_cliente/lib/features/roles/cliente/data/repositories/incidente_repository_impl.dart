@@ -91,6 +91,30 @@ class IncidenteRepositoryImpl implements IncidenteRepository {
   }
 
   @override
+  Future<Map<String, dynamic>> seleccionarPuja({
+    required int solicitudId,
+    required int pujaId,
+  }) async {
+    try {
+      final response = await _apiClient.instance.post(
+        '/incidentes/$solicitudId/seleccionar-puja',
+        data: {'puja_id': pujaId},
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return response.data as Map<String, dynamic>;
+      } else {
+        throw Exception('Error al seleccionar la puja: ${response.statusCode}');
+      }
+    } on DioException catch (e) {
+      final errorMessage = e.response?.data['detail'] ?? e.message;
+      throw Exception('Error de red al aceptar oferta: $errorMessage');
+    } catch (e) {
+      throw Exception('Error inesperado: $e');
+    }
+  }
+
+  @override
   Future<Map<String, dynamic>?> obtenerDetalleIncidente(int solicitudId) async {
     try {
       final response = await _apiClient.instance.get('/incidentes/$solicitudId');

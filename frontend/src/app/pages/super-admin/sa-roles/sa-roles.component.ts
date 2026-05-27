@@ -1,6 +1,7 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import Swal from 'sweetalert2';
 import { RolesService, Rol, Permiso, RolCreate, RolUpdate } from '../../../shared/api/roles.service';
 
 @Component({
@@ -72,7 +73,7 @@ export class SaRolesComponent implements OnInit {
   guardarRol() {
     const rolData = this.rolActual();
     if (!rolData.nombre || rolData.nombre.trim() === '') {
-      alert('El nombre del rol es obligatorio');
+      Swal.fire('Atención', 'El nombre del rol es obligatorio', 'warning');
       return;
     }
 
@@ -90,7 +91,7 @@ export class SaRolesComponent implements OnInit {
         },
         error: (err) => {
           console.error('Error actualizando rol', err);
-          alert('Hubo un error al actualizar el rol');
+          Swal.fire('Error', 'Hubo un error al actualizar el rol', 'error');
         }
       });
     } else {
@@ -105,23 +106,34 @@ export class SaRolesComponent implements OnInit {
         },
         error: (err) => {
           console.error('Error creando rol', err);
-          alert('Hubo un error al crear el rol');
+          Swal.fire('Error', 'Hubo un error al crear el rol', 'error');
         }
       });
     }
   }
 
   eliminarRol(id: number) {
-    if (confirm('¿Estás seguro de que deseas eliminar este rol?')) {
-      this.rolesService.deleteRol(id).subscribe({
-        next: () => {
-          this.cargarDatos();
-        },
-        error: (err) => {
-          console.error('Error eliminando rol', err);
-          alert('Hubo un error al eliminar el rol. Recuerda que los roles del sistema no pueden eliminarse.');
-        }
-      });
-    }
+    Swal.fire({
+      title: '¿Eliminar rol?',
+      text: '¿Estás seguro de que deseas eliminar este rol?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        this.rolesService.deleteRol(id).subscribe({
+          next: () => {
+            this.cargarDatos();
+          },
+          error: (err) => {
+            console.error('Error eliminando rol', err);
+            Swal.fire('Error', 'Hubo un error al eliminar el rol. Recuerda que los roles del sistema no pueden eliminarse.', 'error');
+          }
+        });
+      }
+    });
   }
 }

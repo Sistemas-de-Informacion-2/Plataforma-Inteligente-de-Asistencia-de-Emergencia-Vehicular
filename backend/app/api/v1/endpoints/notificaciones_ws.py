@@ -3,9 +3,6 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status
 import logging
 import json
 
-from sqlalchemy import select
-from app.core.database import AsyncSessionLocal
-from app.models.solicitud_emergencia import SolicitudEmergencia
 from app.core.security import decode_access_token
 from app.websocket.connection_manager import ConnectionManager
 
@@ -49,17 +46,10 @@ async def websocket_endpoint(websocket: WebSocket, token: str | None = None):
                 
                 # Reenvío de posición del mecánico al cliente
                 if msg_json.get("type") == "UPDATE_LOCATION":
-                    solicitud_id = msg_json.get("solicitud_id")
-                    if solicitud_id:
-                        async with AsyncSessionLocal() as session:
-                            stmt = select(SolicitudEmergencia).where(SolicitudEmergencia.id == solicitud_id)
-                            result = await session.execute(stmt)
-                            solicitud = result.scalar_one_or_none()
-                            
-                            if solicitud and solicitud.usuario_id:
-                                cliente_id_str = str(solicitud.usuario_id)
-                                # Enviamos el mismo mensaje al cliente
-                                await manager.send_personal_message(msg_json, cliente_id_str)
+                    cliente_id = msg_json.get("cliente_id")
+                    if cliente_id:
+                        # Enviamos el mismo mensaje al cliente
+                        await manager.send_personal_message(msg_json, str(cliente_id))
                                 
             except json.JSONDecodeError:
                 pass
@@ -67,5 +57,5 @@ async def websocket_endpoint(websocket: WebSocket, token: str | None = None):
                 logger.error(f"[WS] Error procesando mensaje entrante: {e}")
                 
     except WebSocketDisconnect:
-        manager.disconnect(usuario_id)
+        manager.disconnect(websocket, usuario_id)
 

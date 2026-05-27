@@ -42,7 +42,9 @@ class NotificacionService:
 
             if fcm_token:
                 from app.services.firebase_push_service import enviar_push
-                enviar_push(
+                from fastapi.concurrency import run_in_threadpool
+                await run_in_threadpool(
+                    enviar_push,
                     token_fcm=fcm_token,
                     titulo="Fixo - Emergencia Vehicular",
                     cuerpo=mensaje,

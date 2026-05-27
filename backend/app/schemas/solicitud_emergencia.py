@@ -35,6 +35,7 @@ class SolicitudDetallada(SolicitudOut):
     evidencias: list["EvidenciaOut"] = []
     diagnostico: "DiagnosticoIAOut | None" = None
     vehiculo: "VehiculoOut | None" = None
+    asignaciones: list["AsignacionOut"] = []
 
 
 # ── Schemas de recomendación (Fase 1: Uber para Mecánicos Inverso) ──
@@ -75,10 +76,24 @@ class SolicitudRecomendacionOut(BaseModel):
     sucursales_recomendadas: list[SucursalRecomendada] = []
 
 
+class SolicitudSOSOut(BaseModel):
+    """
+    Respuesta del flujo SOS inDrive (Marketplace de Pujas).
+    Solo contiene la solicitud + diagnóstico IA.
+    Las pujas llegarán en tiempo real vía WebSocket (NUEVA_PUJA_RECIBIDA).
+    """
+    solicitud: SolicitudOut
+    diagnostico_ia: "DiagnosticoIAOut"
+    mensaje: str = "SOS emitido. Esperando pujas de talleres cercanos en tiempo real."
+    talleres_notificados: int = 0
+
+
 # ── Imports diferidos para evitar circular ────────────────────
 from app.schemas.evidencia import EvidenciaOut  # noqa: E402
 from app.schemas.diagnostico_ia import DiagnosticoIAOut  # noqa: E402
 from app.schemas.vehiculo import VehiculoOut  # noqa: E402
+from app.schemas.asignacion import AsignacionOut  # noqa: E402
 
 SolicitudDetallada.model_rebuild()
 SolicitudRecomendacionOut.model_rebuild()
+SolicitudSOSOut.model_rebuild()

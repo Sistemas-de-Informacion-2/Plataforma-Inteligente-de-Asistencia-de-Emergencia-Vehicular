@@ -156,7 +156,8 @@ async def listar_solicitudes_pendientes_sucursal(
         raise HTTPException(status_code=403, detail="Esta sucursal no te pertenece")
 
     service = SolicitudService(db)
-    solicitudes = await service.listar_esperando_aceptacion()
+    from app.models.solicitud_emergencia import EstadoSolicitud
+    solicitudes = await service.listar_por_estado(EstadoSolicitud.ESPERANDO_PUJAS)
     return solicitudes
 
 
@@ -182,7 +183,7 @@ async def listar_solicitudes_en_proceso_sucursal(
 
     service = SolicitudService(db)
     from app.models.solicitud_emergencia import EstadoSolicitud
-    solicitudes = await service.listar_por_estado(EstadoSolicitud.EN_PROCESO)
+    solicitudes = await service.listar_por_sucursal_y_estado(sucursal_id, EstadoSolicitud.EN_PROCESO)
     return solicitudes
 
 
@@ -208,7 +209,7 @@ async def listar_solicitudes_atendidas_sucursal(
 
     service = SolicitudService(db)
     from app.models.solicitud_emergencia import EstadoSolicitud
-    solicitudes = await service.listar_por_estado(EstadoSolicitud.ATENDIDO)
+    solicitudes = await service.listar_por_sucursal_y_estado(sucursal_id, EstadoSolicitud.ATENDIDO)
     return solicitudes
 
 

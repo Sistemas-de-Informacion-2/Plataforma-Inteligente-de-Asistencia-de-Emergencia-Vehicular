@@ -16,6 +16,7 @@ from app.models.auditable import AuditableMixin
 class EstadoSolicitud(str, enum.Enum):
     """Estados posibles de una solicitud de emergencia."""
     PENDIENTE = "PENDIENTE"
+    ESPERANDO_PUJAS = "ESPERANDO_PUJAS"
     PENDIENTE_SELECCION_CLIENTE = "PENDIENTE_SELECCION_CLIENTE"
     ESPERANDO_ACEPTACION_TALLER = "ESPERANDO_ACEPTACION_TALLER"
     RECHAZADO_POR_TALLER = "RECHAZADO_POR_TALLER"
@@ -63,6 +64,9 @@ class SolicitudEmergencia(AuditableMixin, Base):
         back_populates="solicitud", cascade="all, delete-orphan"
     )
     asignaciones: Mapped[list["Asignacion"]] = relationship(
+        back_populates="solicitud", cascade="all, delete-orphan"
+    )
+    pujas: Mapped[list["Puja"]] = relationship(
         back_populates="solicitud", cascade="all, delete-orphan"
     )
 

@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends
 from app.api.v1.endpoints import ( 
     usuarios, talleres, solicitudes, ordenes, auth, notificaciones_ws,
     empleados, servicios, vehiculos, incidentes, admin, sucursales, rutas,
-    dispositivos, pagos
+    dispositivos, pagos, pujas, notificaciones
 )
 from app.api.deps import get_current_user
 
@@ -92,7 +92,20 @@ api_router.include_router(
     dependencies=[Depends(get_current_user)]
 )
 api_router.include_router(
+    notificaciones.router,
+    prefix="/notificaciones",
+    tags=["Notificaciones"],
+    dependencies=[Depends(get_current_user)]
+)
+api_router.include_router(
     pagos.router,
     prefix="/pagos",
     tags=["Pagos"],
+)
+
+# ── Pujas: Marketplace en tiempo real (inDrive) ──────────────
+api_router.include_router(
+    pujas.router,
+    prefix="/pujas",
+    tags=["Marketplace de Pujas (inDrive)"],
 )

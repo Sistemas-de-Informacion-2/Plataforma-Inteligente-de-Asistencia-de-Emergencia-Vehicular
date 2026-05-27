@@ -138,8 +138,7 @@
 
         <!-- Notificaciones -->
         <button
-          routerLink="/despacho"
-          (click)="resetNotifications()"
+          (click)="notificacionesService.isDrawerOpen.set(!notificacionesService.isDrawerOpen())"
           class="notif-btn relative flex items-center justify-center w-10 h-10 rounded-xl text-text-muted hover:text-primary-600 hover:bg-primary-50 transition-all duration-300"
           aria-label="Ver notificaciones">
           <i class='bx bx-bell text-2xl'></i>

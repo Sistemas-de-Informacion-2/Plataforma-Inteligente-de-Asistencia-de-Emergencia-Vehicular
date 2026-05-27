@@ -2,6 +2,7 @@
 import { Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import Swal from 'sweetalert2';
 import { EmpleadosService, Empleado } from '../../shared/api/empleados.service';
 import { SucursalesService, Sucursal } from '../../shared/api/sucursales.service';
 
@@ -166,18 +167,27 @@ export class TecnicosComponent implements OnInit {
   }
 
   eliminarEmpleado(emp: Empleado): void {
-    if (!confirm(`¿Estás seguro de que deseas eliminar al técnico ${emp.usuario?.nombre}? Esta acción restringirá su acceso.`)) {
-      return;
-    }
-
-    this.empleadosService.eliminarEmpleado(emp.id).subscribe({
-      next: () => {
-        this.empleadosService.listarEmpleados().subscribe(data => this.empleados.set(data));
-        this.triggerToast();
-      },
-      error: (err) => {
-        console.error('Error eliminando empleado:', err);
-        alert('Ocurrió un error al intentar eliminar el empleado.');
+    Swal.fire({
+      title: '¿Eliminar técnico?',
+      text: `¿Estás seguro de que deseas eliminar al técnico ${emp.usuario?.nombre}? Esta acción restringirá su acceso.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        this.empleadosService.eliminarEmpleado(emp.id).subscribe({
+          next: () => {
+            this.empleadosService.listarEmpleados().subscribe(data => this.empleados.set(data));
+            this.triggerToast();
+          },
+          error: (err) => {
+            console.error('Error eliminando empleado:', err);
+            Swal.fire('Error', 'Ocurrió un error al intentar eliminar el empleado.', 'error');
+          }
+        });
       }
     });
   }

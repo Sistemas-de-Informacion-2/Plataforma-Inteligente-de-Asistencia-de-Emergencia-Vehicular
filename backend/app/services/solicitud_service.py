@@ -7,7 +7,7 @@ Este servicio coordina la persistencia del flujo de emergencia:
   3. Guardar el diagnóstico estructurado.
   4. Buscar sucursales recomendadas (PostGIS) sin auto-asignar.
 
-Fase 1 — Modelo 'Uber para Mecánicos Inverso':
+Modelo 'Uber para Mecánicos Inverso':
   El flujo se detiene en la recomendación. El cliente elige el taller.
   NO se crean Asignaciones ni Notificaciones en este paso.
 """
@@ -43,8 +43,8 @@ class SolicitudService:
         self.asignacion_service = AsignacionService(session)
         self.notificacion_service = NotificacionService(session)
 
-    # ── Fase 1: Crear solicitud + diagnóstico + recomendaciones ──
-    async def crear_solicitud_con_recomendaciones(
+    # ── Fase 1+2: Crear solicitud + diagnóstico + SOS Broadcast ──
+    async def crear_solicitud_y_emitir_sos(
         self,
         solicitud_in: SolicitudCreate,
         evidencias_in: list[EvidenciaCreate],
@@ -52,30 +52,28 @@ class SolicitudService:
         estado_inicial: str
     ) -> dict[str, Any]:
         """
-        Flujo principal de emergencia — Fase 1 (Recomendación).
+        Flujo principal de emergencia — Marketplace de Pujas (inDrive).
         1. Guarda la Solicitud en BD.
         2. Asocia las Evidencias.
         3. Guarda el DiagnosticoIA.
-        4. Busca sucursales aptas con PostGIS (sin crear Asignación).
-        5. Retorna la solicitud, diagnóstico y lista de recomendaciones.
+        4. Busca sucursales cercanas y compatibles con PostGIS.
+        5. Emite NUEVO_SOS_ZONA vía WebSocket a los admins de talleres cercanos.
+        6. Cambia estado a ESPERANDO_PUJAS.
 
-        El estado final de la solicitud será:
-          - PENDIENTE_SELECCION_CLIENTE: si hay recomendaciones disponibles.
-          - PENDIENTE: si no se encontraron talleres cercanos.
-          - El estado_inicial tal cual si la IA rechazó (ej: RECHAZADO_POR_IA).
+        NO retorna lista de recomendaciones.
+        Las pujas llegarán al cliente en tiempo real vía WS (Fase 3).
         """
         resultado = {
             "solicitud": None,
             "evidencias": [],
             "diagnostico": None,
-            "sucursales_recomendadas": [],
+            "talleres_notificados": 0,
         }
 
-        # ── Paso 1: Crear la solicitud con estado PENDIENTE ──────
-        logger.info(f"[Solicitud] Guardando emergencia para cliente {solicitud_in.cliente_id}")
+        # Paso 1: Crear la solicitud con estado PENDIENTE
+        logger.info(f"[SOS] Guardando emergencia para cliente {solicitud_in.cliente_id}")
         solicitud_data = solicitud_in.model_dump()
 
-        # Iniciar con estado PENDIENTE; se actualizará después según las recomendaciones
         try:
             solicitud_data["estado"] = EstadoSolicitud(estado_inicial)
         except ValueError:
@@ -87,7 +85,7 @@ class SolicitudService:
         solicitud = await self.repo.create(solicitud_data)
         resultado["solicitud"] = solicitud
 
-        # ── Paso 2: Guardar evidencias ───────────────────────────
+        # Paso 2: Guardar evidencias
         if evidencias_in:
             for ev_data in evidencias_in:
                 evidencia = Evidencia(
@@ -99,7 +97,7 @@ class SolicitudService:
                 resultado["evidencias"].append(evidencia)
             await self.session.flush()
 
-        # ── Paso 3: Guardar el Diagnóstico Estructurado ──────────
+        # Paso 3: Guardar el Diagnóstico Estructurado
         nuevo_diagnostico = DiagnosticoIA(
             solicitud_id=solicitud.id,
             problema_detectado=diagnostico.get("resumen", "Problema desconocido"),
@@ -112,36 +110,105 @@ class SolicitudService:
         await self.session.refresh(nuevo_diagnostico)
         resultado["diagnostico"] = nuevo_diagnostico
 
-        # ── Paso 4: Buscar sucursales recomendadas (sin asignar) ─
-        # Solo buscar si la IA no rechazó el incidente
+        # Paso 4: Broadcast SOS a talleres cercanos, solo emitir si la IA no rechazó el incidente
         if estado_inicial not in ("RECHAZADO_POR_IA",):
             servicios_ia = diagnostico.get("servicios", [])
-
             logger.info(
-                f"[Recomendación] Buscando talleres aptos para servicios: "
-                f"{servicios_ia} (solicitud #{solicitud.id})"
+                f"[SOS] Buscando talleres cercanos para broadcast "
+                f"(servicios: {servicios_ia}, solicitud #{solicitud.id})"
             )
 
+            # Reutilizar la búsqueda de sucursales cercanas para encontrar
+            # a quién notificar (admins de talleres cercanos y compatibles)
             candidatos = await self.asignacion_service.buscar_sucursales_aptas(
                 latitud_incidente=solicitud.latitud,
                 longitud_incidente=solicitud.longitud,
                 servicios_requeridos=servicios_ia,
+                radio_km=15.0,
+                max_candidatos=20,
             )
-            resultado["sucursales_recomendadas"] = candidatos
 
-            # Actualizar estado según si encontramos recomendaciones
             if candidatos:
-                await self.repo.actualizar_estado(solicitud.id, EstadoSolicitud.PENDIENTE_SELECCION_CLIENTE)
+                # Cambiar estado a ESPERANDO_PUJAS
+                await self.repo.actualizar_estado(solicitud.id, EstadoSolicitud.ESPERANDO_PUJAS)
                 logger.info(
-                    f"[Solicitud] Estado → PENDIENTE_SELECCION_CLIENTE "
-                    f"({len(candidatos)} opciones disponibles)"
+                    f"[SOS] Estado → ESPERANDO_PUJAS "
+                    f"({len(candidatos)} sucursales encontradas)"
                 )
+
+                # Obtener usuario_ids de los admins de cada taller
+                admin_usuario_ids = await self._obtener_admin_ids_de_sucursales(
+                    [c["sucursal_id"] for c in candidatos]
+                )
+
+                if admin_usuario_ids:
+                    # Construir payload del SOS
+                    sos_payload = {
+                        "type": "NUEVO_SOS_ZONA",
+                        "solicitud_id": solicitud.id,
+                        "cliente_ubicacion": {
+                            "latitud": solicitud.latitud,
+                            "longitud": solicitud.longitud,
+                        },
+                        "diagnostico": {
+                            "problema": diagnostico.get("resumen", ""),
+                            "servicios_requeridos": servicios_ia,
+                            "nivel_gravedad": diagnostico.get("nivel_gravedad", "MEDIO"),
+                            "prioridad": diagnostico.get("prioridad", "MEDIA"),
+                        },
+                        "mensaje": "Nueva emergencia vehicular en tu zona. ¡Envía tu oferta!",
+                    }
+
+                    # Emitir broadcast vía WebSocket
+                    try:
+                        from app.api.v1.endpoints.notificaciones_ws import manager
+                        enviados = await manager.broadcast_to_users(
+                            sos_payload,
+                            [str(uid) for uid in admin_usuario_ids]
+                        )
+                        resultado["talleres_notificados"] = enviados
+                        logger.info(f"[SOS] Broadcast enviado a {enviados} admins de talleres.")
+                    except Exception as e:
+                        logger.error(f"[SOS] Error en broadcast WebSocket: {e}")
+
+                    # También crear notificaciones persistentes para los admins
+                    for admin_uid in admin_usuario_ids:
+                        await self.notificacion_service.enviar_a_usuario(
+                            usuario_id=admin_uid,
+                            mensaje=(
+                                f"Nueva emergencia #{solicitud.id} en tu zona. "
+                                "Envía tu oferta de precio para atender al cliente."
+                            )
+                        )
             else:
                 logger.warning(
-                    f"[Solicitud] No se encontraron talleres cercanos. "
+                    f"[SOS] No se encontraron talleres cercanos. "
                     f"Estado permanece: {solicitud.estado.value}"
                 )
+
         return resultado
+
+    async def _obtener_admin_ids_de_sucursales(
+        self,
+        sucursal_ids: list[int],
+    ) -> list[int]:
+        """
+        Obtiene los usuario_id de los administradores de los talleres
+        a los que pertenecen las sucursales dadas.
+        Usado para el broadcast del SOS.
+        """
+        if not sucursal_ids:
+            return []
+
+        stmt = (
+            select(Admin.usuario_id)
+            .join(Taller, Admin.id == Taller.admin_id)
+            .join(Sucursal, Taller.id == Sucursal.taller_id)
+            .where(Sucursal.id.in_(sucursal_ids))
+            .distinct()
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
 
     # ── Fase 2: El cliente elige un taller ──
     async def seleccionar_taller(
@@ -246,7 +313,7 @@ class SolicitudService:
 
         # 2. Obtener y validar solicitud
         solicitud = await self.repo.get_by_id(solicitud_id)
-        if not solicitud or solicitud.estado != EstadoSolicitud.ESPERANDO_ACEPTACION_TALLER:
+        if not solicitud or solicitud.estado not in (EstadoSolicitud.ESPERANDO_ACEPTACION_TALLER, EstadoSolicitud.EN_PROCESO):
             logger.warning(f"[Respuesta] Solicitud {solicitud_id} no encontrada o en estado incorrecto ({solicitud.estado.value if solicitud else 'N/A'}).")
             return False
 
@@ -270,7 +337,7 @@ class SolicitudService:
             logger.info(f"[Respuesta] Solicitud {solicitud_id} rechazada por taller {sucursal_id}.")
             return True
 
-        # ── CASO ACEPTACIÓN ──
+        # ── CASO ACEPTACIÓN / ASIGNACIÓN DE TÉCNICO ──
         # 1. Validar mecánico (si se proporcionó uno)
         tecnico = None
         if respuesta.empleado_id is not None:
@@ -285,19 +352,26 @@ class SolicitudService:
                 logger.warning(f"[Respuesta] Técnico {respuesta.empleado_id} no válido o no disponible para sucursal {sucursal_id}.")
                 return False
 
-        # 2. Cambiar estado solicitud
-        await self.repo.actualizar_estado(solicitud_id, EstadoSolicitud.EN_PROCESO)
+        # 2. Cambiar estado solicitud (si no estaba ya en proceso)
+        if solicitud.estado != EstadoSolicitud.EN_PROCESO:
+            await self.repo.actualizar_estado(solicitud_id, EstadoSolicitud.EN_PROCESO)
 
-        # 3. Crear Asignación (con o sin empleado)
-        from app.schemas.asignacion import AsignacionCreate
-        asignacion_data = AsignacionCreate(
-            solicitud_id=solicitud_id,
-            empleado_id=tecnico.id if tecnico else None,
-            sucursal_id=sucursal_id,
-            estado=EstadoAsignacion.PENDIENTE,
-            tiempo_estimado_llegada=15  # Default o calculado
-        )
-        await self.asignacion_service.asignacion_repo.create(asignacion_data.model_dump())
+        # 3. Crear Asignación o Actualizar la existente
+        asignacion_existente = await self.asignacion_service.obtener_asignacion_activa(solicitud_id)
+        if asignacion_existente:
+            asignacion_existente.empleado_id = tecnico.id if tecnico else None
+            asignacion_existente.estado = EstadoAsignacion.ACEPTADA
+            await self.session.commit()
+        else:
+            from app.schemas.asignacion import AsignacionCreate
+            asignacion_data = AsignacionCreate(
+                solicitud_id=solicitud_id,
+                empleado_id=tecnico.id if tecnico else None,
+                sucursal_id=sucursal_id,
+                estado=EstadoAsignacion.ACEPTADA,
+                tiempo_estimado_llegada=15  # Default o calculado
+            )
+            await self.asignacion_service.asignacion_repo.create(asignacion_data.model_dump())
 
         # 4. Construir mensajes según si hay técnico o el admin va personalmente
         if tecnico:
@@ -401,6 +475,16 @@ class SolicitudService:
         """Solicitudes filtradas por cualquier estado, con evidencias y diagnóstico precargados."""
         return list(
             await self.repo.get_detalladas_por_estado(estado, skip=skip, limit=limit)
+        )
+
+    async def listar_por_sucursal_y_estado(
+        self, sucursal_id: int, estado: EstadoSolicitud, skip: int = 0, limit: int = 100
+    ) -> list[SolicitudEmergencia]:
+        """Filtra por estado y por sucursal (para EN_PROCESO, ATENDIDO, etc)."""
+        return list(
+            await self.repo.get_detalladas_por_sucursal_y_estado(
+                sucursal_id, estado, skip=skip, limit=limit
+            )
         )
 
     async def listar_todas(self, skip: int = 0, limit: int = 100) -> list[SolicitudEmergencia]:

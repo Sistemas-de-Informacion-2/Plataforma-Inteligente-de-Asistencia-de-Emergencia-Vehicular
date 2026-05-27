@@ -4,6 +4,7 @@ import { RouterModule, RouterOutlet } from '@angular/router';
 import { AuthService } from '../../../shared/api/auth.service';
 import { WebsocketService } from '../../../core/services/websocket.service';
 import { PagosService } from '../../../shared/api/pagos.service';
+import { NotificacionesService } from '../../../shared/api/notificaciones.service';
 import { Subscription } from 'rxjs';
 
 @Component({
@@ -17,6 +18,7 @@ export class AdminLayoutComponent implements OnInit, OnDestroy {
   private authService = inject(AuthService);
   private wsService = inject(WebsocketService);
   public pagosService = inject(PagosService);
+  public notificacionesService = inject(NotificacionesService);
 
   isSidebarOpen = window.innerWidth >= 768;
   isProfileMenuOpen = false;

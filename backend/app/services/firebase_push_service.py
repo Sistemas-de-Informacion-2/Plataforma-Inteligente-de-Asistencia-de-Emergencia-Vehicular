@@ -50,13 +50,11 @@ def enviar_push(
 ) -> bool:
     """
     Envía una notificación push a un dispositivo específico.
-    
     Args:
         token_fcm: Token FCM del dispositivo destino.
         titulo: Título de la notificación.
         cuerpo: Cuerpo del mensaje.
         data: Datos adicionales (key-value strings) que llegan silenciosamente.
-    
     Returns:
         True si se envió correctamente, False si hubo error.
     """
@@ -83,7 +81,6 @@ def enviar_push(
                 ),
             ),
         )
-
         response = messaging.send(message)
         logger.info(f"[FCM] ✅ Push enviado: {response}")
         return True

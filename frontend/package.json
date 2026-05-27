@@ -20,6 +20,7 @@
   },
   "private": true,
   "dependencies": {
+    "@angular/animations": "^20.3.21",
     "@angular/common": "^20.1.0",
     "@angular/compiler": "^20.1.0",
     "@angular/core": "^20.1.0",
@@ -29,8 +30,10 @@
     "@tailwindcss/postcss": "^4.2.2",
     "angularx-qrcode": "^20.0.0",
     "leaflet": "^1.9.4",
+    "lucide-angular": "^1.0.0",
     "postcss": "^8.5.8",
     "rxjs": "~7.8.0",
+    "sweetalert2": "^11.26.25",
     "tailwindcss": "^4.2.2",
     "tslib": "^2.3.0",
     "zone.js": "~0.15.0"

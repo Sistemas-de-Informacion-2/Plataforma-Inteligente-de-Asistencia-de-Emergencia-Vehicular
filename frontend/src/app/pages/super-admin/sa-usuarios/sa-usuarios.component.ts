@@ -1,12 +1,14 @@
 // src/app/pages/super-admin/sa-usuarios/sa-usuarios.component.ts
 import { Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import Swal from 'sweetalert2';
 import { SuperAdminService, UsuarioOut } from '../../../shared/api/super-admin.service';
 
 @Component({
   selector: 'app-sa-usuarios',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   templateUrl: './sa-usuarios.component.html'
 })
 export class SaUsuariosComponent implements OnInit {
@@ -47,12 +49,11 @@ export class SaUsuariosComponent implements OnInit {
         this.loadUsuarios();
         this.triggerToast(`Usuario "${usuario.nombre}" baneado exitosamente`);
       },
-      error: (err: any) => {
-        console.error('Error baneando usuario:', err);
-        if (err.error?.detail) {
-          alert(err.error.detail);
+      error: (err) => {
+        if (err.error && err.error.detail) {
+          Swal.fire('Error', err.error.detail, 'error');
         } else {
-          alert('Ocurrió un error al banear al usuario.');
+          Swal.fire('Error', 'Ocurrió un error al banear al usuario.', 'error');
         }
       }
     });

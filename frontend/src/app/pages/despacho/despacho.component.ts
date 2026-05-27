@@ -1,19 +1,53 @@
-import { Component, OnInit, inject, signal, OnDestroy } from '@angular/core';
+import { Component, OnInit, inject, signal, OnDestroy, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { WebsocketService, EmergencyNotification } from '../../core/services/websocket.service';
+import Swal from 'sweetalert2';
+import { WebsocketService } from '../../core/services/websocket.service';
 import { SolicitudesService, SolicitudEmergencia } from '../../shared/api/solicitudes.service';
 import { EmpleadosService, Empleado } from '../../shared/api/empleados.service';
 import { SucursalesService, Sucursal } from '../../shared/api/sucursales.service';
 import { PagosService } from '../../shared/api/pagos.service';
+import { PujasService } from '../../shared/api/pujas.service';
+import { NotificacionesService, NotificationItem } from '../../shared/api/notificaciones.service';
 import { Subscription } from 'rxjs';
 import { MapSelectorComponent } from '../../shared/ui/map-selector/map-selector.component';
+import { trigger, state, style, transition, animate } from '@angular/animations';
+import {
+  LUCIDE_ICONS, LucideAngularModule, LucideIconProvider, Bell, X, Check,
+  AlertTriangle, Play, DollarSign, Clock, MapPin, CheckCircle, Volume2, Info,
+  Shield, Trash2, List, Sparkles, Navigation
+} from 'lucide-angular';
 
 @Component({
   selector: 'app-despacho',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, FormsModule, MapSelectorComponent],
-  templateUrl: './despacho.component.html'
+  imports: [
+    CommonModule,
+    ReactiveFormsModule,
+    FormsModule,
+    MapSelectorComponent,
+    LucideAngularModule
+  ],
+  providers: [{
+    provide: LUCIDE_ICONS,
+    multi: true,
+    useValue: new LucideIconProvider({
+      Bell, X, Check, AlertTriangle, Play, DollarSign, Clock, MapPin, 
+      CheckCircle, Volume2, Info, Shield, Trash2, List, Sparkles, Navigation
+    })
+  }],
+  templateUrl: './despacho.component.html',
+  animations: [
+    trigger('drawerAnimation', [
+      transition(':enter', [
+        style({ transform: 'translateX(100%)', opacity: 0.8 }),
+        animate('300ms cubic-bezier(0.16, 1, 0.3, 1)', style({ transform: 'translateX(0)', opacity: 1 }))
+      ]),
+      transition(':leave', [
+        animate('250ms cubic-bezier(0.16, 1, 0.3, 1)', style({ transform: 'translateX(100%)', opacity: 0.8 }))
+      ])
+    ])
+  ]
 })
 export class DespachoComponent implements OnInit, OnDestroy {
   private wsService = inject(WebsocketService);
@@ -21,11 +55,24 @@ export class DespachoComponent implements OnInit, OnDestroy {
   private empleadosService = inject(EmpleadosService);
   private sucursalesService = inject(SucursalesService);
   private pagosService = inject(PagosService);
+  private pujasService = inject(PujasService);
+  private notificacionesService = inject(NotificacionesService);
+  private ngZone = inject(NgZone);
 
-  solicitudesEntrantes = signal<SolicitudEmergencia[]>([]);
-  solicitudesFinalizadas = signal<SolicitudEmergencia[]>([]);
+  // Instancia única de audio
+  private audioNotification = new Audio('/sounds/uber.mp3');
+
+  // Estados reactivos (Signals)
+  oportunidadesPuja = signal<any[]>([]); // Radar / SOS en ESPERANDO_PUJAS
+  solicitudesEntrantes = signal<SolicitudEmergencia[]>([]); // Servicios Activos (EN_PROCESO)
+  solicitudesFinalizadas = signal<SolicitudEmergencia[]>([]); // Servicios Terminados (ATENDIDO)
   sucursalActiva = signal<Sucursal | null>(null);
   mecanicosDisponibles = signal<Empleado[]>([]);
+
+  // Historial de notificaciones y campanita
+  historialNotificaciones = signal<NotificationItem[]>([]);
+  noLeidasCount = signal<number>(0);
+  isDrawerOpen = this.notificacionesService.isDrawerOpen;
 
   private wsSubscription?: Subscription;
 
@@ -52,6 +99,8 @@ export class DespachoComponent implements OnInit, OnDestroy {
                 this.sucursalActiva.set(sucursal);
                 this.cargarMecanicosDisponibles(sucursal.id);
                 this.cargarSolicitudesPendientes(sucursal.id);
+                this.cargarOportunidades(sucursal.id);
+                this.cargarNotificaciones();
                 this.iniciarWebsockets();
               }
             }
@@ -61,45 +110,59 @@ export class DespachoComponent implements OnInit, OnDestroy {
     });
   }
 
+  /** Carga oportunidades de puja activas (Radar) en ESPERANDO_PUJAS */
+  private cargarOportunidades(sucursalId: number) {
+    console.log('[Despacho] Cargando oportunidades de puja para sucursal:', sucursalId);
+    this.solicitudesService.getPendientesPorSucursal(sucursalId).subscribe({
+      next: (oportunidades) => {
+        const opUI = oportunidades.map(o => ({
+          ...o,
+          precioPropuesto: null as number | null,
+          yaPujado: false,
+          precioPujado: null as number | null
+        }));
+
+        // Enriquecer cada oportunidad para ver si esta sucursal ya envió una puja
+        opUI.forEach(op => {
+          this.pujasService.listarPujas(op.id).subscribe({
+            next: (res) => {
+              const miPuja = res.pujas.find(p => p.sucursal_id === sucursalId);
+              if (miPuja) {
+                op.yaPujado = true;
+                op.precioPujado = miPuja.precio_estimado;
+              }
+            },
+            error: (err) => console.error('[Despacho] Error listando pujas de op:', op.id, err)
+          });
+        });
+
+        this.oportunidadesPuja.set(opUI);
+      },
+      error: (err) => console.error('[Despacho] Error cargando oportunidades:', err)
+    });
+  }
+
   /**
-   * Carga inicial: solicitudes pendientes + en proceso (para mostrar UI de cobro).
+   * Carga servicios activos (EN_PROCESO) y finalizados (ATENDIDOS)
    */
   private cargarSolicitudesPendientes(sucursalId: number) {
     console.log('[Despacho] Cargando solicitudes para sucursal:', sucursalId);
-    
-    // Cargar pendientes
-    this.solicitudesService.getPendientesPorSucursal(sucursalId).subscribe({
-      next: (pendientes) => {
-        const pendientesUI = pendientes.map(s => ({ 
-          ...s, 
+
+    // Cargar solicitudes en proceso (ya aceptadas, pendientes de cobro)
+    this.solicitudesService.getEnProcesoPorSucursal(sucursalId).subscribe({
+      next: (enProceso) => {
+        const enProcesoUI = enProceso.map(s => ({
+          ...s,
           mecanicoSeleccionado: null as number | null,
           montoCobro: null as number | null,
+          metodoPago: 'APP' as 'APP' | 'EFECTIVO' | 'QR',
           mostrandoCobro: false
         }));
 
-        // Cargar en proceso (ya aceptadas, pendientes de cobro)
-        this.solicitudesService.getEnProcesoPorSucursal(sucursalId).subscribe({
-          next: (enProceso) => {
-            const enProcesoUI = enProceso.map(s => ({
-              ...s,
-              mecanicoSeleccionado: null as number | null,
-              montoCobro: null as number | null,
-              metodoPago: 'APP' as 'APP' | 'EFECTIVO' | 'QR',
-              mostrandoCobro: false
-            }));
-            
-            console.log(`[Despacho] ${pendientesUI.length} pendientes + ${enProcesoUI.length} en proceso`);
-            this.solicitudesEntrantes.set([...pendientesUI, ...enProcesoUI]);
-          },
-          error: (err) => {
-            console.error('[Despacho] Error cargando en proceso:', err);
-            // Al menos mostrar las pendientes
-            this.solicitudesEntrantes.set(pendientesUI);
-          }
-        });
+        this.solicitudesEntrantes.set(enProcesoUI);
       },
       error: (err) => {
-        console.error('[Despacho] Error cargando solicitudes pendientes:', err);
+        console.error('[Despacho] Error cargando en proceso:', err);
       }
     });
 
@@ -121,80 +184,186 @@ export class DespachoComponent implements OnInit, OnDestroy {
     });
   }
 
+  /**
+   * Carga el historial de notificaciones desde la BD y actualiza el contador
+   */
+  cargarNotificaciones() {
+    this.notificacionesService.listarNotificaciones(false, 0, 50).subscribe({
+      next: (notifs) => {
+        this.historialNotificaciones.set(notifs);
+        this.actualizarConteoNoLeidas();
+      },
+      error: (err) => console.error('[Despacho] Error cargando notificaciones:', err)
+    });
+  }
+
+  private actualizarConteoNoLeidas() {
+    this.notificacionesService.contarNoLeidas().subscribe({
+      next: (res) => {
+        this.noLeidasCount.set(res.no_leidas_count);
+      },
+      error: (err) => console.error('[Despacho] Error contando no leídas:', err)
+    });
+  }
+
+  /**
+   * WebSocket: escucha eventos en tiempo real
+   */
   private iniciarWebsockets() {
     this.wsSubscription = this.wsService.getNotifications().subscribe({
       next: (notificacion) => {
-        console.log('[Despacho] WebSocket recibido:', notificacion);
+        this.ngZone.run(() => {
+          console.log('[Despacho] WebSocket recibido:', notificacion);
 
-        if (notificacion.type === 'NUEVA_SOLICITUD_EMERGENCIA' && notificacion.solicitud_id) {
-          // Evitar duplicados
-          const yaExiste = this.solicitudesEntrantes().find(s => s.id === notificacion.solicitud_id);
-          if (yaExiste) {
-            console.log('[Despacho] Solicitud duplicada ignorada:', notificacion.solicitud_id);
-            return;
+          // 1. Reproducir sonido de notificación
+          this.reproducirSonido();
+
+          // 2. Refrescar notificaciones persistentes en la BD
+          this.cargarNotificaciones();
+
+          const sucursalId = this.sucursalActiva()?.id;
+
+          // 3. Manejar el flujo de eventos inDrive
+          if (notificacion.type === 'NUEVO_SOS_ZONA' && notificacion.solicitud_id) {
+            // Evitar duplicar
+            const yaExiste = this.oportunidadesPuja().find(s => s.id === notificacion.solicitud_id);
+            if (yaExiste) return;
+
+            // Obtener detalle completo de la emergencia
+            this.solicitudesService.getDetalleSolicitud(notificacion.solicitud_id).subscribe({
+              next: (solicitud) => {
+                this.oportunidadesPuja.update(lista => [
+                  { ...solicitud, precioPropuesto: null, yaPujado: false, precioPujado: null },
+                  ...lista
+                ]);
+              },
+              error: (err) => console.error('[Despacho] Error obteniendo detalle de SOS:', err)
+            });
           }
+          else if (notificacion.type === 'PUJA_GANADORA' && notificacion.solicitud_id) {
+            // ¡Ganamos la puja! El cliente nos eligió
+            // Remover del Radar
+            this.oportunidadesPuja.update(lista => lista.filter(o => o.id !== notificacion.solicitud_id));
 
-          // Obtener el detalle completo de la solicitud
-          console.log('[Despacho] Obteniendo detalle de solicitud:', notificacion.solicitud_id);
-          this.solicitudesService.getDetalleSolicitud(notificacion.solicitud_id).subscribe({
-            next: (solicitud) => {
-              console.log('[Despacho] Detalle de solicitud recibido:', solicitud);
-              this.solicitudesEntrantes.update(lista => [
-                { ...solicitud, mecanicoSeleccionado: null, montoCobro: null, metodoPago: 'APP', mostrandoCobro: false },
-                ...lista
-              ]);
-            },
-            error: (err) => {
-              console.error('[Despacho] Error obteniendo detalle de solicitud:', err);
+            // Cargar a Servicios Activos
+            if (sucursalId) {
+              this.cargarSolicitudesPendientes(sucursalId);
+              this.cargarMecanicosDisponibles(sucursalId);
             }
-          });
-        }
+          }
+          else if (notificacion.type === 'PUJA_RECHAZADA' && notificacion.solicitud_id) {
+            // El cliente eligió otra puja
+            // Remover del Radar
+            this.oportunidadesPuja.update(lista => lista.filter(o => o.id !== notificacion.solicitud_id));
+          }
+        });
       }
     });
   }
 
-  responder(solicitud: SolicitudEmergencia, aceptar: boolean) {
+  /**
+   * Reproduce el sonido de notificación de forma no bloqueante
+   */
+  private reproducirSonido() {
+    try {
+      this.audioNotification.currentTime = 0;
+      this.audioNotification.play().catch(e => console.warn('[Despacho] Audio play bloqueado por el navegador:', e));
+    } catch (err) {
+      console.warn('[Despacho] Error reproduciendo audio:', err);
+    }
+  }
+
+  /**
+   * Envía una puja de precio para una oportunidad
+   */
+  enviarPuja(solicitud: any) {
     const sucursalId = this.sucursalActiva()?.id;
     if (!sucursalId || !solicitud.id) return;
 
-    // Si no hay mecánicos o el admin seleccionó "Yo mismo", empleado_id es null
-    const payload = {
-      aceptar,
-      empleado_id: aceptar ? (solicitud.mecanicoSeleccionado ?? null) : null
-    };
+    if (!solicitud.precioPropuesto || solicitud.precioPropuesto <= 0) {
+      Swal.fire('Atención', 'Por favor ingresa un precio de puja válido.', 'warning');
+      return;
+    }
 
-    console.log('[Despacho] Respondiendo solicitud:', solicitud.id, payload);
-
-    this.solicitudesService.responderSolicitud(sucursalId, solicitud.id, payload).subscribe({
+    this.pujasService.crearPuja(solicitud.id, solicitud.precioPropuesto).subscribe({
       next: () => {
-        console.log('[Despacho] Respuesta exitosa para solicitud:', solicitud.id);
-        if (aceptar) {
-          this.cargarMecanicosDisponibles(sucursalId);
-          // Actualizar estado de forma INMUTABLE para que el signal detecte el cambio
-          this.solicitudesEntrantes.update(solicitudes =>
-            solicitudes.map(s => 
-              s.id === solicitud.id 
-                ? { ...s, estado: 'EN_PROCESO', mostrandoCobro: false } 
-                : s
-            )
-          );
-        } else {
-           this.solicitudesEntrantes.update(solicitudes =>
-            solicitudes.filter(s => s.id !== solicitud.id)
-          );
-        }
+        solicitud.yaPujado = true;
+        solicitud.precioPujado = solicitud.precioPropuesto;
+        // Refrescar campanita
+        this.cargarNotificaciones();
       },
       error: (err) => {
-        console.error('[Despacho] Error al responder solicitud:', err);
-        alert('Hubo un error al procesar la respuesta.');
+        console.error('[Despacho] Error al enviar puja:', err);
+        Swal.fire('Error', err.error?.detail || 'No se pudo enviar la puja en este momento.', 'error');
       }
     });
   }
 
+  /**
+   * Acciones del Drawer de notificaciones
+   */
+  toggleDrawer() {
+    this.notificacionesService.isDrawerOpen.update(v => !v);
+  }
+
+  marcarComoLeida(notif: NotificationItem) {
+    if (notif.leido) return;
+    this.notificacionesService.marcarComoLeida(notif.id).subscribe({
+      next: () => {
+        this.historialNotificaciones.update(lista =>
+          lista.map(n => n.id === notif.id ? { ...n, leido: true } : n)
+        );
+        this.actualizarConteoNoLeidas();
+      },
+      error: (err) => console.error('[Despacho] Error marcando notificación:', err)
+    });
+  }
+
+  marcarTodasComoLeidas() {
+    this.notificacionesService.marcarTodasComoLeidas().subscribe({
+      next: () => {
+        this.historialNotificaciones.update(lista =>
+          lista.map(n => ({ ...n, leido: true }))
+        );
+        this.actualizarConteoNoLeidas();
+      },
+      error: (err) => console.error('[Despacho] Error marcando todas:', err)
+    });
+  }
+
+  /**
+   * Asigna un técnico del taller al servicio activo (EN_PROCESO)
+   */
+  asignarTecnico(solicitud: SolicitudEmergencia) {
+    const sucursalId = this.sucursalActiva()?.id;
+    if (!sucursalId || !solicitud.id) return;
+
+    const payload = {
+      aceptar: true,
+      empleado_id: solicitud.mecanicoSeleccionado ?? null
+    };
+
+    console.log('[Despacho] Asignando mecánico al servicio:', solicitud.id, payload);
+
+    this.solicitudesService.responderSolicitud(sucursalId, solicitud.id, payload).subscribe({
+      next: () => {
+        console.log('[Despacho] Mecánico asignado exitosamente');
+        Swal.fire('Éxito', 'Técnico asignado correctamente al servicio.', 'success');
+        this.cargarSolicitudesPendientes(sucursalId);
+      },
+      error: (err) => {
+        console.error('[Despacho] Error al asignar técnico:', err);
+        Swal.fire('Error', 'Hubo un error al asignar al técnico.', 'error');
+      }
+    });
+  }
+
+  /**
+   * UI de Cobro final
+   */
   mostrarModalCobro(solicitud: SolicitudEmergencia) {
-    // Actualizar inmutablemente para trigger del signal
     this.solicitudesEntrantes.update(solicitudes =>
-      solicitudes.map(s => 
+      solicitudes.map(s =>
         s.id === solicitud.id ? { ...s, mostrandoCobro: true, metodoPago: 'APP' } : s
       )
     );
@@ -202,36 +371,35 @@ export class DespachoComponent implements OnInit, OnDestroy {
 
   cobrarServicio(solicitud: any) {
     if (!solicitud.montoCobro || solicitud.montoCobro <= 0) {
-      alert('Por favor ingresa un monto válido.');
+      Swal.fire('Atención', 'Por favor ingresa un monto válido.', 'warning');
       return;
     }
 
     if (!solicitud.id) return;
 
-    const metodo = solicitud.metodoPago || 'APP';
+    const metodo = 'APP'; // Forzamos siempre APP para que el cliente elija el método en su dispositivo
 
     this.pagosService.crearPago(solicitud.id, solicitud.montoCobro, metodo).subscribe({
       next: (res) => {
-        if (metodo === 'APP') {
-          alert(`Cobro enviado al cliente exitosamente. Comisión a retener: Bs. ${res.comision}`);
-        } else {
-          alert(`Cobro registrado en ${metodo}. La comisión de Bs. ${res.comision} fue añadida a tu deuda.`);
-          // Actualizar deuda global inmediatamente
-          this.pagosService.deudaGlobal.update(d => d + res.comision);
-        }
-        
-        // Mover a finalizadas y actualizar estado local
+        Swal.fire({
+          title: 'Cobro Enviado',
+          text: 'Cobro enviado al cliente exitosamente. Esperando que el cliente realice el pago desde la aplicación.',
+          icon: 'success',
+          confirmButtonText: 'Entendido'
+        });
+
+        // Mover a finalizadas
         const solicitudActualizada = { ...solicitud, estado: 'ATENDIDO' };
         this.solicitudesFinalizadas.update(lista => [solicitudActualizada, ...lista]);
-        
-        // Remover de la vista de despacho
+
+        // Remover de la vista de activos
         this.solicitudesEntrantes.update(solicitudes =>
           solicitudes.filter(s => s.id !== solicitud.id)
         );
       },
       error: (err) => {
         console.error('Error al crear pago:', err);
-        alert('No se pudo procesar el cobro.');
+        Swal.fire('Error', 'No se pudo procesar el cobro.', 'error');
       }
     });
   }
