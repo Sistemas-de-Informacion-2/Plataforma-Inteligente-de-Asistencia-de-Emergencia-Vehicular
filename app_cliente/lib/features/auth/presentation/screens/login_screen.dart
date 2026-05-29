@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import '../providers/auth_provider.dart';
-import '../../../roles/cliente/presentation/screens/client_home_screen.dart';
-import '../../../roles/cliente/presentation/providers/vehiculo_provider.dart';
-import '../../../shared/presentation/providers/perfil_provider.dart';
 import '../../../../core/theme/app_theme.dart';
 
 //widgets del login
@@ -76,17 +74,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
 
     if (success) {
       if (mounted) {
-        context.read<PerfilProvider>().fetchPerfil();
-        context.read<VehiculoProvider>().fetchVehiculos();
-        
-        Navigator.of(context).pushReplacement(
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) => const HomeScreen(),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
-              return FadeTransition(opacity: animation, child: child);
-            },
-          ),
-        );
+        context.go('/');
       }
     } else {
       if (mounted) {
@@ -124,8 +112,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const LoginHeader(), // <-- Visual
-                    
+                    const LoginHeader(),
                     LoginForm(            // <-- Lógica del Formulario
                       formKey: _formKey,
                       emailController: _emailController,

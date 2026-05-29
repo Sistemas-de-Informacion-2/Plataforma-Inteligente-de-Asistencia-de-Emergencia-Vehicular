@@ -165,9 +165,16 @@ class AuthProvider extends ChangeNotifier {
       var normalized = base64Url.normalize(payload);
       var resp = utf8.decode(base64Url.decode(normalized));
       final decodedMap = json.decode(resp);
-      // Suponemos que el JWT de FastAPI contiene el rol bajo 'rol' o similar.
-      // Dependiendo de tu payload, ajusta esta llave:
-      userRole = decodedMap['rol'] ?? decodedMap['role'] ?? 'CLIENTE';
+
+      // El backend envía "roles": ["MECANICO"] (array).
+      // Tomamos el primer rol de la lista como rol principal.
+      final roles = decodedMap['roles'];
+      if (roles is List && roles.isNotEmpty) {
+        userRole = roles.first.toString();
+      } else {
+        // Fallback por si algún endpoint usa 'rol' o 'role' (string)
+        userRole = decodedMap['rol'] ?? decodedMap['role'] ?? 'CLIENTE';
+      }
     } catch (e) {
       userRole = 'CLIENTE'; // default
     }

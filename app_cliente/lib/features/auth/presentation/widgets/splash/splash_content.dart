@@ -11,7 +11,6 @@ class SplashContent extends StatelessWidget {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        // Logo Principal
         Hero(
           tag: 'logo',
           child: SvgPicture.asset('assets/logo/logo-app-fixo.svg', height: 120),

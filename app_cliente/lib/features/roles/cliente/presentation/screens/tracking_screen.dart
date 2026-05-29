@@ -42,7 +42,7 @@ class _TrackingScreenState extends State<TrackingScreen>
           provider.reset();
 
           if (mounted) {
-            Navigator.of(context).pop();
+            Navigator.popUntil(context, (route) => route.isFirst);
           }
         }
       };
@@ -70,7 +70,7 @@ class _TrackingScreenState extends State<TrackingScreen>
             }
             provider.reset();
             if (mounted) {
-              Navigator.of(context).pop();
+              Navigator.popUntil(context, (route) => route.isFirst);
             }
           }
         }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../../../core/theme/app_theme.dart';
@@ -128,6 +129,48 @@ class _RadarEsperaScreenState extends State<RadarEsperaScreen> {
                       ),
                     ),
                   ],
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed: () async {
+                      // Confirmación antes de cancelar
+                      final confirmar = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('Cancelar Solicitud'),
+                          content: const Text('¿Estás seguro de que deseas cancelar tu solicitud de emergencia?'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx, false),
+                              child: const Text('No'),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx, true),
+                              style: TextButton.styleFrom(foregroundColor: Colors.red),
+                              child: const Text('Sí, Cancelar'),
+                            ),
+                          ],
+                        ),
+                      );
+
+                      if (confirmar == true) {
+                        await emProvider.cancelarSolicitud();
+                        if (context.mounted) {
+                          Navigator.popUntil(context, (route) => route.isFirst);
+                        }
+                      }
+                    },
+                    icon: const Icon(Icons.cancel_outlined),
+                    label: const Text('Cancelar Solicitud'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red.shade50,
+                      foregroundColor: Colors.red.shade700,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: BorderSide(color: Colors.red.shade200),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -205,14 +248,50 @@ class _RadarEsperaScreenState extends State<RadarEsperaScreen> {
   }
 }
 
-class PujaCardItem extends StatelessWidget {
+class PujaCardItem extends StatefulWidget {
   final Map<String, dynamic> puja;
 
   const PujaCardItem({super.key, required this.puja});
 
   @override
+  State<PujaCardItem> createState() => _PujaCardItemState();
+}
+
+class _PujaCardItemState extends State<PujaCardItem> {
+  int _secondsRemaining = 30;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _startTimer();
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  void _startTimer() {
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) return;
+      if (_secondsRemaining > 0) {
+        setState(() {
+          _secondsRemaining--;
+        });
+      } else {
+        _timer?.cancel();
+        // Rechazar localmente al expirar
+        context.read<EmergenciaProvider>().rechazarPuja(widget.puja['id']);
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final emProvider = context.read<EmergenciaProvider>();
+    final puja = widget.puja;
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 500),
@@ -230,110 +309,175 @@ class PujaCardItem extends StatelessWidget {
           )
         ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Row(
+      child: Column(
+        children: [
+          // Barra de progreso de expiración (inDrive style)
+          ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+            child: LinearProgressIndicator(
+              value: _secondsRemaining / 20.0,
+              backgroundColor: Colors.grey.shade100,
+              valueColor: AlwaysStoppedAnimation<Color>(
+                _secondsRemaining <= 5 ? Colors.red : AppTheme.primaryColor,
+              ),
+              minHeight: 4,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
               children: [
-                CircleAvatar(
-                  backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.1),
-                  radius: 24,
-                  child: const Icon(Icons.build_circle, color: AppTheme.primaryColor),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        puja['taller_nombre'] != null 
-                          ? '${puja['taller_nombre']} - ${puja['sucursal_nombre'] ?? ''}' 
-                          : (puja['sucursal_nombre'] ?? 'Taller Mecánico'),
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
+                Row(
+                  children: [
+                    CircleAvatar(
+                      backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.1),
+                      radius: 24,
+                      child: const Icon(Icons.build_circle, color: AppTheme.primaryColor),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(Icons.star, color: Colors.amber, size: 16),
-                          const SizedBox(width: 4),
                           Text(
-                            puja['rating'].toString(),
-                            style: const TextStyle(fontWeight: FontWeight.w600),
+                            puja['taller_nombre'] != null 
+                              ? '${puja['taller_nombre']} - ${puja['sucursal_nombre'] ?? ''}' 
+                              : (puja['sucursal_nombre'] ?? 'Taller Mecánico'),
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(width: 12),
-                          const Icon(Icons.location_on, color: Colors.grey, size: 16),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${puja['distancia_km']} km',
-                            style: const TextStyle(color: Colors.grey),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              const Icon(Icons.star, color: Colors.amber, size: 16),
+                              const SizedBox(width: 4),
+                              Text(
+                                puja['rating'].toString(),
+                                style: const TextStyle(fontWeight: FontWeight.w600),
+                              ),
+                              const SizedBox(width: 12),
+                              const Icon(Icons.location_on, color: Colors.grey, size: 16),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${puja['distancia_km']} km',
+                                style: const TextStyle(color: Colors.grey),
+                              ),
+                            ],
                           ),
                         ],
                       ),
-                    ],
-                  ),
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        // Badge circular/píldora con el contador de tiempo
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: _secondsRemaining <= 5 ? Colors.red.shade50 : Colors.amber.shade50,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: _secondsRemaining <= 5 ? Colors.red.shade200 : Colors.amber.shade200,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.timer_outlined, 
+                                size: 12, 
+                                color: _secondsRemaining <= 5 ? Colors.red.shade700 : Colors.amber.shade800,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${_secondsRemaining}s',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: _secondsRemaining <= 5 ? Colors.red.shade700 : Colors.amber.shade800,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Bs. ${puja['precio_estimado']}',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.success,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
+                const SizedBox(height: 16),
+                Row(
                   children: [
-                    const Text('Precio est.', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                    Text(
-                      'Bs. ${puja['precio_estimado']}',
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.success,
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.timer_outlined, size: 18, color: Colors.grey),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Llega en ${puja['tiempo_llegada_minutos']} min',
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    OutlinedButton(
+                      onPressed: () {
+                        emProvider.rechazarPuja(puja['id']);
+                      },
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: Colors.red.shade300),
+                        foregroundColor: Colors.red.shade600,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      ),
+                      child: const Text('Rechazar'),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          emProvider.aceptarPuja(puja['id']);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primaryColor,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                        ),
+                        child: const Text(
+                          'Aceptar',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
                       ),
                     ),
                   ],
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.timer_outlined, size: 18, color: Colors.grey),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Llega en ${puja['tiempo_llegada_minutos']} min',
-                        style: const TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () {
-                      emProvider.aceptarPuja(puja['id']);
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryColor,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    child: const Text('Aceptar Oferta'),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

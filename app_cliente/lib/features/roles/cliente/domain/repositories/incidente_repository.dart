@@ -32,6 +32,20 @@ abstract class IncidenteRepository {
     required int pujaId,
   });
 
+  /// Rechaza una puja individual explícitamente.
+  /// POST /api/v1/pujas/{pujaId}/rechazar
+  Future<void> rechazarPuja({
+    required int pujaId,
+  });
+
   /// Obtiene los detalles de un incidente (incluyendo la asignación)
   Future<Map<String, dynamic>?> obtenerDetalleIncidente(int solicitudId);
+
+  /// Obtiene la solicitud activa actual del cliente (si existe)
+  /// GET /api/v1/incidentes/activa
+  Future<Map<String, dynamic>?> obtenerSolicitudActiva();
+
+  /// Cancela la solicitud actual
+  /// POST /api/v1/incidentes/{solicitudId}/cancelar
+  Future<void> cancelarSolicitud(int solicitudId);
 }

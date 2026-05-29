@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends
 from app.api.v1.endpoints import ( 
     usuarios, talleres, solicitudes, ordenes, auth, notificaciones_ws,
     empleados, servicios, vehiculos, incidentes, admin, sucursales, rutas,
-    dispositivos, pagos, pujas, notificaciones
+    dispositivos, pagos, pujas, notificaciones, asignaciones
 )
 from app.api.deps import get_current_user
 
@@ -108,4 +108,12 @@ api_router.include_router(
     pujas.router,
     prefix="/pujas",
     tags=["Marketplace de Pujas (inDrive)"],
+)
+
+# ── Asignaciones: Flujo de Ejecución del Mecánico ────────────
+api_router.include_router(
+    asignaciones.router,
+    prefix="/asignaciones",
+    tags=["Asignaciones (Flujo Mecánico)"],
+    dependencies=[Depends(get_current_user)]
 )

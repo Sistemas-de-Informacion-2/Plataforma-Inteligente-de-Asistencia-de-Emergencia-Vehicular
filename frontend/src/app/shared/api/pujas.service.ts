@@ -55,10 +55,8 @@ export class PujasService {
 
   constructor(private http: HttpClient) {}
 
-  /**
-   * Envía una puja (precio_estimado) para una solicitud de emergencia.
-   * POST /api/v1/pujas/
-   */
+  /** Envía una puja (precio_estimado) para una solicitud de emergencia.
+   * POST /api/v1/pujas/ */
   crearPuja(solicitudId: number, precioEstimado: number): Observable<PujaResponse> {
     return this.http.post<PujaResponse>(`${this.PUJAS_URL}/`, {
       solicitud_id: solicitudId,
@@ -66,10 +64,8 @@ export class PujasService {
     });
   }
 
-  /**
-   * Obtiene la lista de todas las pujas de una solicitud de emergencia.
-   * GET /api/v1/pujas/{solicitud_id}
-   */
+  /** Obtiene la lista de todas las pujas de una solicitud de emergencia.
+   * GET /api/v1/pujas/{solicitud_id} */
   listarPujas(solicitudId: number): Observable<PujasListResponse> {
     return this.http.get<PujasListResponse>(`${this.PUJAS_URL}/${solicitudId}`);
   }

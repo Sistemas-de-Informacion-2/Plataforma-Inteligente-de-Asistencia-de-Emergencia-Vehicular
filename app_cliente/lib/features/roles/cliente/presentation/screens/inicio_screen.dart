@@ -34,6 +34,9 @@ class _InicioScreenState extends State<InicioScreen> {
       if (mounted) {
         _emProvider = context.read<EmergenciaProvider>();
         _emProvider?.addListener(_onEmergenciaStateChanged);
+        
+        // Al montar el mapa, verificamos si dejamos una solicitud "en el aire"
+        _emProvider?.verificarSolicitudActiva();
       }
     });
   }
@@ -48,15 +51,33 @@ class _InicioScreenState extends State<InicioScreen> {
     if (!mounted || _emProvider == null) return;
 
     final flowState = _emProvider!.flowState;
-    if (flowState == EmergenciaFlowState.accepted) {
+    if (flowState == EmergenciaFlowState.waitingForBids) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        // Evitar doble navegación
+        if (ModalRoute.of(context)?.settings.name != '/radar') {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const RadarEsperaScreen(),
+              settings: const RouteSettings(name: '/radar'),
+            ),
+          );
+        }
+      });
+    } else if (flowState == EmergenciaFlowState.accepted || flowState == EmergenciaFlowState.serviceInProgress) {
       // Cierra el BottomSheet si está abierto
       if (Navigator.canPop(context)) Navigator.pop(context);
       // Navega al TrackingScreen
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const TrackingScreen()),
-        );
+        if (ModalRoute.of(context)?.settings.name != '/tracking') {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const TrackingScreen(),
+              settings: const RouteSettings(name: '/tracking'),
+            ),
+          );
+        }
       });
     } else if (flowState == EmergenciaFlowState.rejected ||
         flowState == EmergenciaFlowState.timeout) {

@@ -156,7 +156,7 @@ async def seleccionar_puja(
     Flujo:
       1. Valida pertenencia y estado ESPERANDO_PUJAS.
       2. Marca puja como ACEPTADA, rechaza las demás.
-      3. Cambia solicitud a EN_PROCESO.
+      3. Cambia solicitud a OFERTA_ACEPTADA.
       4. Crea Asignación.
       5. Notifica a ganador, perdedores y cliente vía WebSocket.
     """
@@ -239,3 +239,45 @@ async def simular_finalizacion_servicio(
         logging.getLogger(__name__).error(f"Error WS simulación: {e}")
         
     return {"message": "Simulación exitosa, cliente notificado."}
+
+
+@router.get(
+    "/activa",
+    response_model=SolicitudDetallada,
+    summary="Obtener solicitud activa del cliente",
+    description="Devuelve la solicitud en curso (PENDIENTE, ESPERANDO_PUJAS, etc.) del cliente autenticado."
+)
+async def obtener_solicitud_activa(
+    current_user: Usuario = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    service = SolicitudService(db)
+    solicitud = await service.obtener_solicitud_activa_cliente(current_user.id)
+    if not solicitud:
+        raise HTTPException(status_code=404, detail="No tienes ninguna solicitud activa.")
+    
+    # Usamos el repositorio para obtenerla con detalles (diagnostico, vehiculo, etc)
+    from app.repositories.solicitud_repository import SolicitudRepository
+    repo = SolicitudRepository(db)
+    detallada = await repo.get_detallada(solicitud.id)
+    
+    return detallada
+
+
+@router.post(
+    "/{solicitud_id}/cancelar",
+    summary="Cancelar solicitud de emergencia",
+    description="El cliente cancela su solicitud actual. Se notifica a los talleres para que dejen de pujar."
+)
+async def cancelar_solicitud_emergencia(
+    solicitud_id: int,
+    current_user: Usuario = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    service = SolicitudService(db)
+    try:
+        await service.cancelar_solicitud_cliente(solicitud_id, current_user.id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    
+    return {"message": "Solicitud cancelada exitosamente."}

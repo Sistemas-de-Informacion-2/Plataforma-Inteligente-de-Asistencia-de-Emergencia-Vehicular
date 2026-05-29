@@ -113,13 +113,8 @@ class PagoService:
             f"comisión={comision}, taller={monto_taller}"
         )
 
-        # Actualizar el estado de la solicitud a ATENDIDO
-        from app.models.solicitud_emergencia import SolicitudEmergencia, EstadoSolicitud
-        stmt_upd = select(SolicitudEmergencia).where(SolicitudEmergencia.id == solicitud_id)
-        result_upd = await self.session.execute(stmt_upd)
-        solicitud_actualizar = result_upd.scalar_one_or_none()
-        if solicitud_actualizar:
-            solicitud_actualizar.estado = EstadoSolicitud.ATENDIDO
+        # Nota: la solicitud ya está en FINALIZADO cuando se crea el pago
+        # (finalizar_trabajo() en solicitud_service.py se encarga del estado)
 
         # Si el admin escogió EFECTIVO o QR, marcamos el pago y sumamos la deuda
         if metodo_pago in ["EFECTIVO", "QR"]:

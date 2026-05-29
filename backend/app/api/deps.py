@@ -63,6 +63,7 @@ def require_roles(required_roles: list[str]):
 
 # Dependencias predefinidas por rol
 get_current_cliente = require_roles(["CLIENTE"])
-get_current_tecnico = require_roles(["TECNICO"])
+get_current_tecnico = require_roles(["MECANICO"])
 get_current_admin = require_roles(["ADMIN_TALLER"])
 get_current_super_admin = require_roles(["SUPER_ADMIN"])
+get_current_tecnico_o_admin = require_roles(["MECANICO", "ADMIN_TALLER"])

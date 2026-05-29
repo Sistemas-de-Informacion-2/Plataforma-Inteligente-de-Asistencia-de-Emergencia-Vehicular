@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
+import '../../features/auth/presentation/screens/splash_screen.dart';
 import '../../features/roles/cliente/presentation/screens/client_home_screen.dart';
 import '../../features/roles/admin/presentation/screens/admin_home_screen.dart';
 import '../../features/roles/tecnico/presentation/screens/tecnico_home_screen.dart';
@@ -28,7 +29,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         return null; // Podríamos retornar a un splash screen aquí
       }
 
-      // Si no está autenticado, forzar ir al login
       if (status == AuthStatus.unauthenticated) {
         return isLoggingIn ? null : '/login';
       }
@@ -41,35 +41,17 @@ final routerProvider = Provider<GoRouter>((ref) {
         } else if (role == 'MECANICO' || role == 'TECNICO') {
           return '/tecnico-home';
         } else {
-          // Por defecto a cliente
           return '/cliente-home';
         }
       }
-
-      // Dejar que continúe normalmente
       return null;
     },
     routes: [
-      GoRoute(
-        path: '/',
-        builder: (context, state) => const Scaffold(body: Center(child: CircularProgressIndicator())),
-      ),
-      GoRoute(
-        path: '/login',
-        builder: (context, state) => const LoginScreen(),
-      ),
-      GoRoute(
-        path: '/cliente-home',
-        builder: (context, state) => const HomeScreen(),
-      ),
-      GoRoute(
-        path: '/admin-home',
-        builder: (context, state) => const AdminHomeScreen(),
-      ),
-      GoRoute(
-        path: '/tecnico-home',
-        builder: (context, state) => const TecnicoHomeScreen(),
-      ),
+      GoRoute( path: '/', builder: (context, state) => const SplashScreen(), ),
+      GoRoute( path: '/login', builder: (context, state) => const LoginScreen(), ),
+      GoRoute( path: '/cliente-home', builder: (context, state) => const HomeScreen(), ),
+      GoRoute( path: '/admin-home', builder: (context, state) => const AdminHomeScreen(), ),
+      GoRoute( path: '/tecnico-home', builder: (context, state) => const TecnicoHomeScreen(), ),
     ],
   );
 });

@@ -48,12 +48,13 @@ class PujaRepository(BaseRepository[Puja]):
         solicitud_id: int,
         sucursal_id: int,
     ) -> bool:
-        """Verifica si una sucursal ya envió una puja para esta solicitud."""
+        """Verifica si una sucursal ya envió una puja para esta solicitud que esté PENDIENTE o ACEPTADA."""
         stmt = (
             select(Puja.id)
             .where(
                 Puja.solicitud_id == solicitud_id,
                 Puja.sucursal_id == sucursal_id,
+                Puja.estado.in_([EstadoPuja.PENDIENTE, EstadoPuja.ACEPTADA])
             )
             .limit(1)
         )

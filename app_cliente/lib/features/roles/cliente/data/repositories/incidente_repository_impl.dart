@@ -115,6 +115,26 @@ class IncidenteRepositoryImpl implements IncidenteRepository {
   }
 
   @override
+  Future<void> rechazarPuja({
+    required int pujaId,
+  }) async {
+    try {
+      final response = await _apiClient.instance.post(
+        '/pujas/$pujaId/rechazar',
+      );
+
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        throw Exception('Error al rechazar la puja: ${response.statusCode}');
+      }
+    } on DioException catch (e) {
+      final errorMessage = e.response?.data['detail'] ?? e.message;
+      throw Exception('Error de red al rechazar oferta: $errorMessage');
+    } catch (e) {
+      throw Exception('Error inesperado: $e');
+    }
+  }
+
+  @override
   Future<Map<String, dynamic>?> obtenerDetalleIncidente(int solicitudId) async {
     try {
       final response = await _apiClient.instance.get('/incidentes/$solicitudId');
@@ -125,5 +145,37 @@ class IncidenteRepositoryImpl implements IncidenteRepository {
       debugPrint('[IncidenteRepo] Error obteniendo detalle: ${e.message}');
     }
     return null;
+  }
+
+  @override
+  Future<Map<String, dynamic>?> obtenerSolicitudActiva() async {
+    try {
+      final response = await _apiClient.instance.get('/incidentes/activa');
+      if (response.statusCode == 200) {
+        return response.data as Map<String, dynamic>;
+      }
+    } on DioException catch (e) {
+      if (e.response?.statusCode != 404) {
+        debugPrint('[IncidenteRepo] Error obteniendo activa: ${e.message}');
+      }
+    } catch (e) {
+      debugPrint('[IncidenteRepo] Excepción obteniendo activa: $e');
+    }
+    return null;
+  }
+
+  @override
+  Future<void> cancelarSolicitud(int solicitudId) async {
+    try {
+      final response = await _apiClient.instance.post('/incidentes/$solicitudId/cancelar');
+      if (response.statusCode != 200) {
+        throw Exception('Error al cancelar: ${response.statusCode}');
+      }
+    } on DioException catch (e) {
+      final errorMessage = e.response?.data['detail'] ?? e.message;
+      throw Exception('Error al cancelar: $errorMessage');
+    } catch (e) {
+      throw Exception('Error inesperado al cancelar: $e');
+    }
   }
 }

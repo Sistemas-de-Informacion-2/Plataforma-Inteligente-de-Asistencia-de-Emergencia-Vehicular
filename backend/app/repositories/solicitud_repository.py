@@ -35,6 +35,27 @@ class SolicitudRepository(BaseRepository[SolicitudEmergencia]):
         result = await self.session.execute(stmt)
         return result.scalars().all()
 
+    async def get_activa_por_cliente(self, cliente_id: int) -> SolicitudEmergencia | None:
+        """Obtiene la solicitud activa más reciente de un cliente."""
+        stmt = (
+            select(SolicitudEmergencia)
+            .where(
+                SolicitudEmergencia.cliente_id == cliente_id,
+                SolicitudEmergencia.es_eliminado == False,
+                SolicitudEmergencia.estado.in_([
+                    EstadoSolicitud.PENDIENTE,
+                    EstadoSolicitud.ESPERANDO_PUJAS,
+                    EstadoSolicitud.OFERTA_ACEPTADA,
+                    EstadoSolicitud.ESPERANDO_CONFIRMACION_MECANICO,
+                    EstadoSolicitud.EN_CAMINO,
+                    EstadoSolicitud.EN_SITIO,
+                ])
+            )
+            .order_by(SolicitudEmergencia.fecha_creacion.desc())
+        )
+        result = await self.session.execute(stmt)
+        return result.scalars().first()
+
     async def get_by_estado(
         self,
         estado: EstadoSolicitud,
@@ -78,6 +99,7 @@ class SolicitudRepository(BaseRepository[SolicitudEmergencia]):
                 selectinload(SolicitudEmergencia.evidencias),
                 selectinload(SolicitudEmergencia.diagnostico),
                 selectinload(SolicitudEmergencia.vehiculo),
+                selectinload(SolicitudEmergencia.asignaciones),
             )
             .where(
                 SolicitudEmergencia.id == solicitud_id,
@@ -101,6 +123,7 @@ class SolicitudRepository(BaseRepository[SolicitudEmergencia]):
                 selectinload(SolicitudEmergencia.evidencias),
                 selectinload(SolicitudEmergencia.diagnostico),
                 selectinload(SolicitudEmergencia.vehiculo),
+                selectinload(SolicitudEmergencia.asignaciones),
             )
             .where(
                 SolicitudEmergencia.estado == estado,

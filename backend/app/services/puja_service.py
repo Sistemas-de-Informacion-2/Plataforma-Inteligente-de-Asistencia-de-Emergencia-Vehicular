@@ -171,8 +171,8 @@ class PujaService:
         1. Validar pertenencia y estado.
         2. Marcar puja ganadora como ACEPTADA.
         3. Rechazar las demás pujas.
-        4. Cambiar solicitud a EN_PROCESO.
-        5. Crear Asignación.
+        4. Cambiar solicitud a OFERTA_ACEPTADA.
+        5. Crear Asignación (sin mecánico — el admin lo asignará).
         6. Notificar a todos vía WebSocket.
         Returns:
             Dict con la asignación creada y los datos del taller ganador.
@@ -212,16 +212,16 @@ class PujaService:
         rechazadas = await self.puja_repo.rechazar_pujas_restantes(solicitud_id, puja_id)
         logger.info(f"[Match] {rechazadas} pujas restantes → RECHAZADA")
 
-        # 5. Cambiar estado de solicitud
-        solicitud.estado = EstadoSolicitud.EN_PROCESO
+        # 5. Cambiar estado de solicitud a OFERTA_ACEPTADA (el admin asignará mecánico)
+        solicitud.estado = EstadoSolicitud.OFERTA_ACEPTADA
         await self.session.flush()
-        logger.info(f"[Match] Solicitud #{solicitud_id} → EN_PROCESO")
+        logger.info(f"[Match] Solicitud #{solicitud_id} → OFERTA_ACEPTADA")
 
-        # 6. Crear Asignación
+        # 6. Crear Asignación (sin mecánico todavía)
         asignacion_data = {
             "solicitud_id": solicitud_id,
             "sucursal_id": puja.sucursal_id,
-            "empleado_id": None,  # El taller asignará luego al técnico
+            "empleado_id": None,  # El admin del taller asignará luego al mecánico
             "estado": EstadoAsignacion.PENDIENTE,
             "tiempo_estimado_llegada": puja.tiempo_llegada_minutos,
         }
@@ -257,7 +257,7 @@ class PujaService:
                 str(solicitud.cliente_id)
             )
 
-            # Al admin del taller ganador: tu puja fue elegida
+            # Al admin del taller ganador: tu puja fue elegida, asigna un mecánico
             admin_ganador_id = await self._obtener_admin_usuario_id(puja.sucursal_id)
             if admin_ganador_id:
                 await manager.send_personal_message(
@@ -265,9 +265,10 @@ class PujaService:
                         "type": "PUJA_GANADORA",
                         "solicitud_id": solicitud_id,
                         "puja_id": puja_id,
+                        "asignacion_id": asignacion.id,
                         "mensaje": (
                             f"¡Tu oferta de Bs. {puja.precio_estimado} fue aceptada "
-                            f"por el cliente! Prepárate para atender la emergencia."
+                            f"por el cliente! Asigna un mecánico para atender la emergencia."
                         ),
                     },
                     str(admin_ganador_id)
@@ -278,7 +279,7 @@ class PujaService:
                     usuario_id=admin_ganador_id,
                     mensaje=(
                         f"Tu oferta de Bs. {puja.precio_estimado} para la emergencia "
-                        f"#{solicitud_id} fue aceptada. ¡Prepárate para atender!"
+                        f"#{solicitud_id} fue aceptada. Asigna un mecánico desde tu panel."
                     )
                 )
 
@@ -322,6 +323,44 @@ class PujaService:
                 "taller_nombre": taller.nombre if taller else "",
             },
         }
+
+    async def rechazar_puja_cliente(self, puja_id: int, current_user_id: int) -> None:
+        """
+        El cliente rechaza una puja individual explícitamente o por expiración.
+        """
+        puja = await self.puja_repo.get_by_id(puja_id)
+        if not puja:
+            raise ValueError(f"Puja #{puja_id} no encontrada.")
+
+        solicitud = await self.session.get(SolicitudEmergencia, puja.solicitud_id)
+        if not solicitud:
+            raise ValueError(f"Solicitud no encontrada.")
+
+        if solicitud.cliente_id != current_user_id:
+            raise ValueError("No puedes rechazar una puja de una solicitud que no te pertenece.")
+
+        if puja.estado != EstadoPuja.PENDIENTE:
+            raise ValueError(f"La puja #{puja_id} no está pendiente.")
+
+        # Actualizar estado a RECHAZADA
+        await self.puja_repo.update(puja_id, {"estado": EstadoPuja.RECHAZADA})
+        logger.info(f"[Puja] Puja #{puja_id} RECHAZADA por el cliente.")
+
+        # Notificar al taller para que vuelva a pujar
+        admin_id = await self._obtener_admin_usuario_id(puja.sucursal_id)
+        if admin_id:
+            try:
+                from app.api.v1.endpoints.notificaciones_ws import manager
+                await manager.send_personal_message(
+                    {
+                        "type": "PUJA_RECHAZADA_CLIENTE",
+                        "solicitud_id": solicitud.id,
+                        "puja_id": puja_id,
+                    },
+                    str(admin_id)
+                )
+            except Exception as e:
+                logger.error(f"[Puja] Error notificando PUJA_RECHAZADA_CLIENTE: {e}")
 
     #  Consultas
     async def listar_pujas_solicitud(self, solicitud_id: int) -> list[dict]:

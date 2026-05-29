@@ -256,6 +256,40 @@ export class DespachoComponent implements OnInit, OnDestroy {
             // Remover del Radar
             this.oportunidadesPuja.update(lista => lista.filter(o => o.id !== notificacion.solicitud_id));
           }
+          else if (notificacion.type === 'PUJA_RECHAZADA_CLIENTE' && notificacion.solicitud_id) {
+            // El cliente rechazó específicamente nuestra oferta actual
+            Swal.fire({
+              toast: true,
+              position: 'top-end',
+              showConfirmButton: false,
+              timer: 5000,
+              icon: 'info',
+              title: 'Oferta rechazada',
+              text: `El cliente rechazó tu oferta para la solicitud #${notificacion.solicitud_id}. ¡Puedes intentar con un precio más bajo!`
+            });
+            this.reproducirSonido();
+            
+            // Reiniciar el estado local de la puja para permitir enviar una nueva
+            this.oportunidadesPuja.update(lista => lista.map(o => {
+              if (o.id === notificacion.solicitud_id) {
+                return { ...o, yaPujado: false, precioPujado: null, precioPropuesto: null };
+              }
+              return o;
+            }));
+          }
+          else if (notificacion.type === 'SOLICITUD_CANCELADA' && notificacion.solicitud_id) {
+            // El cliente canceló la solicitud, retirarla del radar
+            this.oportunidadesPuja.update(lista => lista.filter(o => o.id !== notificacion.solicitud_id));
+            Swal.fire({
+              toast: true,
+              position: 'top-end',
+              showConfirmButton: false,
+              timer: 4000,
+              icon: 'warning',
+              title: 'Solicitud Cancelada',
+              text: `El cliente canceló la solicitud #${notificacion.solicitud_id}.`
+            });
+          }
         });
       }
     });

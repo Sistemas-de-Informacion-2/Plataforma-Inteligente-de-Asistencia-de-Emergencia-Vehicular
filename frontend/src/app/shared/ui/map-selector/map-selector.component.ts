@@ -1,5 +1,5 @@
 // src/app/shared/ui/map-selector/map-selector.component.ts
-import { Component, AfterViewInit, OnDestroy, Output, EventEmitter, Inject, PLATFORM_ID, Input, signal, inject } from '@angular/core';
+import { Component, AfterViewInit, OnDestroy, Output, EventEmitter, Inject, PLATFORM_ID, Input, signal, inject, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
@@ -11,7 +11,7 @@ import * as L from 'leaflet';
   imports: [CommonModule, FormsModule],
   templateUrl: './map-selector.component.html',
   styles: [`
-    #map {
+    .map-container {
       height: 100%;
       width: 100%;
       z-index: 10;
@@ -23,6 +23,8 @@ export class MapSelectorComponent implements AfterViewInit, OnDestroy {
   @Input() fixedLocation: {lat: number, lng: number} | null = null;
   
   @Output() locationSelected = new EventEmitter<{lat: number, lng: number} | null>();
+
+  @ViewChild('mapElement') mapElement!: ElementRef<HTMLDivElement>;
 
   private map!: L.Map;
   private currentMarker: L.Marker | null = null;
@@ -38,10 +40,20 @@ export class MapSelectorComponent implements AfterViewInit, OnDestroy {
 
   ngAfterViewInit(): void {
     if (!this.isBrowser) return; // Fix SSR
-    this.initMap();
+    // Pequeño timeout para asegurar que el contenedor esté renderizado
+    setTimeout(() => {
+      this.initMap();
+    }, 50);
   }
 
   private initMap(): void {
+    if (!this.mapElement || !this.mapElement.nativeElement) return;
+    
+    // Si el mapa ya existe (caso de re-renderizado rápido), lo limpiamos primero
+    if (this.map) {
+      this.map.remove();
+    }
+
     // Configuración Iconos
     const iconRetinaUrl = 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png';
     const iconUrl = 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png';
@@ -59,7 +71,7 @@ export class MapSelectorComponent implements AfterViewInit, OnDestroy {
     const initialLng = this.fixedLocation?.lng || -63.1821;
 
     // Desactivamos UX properties si el mapa es readonly (solo lectura)
-    this.map = L.map('map', {
+    this.map = L.map(this.mapElement.nativeElement, {
       center: [initialLat, initialLng],
       zoom: 14,
       dragging: !this.readonly,

@@ -18,6 +18,8 @@ enum EmergenciaFlowState {
   showRecommendations,
   sendingSelection,
   waitingForShopResponse,
+  waitingForBids,
+  serviceInProgress,
   accepted,
   rejected,
   timeout,
@@ -84,6 +86,42 @@ class EmergenciaProvider extends ChangeNotifier {
   EmergenciaProvider() {
     _reportarUseCase = ReportarEmergenciaUseCase(_repository);
     _seleccionarUseCase = SeleccionarTallerUseCase(_repository);
+  }
+
+  // ── Recuperación de Estado ─────────────────────────────────
+  Future<void> verificarSolicitudActiva() async {
+    try {
+      final data = await _repository.obtenerSolicitudActiva();
+      if (data != null && data['id'] != null) {
+        _solicitudId = data['id'];
+        final estado = data['estado'];
+        
+        if (estado == 'ESPERANDO_PUJAS' || estado == 'PENDIENTE') {
+          // Restaurar Radar
+          _flowState = EmergenciaFlowState.waitingForBids;
+          _esperandoPujas = true;
+          // Si hay pujas anteriores, las cargamos (opcional, el WS igual mandará)
+          if (data['pujas'] != null) {
+            _pujasActivas.clear();
+            for (var p in data['pujas']) {
+              if (p['estado'] == 'PENDIENTE') {
+                _pujasActivas.add(p);
+              }
+            }
+          }
+          await connectWebSocket();
+          notifyListeners();
+        } else if (estado == 'EN_PROCESO') {
+          // Restaurar Seguimiento
+          _flowState = EmergenciaFlowState.serviceInProgress;
+          // TODO: Mapear asignación si existe en data['asignaciones']
+          await connectWebSocket();
+          notifyListeners();
+        }
+      }
+    } catch (e) {
+      debugPrint('[EmergenciaProvider] Error al verificar solicitud activa: $e');
+    }
   }
 
   // ── WebSockets ─────────────────────────────────────────────
@@ -380,6 +418,32 @@ class EmergenciaProvider extends ChangeNotifier {
       _errorMessage = e.toString();
       notifyListeners();
       rethrow;
+    }
+  }
+
+  /// Rechaza una puja explícitamente notificando al backend
+  Future<void> rechazarPuja(int pujaId) async {
+    // Actualización optimista para que desaparezca al instante
+    _pujasActivas.removeWhere((p) => p['id'] == pujaId);
+    notifyListeners();
+
+    try {
+      await _repository.rechazarPuja(pujaId: pujaId);
+    } catch (e) {
+      debugPrint('[EmergenciaProvider] Error rechazando puja: $e');
+    }
+  }
+
+  // ── Cancelar Solicitud ─────────────────────────────────────
+  Future<void> cancelarSolicitud() async {
+    if (_solicitudId == null) return;
+    try {
+      await _repository.cancelarSolicitud(_solicitudId!);
+      reset(); // Volver al inicio limpio
+    } catch (e) {
+      debugPrint('[EmergenciaProvider] Error cancelando solicitud: $e');
+      _errorMessage = 'No se pudo cancelar: $e';
+      notifyListeners();
     }
   }
 

@@ -11,8 +11,8 @@ from app.api.deps import get_current_admin, get_current_user
 from app.models.usuario import Usuario
 from app.models.admin import Admin
 from app.schemas.servicio import SucursalServicioOut
-from app.schemas.taller import RespuestaTaller
 from app.schemas.solicitud_emergencia import SolicitudDetallada
+from app.schemas.asignacion import AsignarMecanicoRequest
 from app.services.taller_service import SucursalService
 from app.services.solicitud_service import SolicitudService
 
@@ -95,37 +95,46 @@ async def quitar_servicio_de_sucursal(
 
 
 @router.post(
-    "/{sucursal_id}/solicitudes/{solicitud_id}/respuesta",
-    summary="Aceptar o rechazar una solicitud de emergencia",
-    description="Permite al admin de la sucursal responder a una solicitud. Si acepta, se crea la asignación y se notifica al técnico."
+    "/{sucursal_id}/solicitudes/{solicitud_id}/asignar",
+    summary="Asignar un mecánico a una solicitud de emergencia",
+    description=(
+        "El admin del taller asigna un mecánico a la solicitud cuya oferta fue aceptada. "
+        "Verifica que el mecánico no tenga otro trabajo activo."
+    ),
 )
-async def responder_solicitud_taller(
+async def asignar_mecanico_a_solicitud(
     sucursal_id: int,
     solicitud_id: int,
-    respuesta: RespuestaTaller,
+    body: AsignarMecanicoRequest,
     current_user: Usuario = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Endpoint para que el taller responda a la solicitud del cliente.
+    Endpoint crítico: asigna un mecánico verificando su disponibilidad real.
+    La solicitud debe estar en OFERTA_ACEPTADA.
     """
     admin_id = await obtener_admin_id(current_user, db)
     service = SolicitudService(db)
-    
-    exito = await service.responder_solicitud(
-        solicitud_id=solicitud_id,
-        sucursal_id=sucursal_id,
-        admin_id=admin_id,
-        respuesta=respuesta
-    )
-    
-    if not exito:
+
+    try:
+        asignacion = await service.asignar_mecanico(
+            solicitud_id=solicitud_id,
+            sucursal_id=sucursal_id,
+            admin_id=admin_id,
+            empleado_id=body.empleado_id,
+        )
+    except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No se pudo procesar la respuesta. Verifica la propiedad de la sucursal, el estado de la solicitud y la disponibilidad del técnico."
+            detail=str(e),
         )
-        
-    return {"message": "Respuesta procesada exitosamente."}
+
+    return {
+        "message": "Mecánico asignado exitosamente. Se le ha notificado para que acepte.",
+        "asignacion_id": asignacion.id,
+        "empleado_id": asignacion.empleado_id,
+        "estado_solicitud": "ESPERANDO_CONFIRMACION_MECANICO",
+    }
 
 
 @router.get(
@@ -183,8 +192,35 @@ async def listar_solicitudes_en_proceso_sucursal(
 
     service = SolicitudService(db)
     from app.models.solicitud_emergencia import EstadoSolicitud
-    solicitudes = await service.listar_por_sucursal_y_estado(sucursal_id, EstadoSolicitud.EN_PROCESO)
-    return solicitudes
+    # Listar solicitudes en progreso: todos los estados activos post-aceptación
+    from app.models.asignacion import Asignacion, EstadoAsignacion
+    from sqlalchemy.orm import selectinload
+    from app.models.solicitud_emergencia import SolicitudEmergencia
+
+    estados_en_proceso = [
+        EstadoSolicitud.OFERTA_ACEPTADA,
+        EstadoSolicitud.ESPERANDO_CONFIRMACION_MECANICO,
+        EstadoSolicitud.EN_CAMINO,
+        EstadoSolicitud.EN_SITIO,
+    ]
+    stmt = (
+        select(SolicitudEmergencia)
+        .join(Asignacion, Asignacion.solicitud_id == SolicitudEmergencia.id)
+        .options(
+            selectinload(SolicitudEmergencia.evidencias),
+            selectinload(SolicitudEmergencia.diagnostico),
+            selectinload(SolicitudEmergencia.vehiculo),
+            selectinload(SolicitudEmergencia.asignaciones),
+        )
+        .where(
+            SolicitudEmergencia.estado.in_(estados_en_proceso),
+            SolicitudEmergencia.es_eliminado == False,
+            Asignacion.sucursal_id == sucursal_id,
+        )
+        .order_by(SolicitudEmergencia.fecha_creacion.desc())
+    )
+    result = await db.execute(stmt)
+    return list(result.scalars().all())
 
 
 @router.get(
@@ -209,7 +245,7 @@ async def listar_solicitudes_atendidas_sucursal(
 
     service = SolicitudService(db)
     from app.models.solicitud_emergencia import EstadoSolicitud
-    solicitudes = await service.listar_por_sucursal_y_estado(sucursal_id, EstadoSolicitud.ATENDIDO)
+    solicitudes = await service.listar_por_sucursal_y_estado(sucursal_id, EstadoSolicitud.FINALIZADO)
     return solicitudes
 
 

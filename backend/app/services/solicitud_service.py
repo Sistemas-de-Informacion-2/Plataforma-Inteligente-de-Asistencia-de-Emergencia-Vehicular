@@ -24,7 +24,7 @@ from app.models.solicitud_emergencia import SolicitudEmergencia, EstadoSolicitud
 from app.models.taller import Sucursal, Taller
 from app.models.admin import Admin
 from app.models.empleado import Empleado
-from app.models.asignacion import EstadoAsignacion
+from app.models.asignacion import Asignacion, EstadoAsignacion
 from app.repositories.solicitud_repository import SolicitudRepository
 from app.repositories.evidencia_repository import EvidenciaRepository
 from app.schemas.solicitud_emergencia import SolicitudCreate
@@ -45,12 +45,8 @@ class SolicitudService:
 
     # ── Fase 1+2: Crear solicitud + diagnóstico + SOS Broadcast ──
     async def crear_solicitud_y_emitir_sos(
-        self,
-        solicitud_in: SolicitudCreate,
-        evidencias_in: list[EvidenciaCreate],
-        diagnostico: dict,
-        estado_inicial: str
-    ) -> dict[str, Any]:
+        self, solicitud_in: SolicitudCreate, evidencias_in: list[EvidenciaCreate],
+        diagnostico: dict, estado_inicial: str) -> dict[str, Any]:
         """
         Flujo principal de emergencia — Marketplace de Pujas (inDrive).
         1. Guarda la Solicitud en BD.
@@ -188,18 +184,13 @@ class SolicitudService:
 
         return resultado
 
-    async def _obtener_admin_ids_de_sucursales(
-        self,
-        sucursal_ids: list[int],
-    ) -> list[int]:
+    async def _obtener_admin_ids_de_sucursales(self, sucursal_ids: list[int],) -> list[int]:
         """
-        Obtiene los usuario_id de los administradores de los talleres
-        a los que pertenecen las sucursales dadas.
+        Obtiene los usuario_id de los administradores de los talleres a los que pertenecen las sucursales dadas.
         Usado para el broadcast del SOS.
         """
         if not sucursal_ids:
             return []
-
         stmt = (
             select(Admin.usuario_id)
             .join(Taller, Admin.id == Taller.admin_id)
@@ -210,38 +201,490 @@ class SolicitudService:
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
-    # ── Fase 2: El cliente elige un taller ──
-    async def seleccionar_taller(
+
+    #  FLUJO MARKETPLACE: Asignación y Ejecución de Trabajos
+    async def asignar_mecanico(
         self,
         solicitud_id: int,
         sucursal_id: int,
-        current_user_id: int
-    ) -> bool:
+        admin_id: int,
+        empleado_id: int,
+    ) -> Asignacion:
         """
-        El cliente selecciona un taller de las recomendaciones.
-        1. Valida que la solicitud pertenezca al cliente y esté en estado correcto.
-        2. Cambia el estado a ESPERANDO_ACEPTACION_TALLER.
-        3. Notifica al admin de la sucursal (Persistente + WebSocket).
+        El Admin del taller (cuya puja fue aceptada) asigna un mecánico.
+
+        Reglas de negocio:
+          1. Solicitud debe estar en OFERTA_ACEPTADA.
+          2. La sucursal debe pertenecer al admin.
+          3. El mecánico NO debe tener otro trabajo activo.
+          4. El mecánico debe pertenecer a esa sucursal.
+          5. Actualiza la Asignación existente con el empleado_id.
+          6. Cambia solicitud → ESPERANDO_CONFIRMACION_MECANICO.
+          7. Notifica al mecánico por WS + persistente.
+
+        Raises:
+            ValueError: Si cualquier validación falla.
         """
-        # 1. Obtener solicitud
+        from sqlalchemy.orm import selectinload
+
+        # 1. Obtener y validar solicitud
         solicitud = await self.repo.get_by_id(solicitud_id)
         if not solicitud:
-            return False
+            raise ValueError(f"Solicitud #{solicitud_id} no encontrada.")
 
-        # 2. Validar pertenencia y estado
-        if solicitud.cliente_id != current_user_id:
-            logger.warning(f"[Selección] Usuario {current_user_id} intentó seleccionar taller para solicitud {solicitud_id} que no le pertenece.")
-            return False
-        
-        if solicitud.estado not in (EstadoSolicitud.PENDIENTE_SELECCION_CLIENTE, EstadoSolicitud.RECHAZADO_POR_TALLER):
-            logger.warning(f"[Selección] La solicitud {solicitud_id} no está en estado válido para selección (Estado actual: {solicitud.estado.value}).")
-            return False
+        if solicitud.estado != EstadoSolicitud.OFERTA_ACEPTADA:
+            raise ValueError(
+                f"La solicitud #{solicitud_id} no está en estado OFERTA_ACEPTADA "
+                f"(estado actual: {solicitud.estado.value}). "
+                f"Solo puedes asignar mecánico después de que el cliente acepte una oferta."
+            )
 
-        # 3. Cambiar estado
-        await self.repo.actualizar_estado(solicitud_id, EstadoSolicitud.ESPERANDO_ACEPTACION_TALLER)
-        logger.info(f"[Selección] Solicitud {solicitud_id} cambió a ESPERANDO_ACEPTACION_TALLER (Sucursal elegida: {sucursal_id}).")
+        # 2. Validar que la sucursal pertenezca al admin
+        stmt_propiedad = (
+            select(Sucursal)
+            .join(Taller, Sucursal.taller_id == Taller.id)
+            .where(Sucursal.id == sucursal_id, Taller.admin_id == admin_id)
+        )
+        res = await self.session.execute(stmt_propiedad)
+        sucursal = res.scalar_one_or_none()
+        if not sucursal:
+            raise ValueError(
+                f"La sucursal #{sucursal_id} no pertenece a tu taller."
+            )
 
-        # 4. Encontrar admin de la sucursal
+        # 3. Validar empleado si se proporciona
+        empleado = None
+        if empleado_id is not None:
+            # REGLA CRÍTICA: Verificar que el mecánico NO tenga trabajo activo
+            stmt_ocupado = (
+                select(Asignacion)
+                .where(
+                    Asignacion.empleado_id == empleado_id,
+                    Asignacion.estado.in_([
+                        EstadoAsignacion.PENDIENTE,
+                        EstadoAsignacion.ACEPTADA,
+                        EstadoAsignacion.EN_CAMINO,
+                        EstadoAsignacion.EN_SITIO,
+                    ]),
+                )
+                .limit(1)
+            )
+            res_ocupado = await self.session.execute(stmt_ocupado)
+            trabajo_activo = res_ocupado.scalar_one_or_none()
+            if trabajo_activo:
+                raise ValueError(
+                    f"El mecánico #{empleado_id} no está disponible. "
+                    f"Tiene una asignación activa (#{trabajo_activo.id}, estado: {trabajo_activo.estado.value})."
+                )
+
+            # 4. Validar que el mecánico pertenezca a la sucursal
+            stmt_empleado = (
+                select(Empleado)
+                .where(Empleado.id == empleado_id)
+                .options(selectinload(Empleado.usuario))
+            )
+            res_empleado = await self.session.execute(stmt_empleado)
+            empleado = res_empleado.scalar_one_or_none()
+            if not empleado:
+                raise ValueError(f"Empleado #{empleado_id} no encontrado.")
+            if empleado.sucursal_id != sucursal_id:
+                raise ValueError(
+                    f"El mecánico #{empleado_id} no pertenece a la sucursal #{sucursal_id}."
+                )
+        else:
+            # Es el Admin quien se autoasigna. Validar que el Admin no tenga trabajo activo.
+            stmt_ocupado = (
+                select(Asignacion)
+                .where(
+                    Asignacion.empleado_id.is_(None),
+                    Asignacion.sucursal_id == sucursal_id,
+                    Asignacion.estado.in_([
+                        EstadoAsignacion.PENDIENTE,
+                        EstadoAsignacion.ACEPTADA,
+                        EstadoAsignacion.EN_CAMINO,
+                        EstadoAsignacion.EN_SITIO,
+                    ]),
+                )
+                .limit(1)
+            )
+            res_ocupado = await self.session.execute(stmt_ocupado)
+            trabajo_activo = res_ocupado.scalar_one_or_none()
+            if trabajo_activo:
+                raise ValueError(
+                    f"Como administrador ya tienes una asignación activa "
+                    f"(#{trabajo_activo.id}, estado: {trabajo_activo.estado.value})."
+                )
+
+        # 5. Obtener la Asignación existente (creada por seleccionar_puja)
+        asignacion = await self.asignacion_service.obtener_asignacion_activa(solicitud_id)
+        if not asignacion:
+            raise ValueError(
+                f"No se encontró una asignación activa para la solicitud #{solicitud_id}."
+            )
+
+        # Actualizar la asignación con el mecánico
+        asignacion.empleado_id = empleado_id
+
+        if empleado_id is not None:
+            # Flujo normal con empleado: requiere confirmación
+            asignacion.estado = EstadoAsignacion.PENDIENTE
+            await self.session.flush()
+            await self.session.refresh(asignacion)
+
+            # Cambiar estado de solicitud
+            await self.repo.actualizar_estado(
+                solicitud_id, EstadoSolicitud.ESPERANDO_CONFIRMACION_MECANICO
+            )
+            logger.info(
+                f"[Asignación] Solicitud #{solicitud_id} → ESPERANDO_CONFIRMACION_MECANICO "
+                f"(Mecánico #{empleado_id})"
+            )
+
+            # Notificar al mecánico
+            mensaje = (
+                f"Tienes una nueva asignación de emergencia #{solicitud_id}. "
+                f"Revisa los detalles y acepta o rechaza."
+            )
+            await self.notificacion_service.enviar_a_usuario(empleado.usuario_id, mensaje)
+
+            try:
+                from app.api.v1.endpoints.notificaciones_ws import manager
+                await manager.send_personal_message(
+                    {
+                        "type": "NUEVA_ASIGNACION_TECNICO",
+                        "solicitud_id": solicitud_id,
+                        "asignacion_id": asignacion.id,
+                        "mensaje": mensaje,
+                    },
+                    str(empleado.usuario_id)
+                )
+                logger.info(f"[Asignación] WS enviado al mecánico {empleado.usuario_id}")
+            except Exception as e:
+                logger.error(f"[Asignación] Error WS mecánico: {e}")
+        else:
+            # Auto-asignación de Admin: Salta directamente a EN_CAMINO
+            asignacion.estado = EstadoAsignacion.ACEPTADA
+            await self.session.flush()
+            await self.session.refresh(asignacion)
+
+            await self.repo.actualizar_estado(
+                solicitud_id, EstadoSolicitud.EN_CAMINO
+            )
+            logger.info(
+                f"[Asignación] Solicitud #{solicitud_id} → EN_CAMINO "
+                f"(Auto-asignación Admin)"
+            )
+
+            # Notificar al cliente que ya va en camino
+            mensaje_cliente = "El taller aceptó la asignación y va en camino (Auto-asignación)."
+            await self.notificacion_service.enviar_a_usuario(solicitud.cliente_id, mensaje_cliente)
+
+            try:
+                from app.api.v1.endpoints.notificaciones_ws import manager
+                # El admin no tiene latitud/longitud en empleado, mandamos ubicación del taller
+                lat = sucursal.latitud if sucursal else None
+                lng = sucursal.longitud if sucursal else None
+                
+                await manager.send_personal_message(
+                    {
+                        "type": "MECANICO_EN_CAMINO",
+                        "solicitud_id": solicitud.id,
+                        "asignacion_id": asignacion.id,
+                        "mecanico": {
+                            "nombre": "Taller (Administrador)",
+                            "latitud": lat,
+                            "longitud": lng,
+                        },
+                        "mensaje": mensaje_cliente,
+                    },
+                    str(solicitud.cliente_id)
+                )
+            except Exception as e:
+                logger.error(f"[Mecánico] Error WS cliente (auto-asignación): {e}")
+
+        return asignacion
+
+    # ── Respuesta del Mecánico ──────────────────────────────────
+    async def responder_asignacion_mecanico(
+        self,
+        asignacion_id: int,
+        usuario_id: int,
+        aceptar: bool,
+        motivo_rechazo: str | None = None,
+    ) -> Asignacion:
+        """
+        El mecánico acepta o rechaza su asignación.
+
+        Si acepta:
+          - Asignación → ACEPTADA, Solicitud → EN_CAMINO.
+          - WS al cliente: MECANICO_EN_CAMINO.
+
+        Si rechaza:
+          - Asignación → RECHAZADA + motivo, Solicitud → OFERTA_ACEPTADA.
+          - WS al admin: MECANICO_RECHAZO (para que reasigne).
+
+        Raises:
+            ValueError: Si la asignación no existe, no pertenece al técnico, o no está PENDIENTE.
+        """
+        from sqlalchemy.orm import selectinload
+
+        # 1. Obtener asignación con relaciones
+        stmt = (
+            select(Asignacion)
+            .where(Asignacion.id == asignacion_id)
+            .options(
+                selectinload(Asignacion.empleado).selectinload(Empleado.usuario),
+                selectinload(Asignacion.solicitud),
+                selectinload(Asignacion.sucursal),
+            )
+        )
+        res = await self.session.execute(stmt)
+        asignacion = res.scalar_one_or_none()
+        if not asignacion:
+            raise ValueError(f"Asignación #{asignacion_id} no encontrada.")
+
+        # 2. Validar que la asignación pertenezca a este técnico o al admin dueño
+        if asignacion.empleado_id is not None:
+            if not asignacion.empleado or asignacion.empleado.usuario_id != usuario_id:
+                raise ValueError("Esta asignación no te pertenece.")
+        else:
+            admin_uid = await self._obtener_admin_de_sucursal(asignacion.sucursal_id)
+            if admin_uid != usuario_id:
+                raise ValueError("Esta asignación le pertenece a la sucursal y tú no eres el administrador.")
+
+        # 3. Validar estado
+        if asignacion.estado != EstadoAsignacion.PENDIENTE:
+            raise ValueError(
+                f"La asignación #{asignacion_id} no está pendiente "
+                f"(estado actual: {asignacion.estado.value})."
+            )
+
+        solicitud = asignacion.solicitud
+
+        if aceptar:
+            # ── ACEPTAR ──
+            asignacion.estado = EstadoAsignacion.ACEPTADA
+            solicitud.estado = EstadoSolicitud.EN_CAMINO
+            await self.session.flush()
+            await self.session.refresh(asignacion)
+
+            logger.info(
+                f"[Mecánico] Asignación #{asignacion_id} ACEPTADA. "
+                f"Solicitud #{solicitud.id} → EN_CAMINO"
+            )
+
+            # Notificar al cliente
+            nombre_mecanico = asignacion.empleado.usuario.nombre if asignacion.empleado.usuario else "Tu mecánico"
+            mensaje_cliente = f"{nombre_mecanico} aceptó la asignación y va en camino."
+            await self.notificacion_service.enviar_a_usuario(solicitud.cliente_id, mensaje_cliente)
+
+            try:
+                from app.api.v1.endpoints.notificaciones_ws import manager
+                await manager.send_personal_message(
+                    {
+                        "type": "MECANICO_EN_CAMINO",
+                        "solicitud_id": solicitud.id,
+                        "asignacion_id": asignacion_id,
+                        "mecanico": {
+                            "nombre": nombre_mecanico,
+                            "latitud": asignacion.empleado.latitud,
+                            "longitud": asignacion.empleado.longitud,
+                        },
+                        "mensaje": mensaje_cliente,
+                    },
+                    str(solicitud.cliente_id)
+                )
+            except Exception as e:
+                logger.error(f"[Mecánico] Error WS cliente (aceptación): {e}")
+
+        else:
+            # ── RECHAZAR ──
+            asignacion.estado = EstadoAsignacion.RECHAZADA
+            asignacion.motivo_rechazo = motivo_rechazo
+            asignacion.empleado_id = None  # Liberar mecánico de la asignación
+            solicitud.estado = EstadoSolicitud.OFERTA_ACEPTADA  # Admin debe reasignar
+            await self.session.flush()
+            await self.session.refresh(asignacion)
+
+            logger.info(
+                f"[Mecánico] Asignación #{asignacion_id} RECHAZADA. "
+                f"Motivo: {motivo_rechazo}. Solicitud #{solicitud.id} → OFERTA_ACEPTADA"
+            )
+
+            # Notificar al admin para que reasigne
+            admin_usuario_id = await self._obtener_admin_de_sucursal(asignacion.sucursal_id)
+            nombre_mecanico = asignacion.empleado.usuario.nombre if asignacion.empleado and asignacion.empleado.usuario else "El mecánico"
+            mensaje_admin = (
+                f"{nombre_mecanico} rechazó la asignación para la emergencia #{solicitud.id}. "
+                f"Motivo: {motivo_rechazo or 'No especificado'}. Asigna otro mecánico."
+            )
+
+            if admin_usuario_id:
+                await self.notificacion_service.enviar_a_usuario(admin_usuario_id, mensaje_admin)
+                try:
+                    from app.api.v1.endpoints.notificaciones_ws import manager
+                    await manager.send_personal_message(
+                        {
+                            "type": "MECANICO_RECHAZO",
+                            "solicitud_id": solicitud.id,
+                            "asignacion_id": asignacion_id,
+                            "motivo": motivo_rechazo,
+                            "mensaje": mensaje_admin,
+                        },
+                        str(admin_usuario_id)
+                    )
+                except Exception as e:
+                    logger.error(f"[Mecánico] Error WS admin (rechazo): {e}")
+
+        return asignacion
+
+    # ── Mecánico marca llegada ──────────────────────────────────
+    async def marcar_llegada(
+        self,
+        asignacion_id: int,
+        usuario_id: int,
+    ) -> Asignacion:
+        """
+        El mecánico marca que llegó al sitio de la emergencia.
+        Asignación → EN_SITIO, Solicitud → EN_SITIO.
+        """
+        from sqlalchemy.orm import selectinload
+
+        stmt = (
+            select(Asignacion)
+            .where(Asignacion.id == asignacion_id)
+            .options(
+                selectinload(Asignacion.empleado).selectinload(Empleado.usuario),
+                selectinload(Asignacion.solicitud),
+            )
+        )
+        res = await self.session.execute(stmt)
+        asignacion = res.scalar_one_or_none()
+        if not asignacion:
+            raise ValueError(f"Asignación #{asignacion_id} no encontrada.")
+
+        if asignacion.empleado_id is not None:
+            if not asignacion.empleado or asignacion.empleado.usuario_id != usuario_id:
+                raise ValueError("Esta asignación no te pertenece.")
+        else:
+            admin_uid = await self._obtener_admin_de_sucursal(asignacion.sucursal_id)
+            if admin_uid != usuario_id:
+                raise ValueError("Esta asignación le pertenece a la sucursal y tú no eres el administrador.")
+
+        if asignacion.estado != EstadoAsignacion.ACEPTADA:
+            raise ValueError(
+                f"No puedes marcar llegada en estado {asignacion.estado.value}. "
+                f"Debe estar en ACEPTADA."
+            )
+
+        asignacion.estado = EstadoAsignacion.EN_SITIO
+        asignacion.solicitud.estado = EstadoSolicitud.EN_SITIO
+        await self.session.flush()
+        await self.session.refresh(asignacion)
+
+        logger.info(f"[Llegada] Asignación #{asignacion_id} → EN_SITIO")
+
+        # Notificar al cliente
+        if asignacion.empleado_id is not None and asignacion.empleado and asignacion.empleado.usuario:
+            nombre = asignacion.empleado.usuario.nombre
+        else:
+            nombre = "El taller (Admin)"
+            
+        mensaje = f"{nombre} ha llegado al lugar de la emergencia."
+        await self.notificacion_service.enviar_a_usuario(
+            asignacion.solicitud.cliente_id, mensaje
+        )
+
+        try:
+            from app.api.v1.endpoints.notificaciones_ws import manager
+            await manager.send_personal_message(
+                {
+                    "type": "MECANICO_EN_SITIO",
+                    "solicitud_id": asignacion.solicitud.id,
+                    "asignacion_id": asignacion_id,
+                    "mensaje": mensaje,
+                },
+                str(asignacion.solicitud.cliente_id)
+            )
+        except Exception as e:
+            logger.error(f"[Llegada] Error WS cliente: {e}")
+
+        return asignacion
+
+    # ── Finalizar trabajo ──────────────────────────────────────
+    async def finalizar_trabajo(
+        self,
+        asignacion_id: int,
+        usuario_id: int,
+    ) -> Asignacion:
+        """
+        El mecánico o admin finaliza el trabajo.
+        Asignación → COMPLETADA, Solicitud → FINALIZADO.
+        """
+        from sqlalchemy.orm import selectinload
+
+        stmt = (
+            select(Asignacion)
+            .where(Asignacion.id == asignacion_id)
+            .options(
+                selectinload(Asignacion.empleado).selectinload(Empleado.usuario),
+                selectinload(Asignacion.solicitud),
+            )
+        )
+        res = await self.session.execute(stmt)
+        asignacion = res.scalar_one_or_none()
+        if not asignacion:
+            raise ValueError(f"Asignación #{asignacion_id} no encontrada.")
+
+        if asignacion.empleado_id is not None:
+            if not asignacion.empleado or asignacion.empleado.usuario_id != usuario_id:
+                raise ValueError("Esta asignación no te pertenece.")
+        else:
+            admin_uid = await self._obtener_admin_de_sucursal(asignacion.sucursal_id)
+            if admin_uid != usuario_id:
+                raise ValueError("Esta asignación le pertenece a la sucursal y tú no eres el administrador.")
+
+        if asignacion.estado != EstadoAsignacion.EN_SITIO:
+            raise ValueError(
+                f"No puedes finalizar en estado {asignacion.estado.value}. "
+                f"Debe estar en EN_SITIO."
+            )
+
+        asignacion.estado = EstadoAsignacion.COMPLETADA
+        asignacion.solicitud.estado = EstadoSolicitud.FINALIZADO
+        await self.session.flush()
+        await self.session.refresh(asignacion)
+
+        logger.info(f"[Finalización] Asignación #{asignacion_id} → COMPLETADA, Solicitud → FINALIZADO")
+
+        # Notificar al cliente
+        mensaje = (
+            f"El servicio para la emergencia #{asignacion.solicitud.id} ha sido finalizado. "
+            f"Procede al pago y calificación."
+        )
+        await self.notificacion_service.enviar_a_usuario(
+            asignacion.solicitud.cliente_id, mensaje
+        )
+
+        try:
+            from app.api.v1.endpoints.notificaciones_ws import manager
+            await manager.send_personal_message(
+                {
+                    "type": "SERVICIO_FINALIZADO",
+                    "solicitud_id": asignacion.solicitud.id,
+                    "asignacion_id": asignacion_id,
+                    "mensaje": mensaje,
+                },
+                str(asignacion.solicitud.cliente_id)
+            )
+        except Exception as e:
+            logger.error(f"[Finalización] Error WS cliente: {e}")
+
+        return asignacion
+
+    # ── Helper: obtener admin de una sucursal ──────────────────
+    async def _obtener_admin_de_sucursal(self, sucursal_id: int) -> int | None:
+        """Obtiene el usuario_id del admin de la sucursal."""
         stmt = (
             select(Admin.usuario_id)
             .join(Taller, Admin.id == Taller.admin_id)
@@ -249,198 +692,7 @@ class SolicitudService:
             .where(Sucursal.id == sucursal_id)
         )
         result = await self.session.execute(stmt)
-        admin_usuario_id = result.scalar_one_or_none()
-
-        if admin_usuario_id:
-            # 5. Notificación Persistente
-            await self.notificacion_service.enviar_a_usuario(
-                usuario_id=admin_usuario_id,
-                mensaje=(
-                    f"Nueva solicitud de emergencia #{solicitud_id} recibida. "
-                    "Por favor, revisa y acepta para asignar a un técnico."
-                )
-            )
-
-            # 6. WebSocket en tiempo real
-            try:
-                from app.api.v1.endpoints.notificaciones_ws import manager
-                await manager.send_personal_message(
-                    {
-                        "type": "NUEVA_SOLICITUD_EMERGENCIA",
-                        "solicitud_id": solicitud_id,
-                        "mensaje": "Tienes una nueva solicitud de emergencia esperando tu aceptación."
-                    },
-                    str(admin_usuario_id)
-                )
-                logger.info(f"[Selección] WebSocket enviado al admin {admin_usuario_id}.")
-            except Exception as e:
-                logger.error(f"[Selección] Error enviando WebSocket: {e}")
-        else:
-            logger.warning(f"[Selección] No se encontró un administrador para la sucursal {sucursal_id}.")
-
-        return True
-
-    # ── Fase 3: El Taller responde ──
-    async def responder_solicitud(
-        self,
-        solicitud_id: int,
-        sucursal_id: int,
-        admin_id: int,
-        respuesta: RespuestaTaller
-    ) -> bool:
-        """
-        El taller acepta o rechaza una solicitud.
-        1. Valida propiedad de la sucursal por el admin.
-        2. Valida estado de la solicitud.
-        3. Si RECHAZA: Estado -> RECHAZADO_POR_TALLER + Notifica Cliente.
-        4. Si ACEPTA: Estado -> EN_PROCESO + Crea Asignación + Notifica Cliente y Mecánico.
-        """
-        # 1. Validar que la sucursal pertenezca al admin (con eager load del taller y admin)
-        from sqlalchemy.orm import selectinload
-        stmt_propiedad = (
-            select(Sucursal)
-            .join(Taller, Sucursal.taller_id == Taller.id)
-            .where(Sucursal.id == sucursal_id, Taller.admin_id == admin_id)
-            .options(
-                selectinload(Sucursal.taller).selectinload(Taller.admin).selectinload(Admin.usuario)
-            )
-        )
-        res_propiedad = await self.session.execute(stmt_propiedad)
-        sucursal = res_propiedad.scalar_one_or_none()
-        if not sucursal:
-            logger.warning(f"[Respuesta] Admin {admin_id} intentó responder para sucursal {sucursal_id} que no le pertenece.")
-            return False
-
-        # 2. Obtener y validar solicitud
-        solicitud = await self.repo.get_by_id(solicitud_id)
-        if not solicitud or solicitud.estado not in (EstadoSolicitud.ESPERANDO_ACEPTACION_TALLER, EstadoSolicitud.EN_PROCESO):
-            logger.warning(f"[Respuesta] Solicitud {solicitud_id} no encontrada o en estado incorrecto ({solicitud.estado.value if solicitud else 'N/A'}).")
-            return False
-
-        if not respuesta.aceptar:
-            # ── CASO RECHAZO ──
-            await self.repo.actualizar_estado(solicitud_id, EstadoSolicitud.RECHAZADO_POR_TALLER)
-            
-            # Notificar al cliente
-            mensaje_cliente = f"El taller ha rechazado tu solicitud #{solicitud_id}. Por favor, elige otro taller de la lista de recomendaciones."
-            await self.notificacion_service.enviar_a_usuario(solicitud.cliente_id, mensaje_cliente)
-            
-            try:
-                from app.api.v1.endpoints.notificaciones_ws import manager
-                await manager.send_personal_message(
-                    {"type": "SOLICITUD_RECHAZADA_TALLER", "solicitud_id": solicitud_id, "mensaje": mensaje_cliente},
-                    str(solicitud.cliente_id)
-                )
-            except Exception as e:
-                logger.error(f"[Respuesta] Error WebSocket cliente (rechazo): {e}")
-            
-            logger.info(f"[Respuesta] Solicitud {solicitud_id} rechazada por taller {sucursal_id}.")
-            return True
-
-        # ── CASO ACEPTACIÓN / ASIGNACIÓN DE TÉCNICO ──
-        # 1. Validar mecánico (si se proporcionó uno)
-        tecnico = None
-        if respuesta.empleado_id is not None:
-            stmt_tecnico = (
-                select(Empleado)
-                .where(Empleado.id == respuesta.empleado_id)
-                .options(selectinload(Empleado.usuario))
-            )
-            res_tecnico = await self.session.execute(stmt_tecnico)
-            tecnico = res_tecnico.scalar_one_or_none()
-            if not tecnico or tecnico.sucursal_id != sucursal_id or not tecnico.disponible:
-                logger.warning(f"[Respuesta] Técnico {respuesta.empleado_id} no válido o no disponible para sucursal {sucursal_id}.")
-                return False
-
-        # 2. Cambiar estado solicitud (si no estaba ya en proceso)
-        if solicitud.estado != EstadoSolicitud.EN_PROCESO:
-            await self.repo.actualizar_estado(solicitud_id, EstadoSolicitud.EN_PROCESO)
-
-        # 3. Crear Asignación o Actualizar la existente
-        asignacion_existente = await self.asignacion_service.obtener_asignacion_activa(solicitud_id)
-        if asignacion_existente:
-            asignacion_existente.empleado_id = tecnico.id if tecnico else None
-            asignacion_existente.estado = EstadoAsignacion.ACEPTADA
-            await self.session.commit()
-        else:
-            from app.schemas.asignacion import AsignacionCreate
-            asignacion_data = AsignacionCreate(
-                solicitud_id=solicitud_id,
-                empleado_id=tecnico.id if tecnico else None,
-                sucursal_id=sucursal_id,
-                estado=EstadoAsignacion.ACEPTADA,
-                tiempo_estimado_llegada=15  # Default o calculado
-            )
-            await self.asignacion_service.asignacion_repo.create(asignacion_data.model_dump())
-
-        # 4. Construir mensajes según si hay técnico o el admin va personalmente
-        if tecnico:
-            mensaje_cliente = f"¡Buenas noticias! El taller aceptó tu solicitud #{solicitud_id}. Un técnico va en camino."
-            mensaje_mecanico = f"Tienes una nueva asignación de emergencia #{solicitud_id}. Revisa los detalles e inicia el viaje."
-        else:
-            mensaje_cliente = f"¡Buenas noticias! El taller aceptó tu solicitud #{solicitud_id}. El administrador del taller va en camino."
-
-        # 5. Notificar al Cliente
-        await self.notificacion_service.enviar_a_usuario(solicitud.cliente_id, mensaje_cliente)
-
-        # 6. Notificar al Mecánico (solo si hay uno asignado)
-        if tecnico:
-            await self.notificacion_service.enviar_a_usuario(tecnico.usuario_id, mensaje_mecanico)
-
-        # 7. Construir info de quien atiende (técnico o admin)
-        if tecnico:
-            persona_asignada = {
-                "id": tecnico.id,
-                "nombre": tecnico.usuario.nombre if tecnico.usuario else "Técnico",
-                "apellidos": "",
-                "es_admin": False
-            }
-        else:
-            # Admin va personalmente — obtener sus datos del usuario
-            admin_usuario = sucursal.taller.admin.usuario if sucursal.taller and sucursal.taller.admin else None
-            persona_asignada = {
-                "id": admin_id,
-                "nombre": admin_usuario.nombre if admin_usuario else "Administrador",
-                "apellidos": "",
-                "es_admin": True
-            }
-
-        # 8. WebSockets
-        try:
-            from app.api.v1.endpoints.notificaciones_ws import manager
-            # Al cliente
-            await manager.send_personal_message(
-                {
-                    "type": "SOLICITUD_ACEPTADA_TALLER", 
-                    "solicitud_id": solicitud_id, 
-                    "mensaje": mensaje_cliente,
-                    "asignacion_resultado": {
-                        "sucursal": {
-                            "id": sucursal.id,
-                            "nombre": sucursal.nombre,
-                            "taller_nombre": sucursal.taller.nombre if sucursal.taller else "Taller",
-                            "telefono": sucursal.telefono,
-                            "latitud": sucursal.latitud,
-                            "longitud": sucursal.longitud
-                        },
-                        "tecnico_asignado": persona_asignada,
-                        "tiempo_estimado": 15
-                    }
-                },
-                str(solicitud.cliente_id)
-            )
-            # Al mecánico (si existe)
-            if tecnico:
-                await manager.send_personal_message(
-                    {"type": "NUEVA_ASIGNACION_TECNICO", "solicitud_id": solicitud_id, "mensaje": mensaje_mecanico},
-                    str(tecnico.usuario_id)
-                )
-        except Exception as e:
-            logger.error(f"[Respuesta] Error WebSockets (aceptación): {e}")
-
-        asignado_a = f"técnico {tecnico.id}" if tecnico else "admin (personalmente)"
-        logger.info(f"[Respuesta] Solicitud {solicitud_id} aceptada y asignada a {asignado_a}.")
-        return True
+        return result.scalar_one_or_none()
 
     #  Consultas
     async def obtener_por_id(self, solicitud_id: int) -> SolicitudEmergencia | None:
@@ -498,6 +750,57 @@ class SolicitudService:
     ) -> SolicitudEmergencia | None:
         """Actualiza el estado en BD."""
         return await self.repo.actualizar_estado(solicitud_id, nuevo_estado)
+
+    async def obtener_solicitud_activa_cliente(self, cliente_id: int) -> SolicitudEmergencia | None:
+        """Devuelve la solicitud activa actual del cliente, si existe."""
+        return await self.repo.get_activa_por_cliente(cliente_id)
+
+    async def cancelar_solicitud_cliente(self, solicitud_id: int, cliente_id: int) -> None:
+        """
+        El cliente cancela su solicitud actual.
+        Cambia estado a CANCELADO, rechaza pujas y notifica a talleres vía WS.
+        """
+        solicitud = await self.repo.get_by_id(solicitud_id)
+        if not solicitud:
+            raise ValueError(f"Solicitud #{solicitud_id} no encontrada.")
+
+        if solicitud.cliente_id != cliente_id:
+            raise ValueError("No tienes permiso para cancelar esta solicitud.")
+
+        estados_cancelables = (
+            EstadoSolicitud.PENDIENTE,
+            EstadoSolicitud.ESPERANDO_PUJAS,
+            EstadoSolicitud.OFERTA_ACEPTADA,
+        )
+        if solicitud.estado not in estados_cancelables:
+            raise ValueError(f"No puedes cancelar una solicitud en estado {solicitud.estado.value}.")
+
+        # 1. Cambiar estado a CANCELADO
+        await self.repo.actualizar_estado(solicitud_id, EstadoSolicitud.CANCELADO)
+        logger.info(f"[Cancelación] Solicitud #{solicitud_id} marcada como CANCELADA por el cliente.")
+
+        # 2. Rechazar pujas pendientes si existen
+        from app.repositories.puja_repository import PujaRepository
+        puja_repo = PujaRepository(self.session)
+        pujas_pendientes = await puja_repo.get_by_solicitud(solicitud_id)
+        
+        from app.models.puja import EstadoPuja
+        for puja in pujas_pendientes:
+            if puja.estado == EstadoPuja.PENDIENTE:
+                await puja_repo.update(puja.id, {"estado": EstadoPuja.RECHAZADA})
+
+        # 3. Notificar a talleres para limpiar radar
+        try:
+            from app.api.v1.endpoints.notificaciones_ws import manager
+            # Broadcast a los talleres para que retiren la tarjeta del radar
+            await manager.broadcast({
+                "type": "SOLICITUD_CANCELADA",
+                "solicitud_id": solicitud_id,
+            })
+            logger.info(f"[Cancelación] Broadcast SOLICITUD_CANCELADA enviado para #{solicitud_id}.")
+        except Exception as e:
+            logger.error(f"[Cancelación] Error enviando WS SOLICITUD_CANCELADA: {e}")
+
 
     #  Agregar evidencia a solicitud existente
     async def agregar_evidencia(self, data: EvidenciaCreate) -> Evidencia:

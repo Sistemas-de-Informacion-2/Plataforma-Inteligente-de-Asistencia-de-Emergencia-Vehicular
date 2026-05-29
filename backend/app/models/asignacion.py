@@ -6,7 +6,7 @@ Vincula una SolicitudEmergencia con un Empleado y una Sucursal.
 import enum
 from datetime import datetime
 
-from sqlalchemy import String, Integer, Float, ForeignKey, DateTime, Enum as SAEnum
+from sqlalchemy import String, Integer, Float, ForeignKey, DateTime, Text, Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
@@ -37,6 +37,9 @@ class Asignacion(Base):
     )
     tiempo_estimado_llegada: Mapped[int | None] = mapped_column(
         Integer  # minutos estimados
+    )
+    motivo_rechazo: Mapped[str | None] = mapped_column(
+        Text, nullable=True
     )
 
     # FK

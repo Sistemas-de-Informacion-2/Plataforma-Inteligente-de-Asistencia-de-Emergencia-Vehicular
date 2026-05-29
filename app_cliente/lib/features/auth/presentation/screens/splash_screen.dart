@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-
-import '../providers/auth_provider.dart';
-import 'login_screen.dart';
-import '../../../roles/cliente/presentation/screens/client_home_screen.dart';
+import 'package:go_router/go_router.dart';
 
 // Widgets de splash
 import '../widgets/splash/splash_background.dart';
 import '../widgets/splash/splash_content.dart';
 import '../widgets/splash/splash_footer.dart';
 
+/// SplashScreen ahora es puramente visual.
+/// La lógica de redirección por rol se maneja en app_router.dart (redirect).
+/// Cuando AuthProvider termina checkAuthStatus() y hace notifyListeners(),
+/// GoRouter re-evalúa el redirect y navega automáticamente.
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -18,7 +18,6 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
-  bool _minTimeElapsed = false;
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
 
@@ -37,25 +36,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     );
 
     _fadeController.forward();
-
-    // Tiempo mínimo de 5 segundos para apreciar el diseño
-    Future.delayed(const Duration(seconds: 5), () {
-      if (mounted) {
-        setState(() {
-          _minTimeElapsed = true;
-        });
-        
-        final authProvider = context.read<AuthProvider>();
-        authProvider.checkAuthStatus();
-
-        // Si ya sabemos el estado, navegamos inmediatamente después de los 5s
-        if (authProvider.authStatus == AuthStatus.authenticated) {
-          _navigateTo(const HomeScreen());
-        } else if (authProvider.authStatus == AuthStatus.unauthenticated) {
-          _navigateTo(const LoginScreen());
-        }
-      }
-    });
   }
 
   @override
@@ -64,59 +44,31 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     super.dispose();
   }
 
-  void _navigateTo(Widget screen) {
-    if (!_minTimeElapsed) return; // No navegar hasta que pasen los 5 segundos
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      Navigator.of(context).pushReplacement(
-        PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => screen,
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            return FadeTransition(opacity: animation, child: child);
-          },
-          transitionDuration: const Duration(milliseconds: 800),
-        ),
-      );
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Consumer<AuthProvider>(
-        builder: (context, authProvider, _) {
-          // Lógica de navegación
-          if (authProvider.authStatus == AuthStatus.authenticated) {
-            _navigateTo(const HomeScreen());
-          } else if (authProvider.authStatus == AuthStatus.unauthenticated) {
-            _navigateTo(const LoginScreen());
-          }
-          
-          return SplashBackground(
-            child: Stack(
-              children: [
-                // Contenido central animado
-                Center(
-                  child: FadeTransition(
-                    opacity: _fadeAnimation,
-                    child: const SplashContent(),
-                  ),
-                ),
-                
-                // Footer pegado abajo animado
-                Positioned(
-                  bottom: 50,
-                  left: 0,
-                  right: 0,
-                  child: FadeTransition(
-                    opacity: _fadeAnimation,
-                    child: const SplashFooter(),
-                  ),
-                ),
-              ],
+      body: SplashBackground(
+        child: Stack(
+          children: [
+            Center(
+              child: FadeTransition(
+                opacity: _fadeAnimation,
+                child: const SplashContent(),
+              ),
             ),
-          );
-        },
+            
+            // Footer pegado abajo animado
+            Positioned(
+              bottom: 50,
+              left: 0,
+              right: 0,
+              child: FadeTransition(
+                opacity: _fadeAnimation,
+                child: const SplashFooter(),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

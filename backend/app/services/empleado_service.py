@@ -41,7 +41,7 @@ class EmpleadoService:
         Transacción atómica:
           1. Validar unicidad email/CI
           2. Hash password → crear Usuario
-          3. Asignar rol TECNICO
+          3. Asignar rol MECANICO
           4. Crear Empleado vinculado al usuario y sucursal
           5. flush() entre pasos, commit() lo hace get_db()
         """
@@ -241,7 +241,6 @@ class EmpleadoService:
 
         # ── Paso 4: Soft-delete del Usuario ───────────────────
         await self.usuario_repo.delete(usuario_id)
-
         await self.session.flush()
         return True
 

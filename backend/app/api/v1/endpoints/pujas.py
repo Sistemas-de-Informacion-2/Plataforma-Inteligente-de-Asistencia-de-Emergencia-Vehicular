@@ -10,7 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.api.deps import get_current_admin
+from app.api.deps import get_current_admin, get_current_user
 from app.models.usuario import Usuario
 from app.models.admin import Admin
 from app.models.taller import Taller, Sucursal
@@ -127,4 +127,84 @@ async def listar_pujas(
         "solicitud_id": solicitud_id,
         "total_pujas": len(pujas),
         "pujas": pujas,
+    }
+
+
+@router.post(
+    "/{puja_id}/rechazar",
+    summary="El cliente rechaza una puja",
+    description=(
+        "El cliente marca una puja individual como rechazada (por acción "
+        "manual o timeout). Esto notifica al taller para que intente con "
+        "una oferta mejor."
+    ),
+)
+async def rechazar_puja(
+    puja_id: int,
+    current_user: Usuario = Depends(get_current_user), # Cliente autenticado
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Endpoint para que el cliente rechace una puja explícitamente.
+    """
+    service = PujaService(db)
+    try:
+        await service.rechazar_puja_cliente(
+            puja_id=puja_id,
+            current_user_id=current_user.id,
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+
+    return {"message": "Puja rechazada exitosamente. Se ha notificado al taller."}
+
+
+@router.post(
+    "/{puja_id}/aceptar",
+    summary="El cliente acepta una puja (Match Final)",
+    description=(
+        "El cliente selecciona la oferta ganadora. Se rechazan automáticamente "
+        "las demás pujas, se crea la asignación y se notifica al taller ganador "
+        "para que asigne un mecánico."
+    ),
+)
+async def aceptar_puja(
+    puja_id: int,
+    current_user: Usuario = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Match Final: el cliente elige la puja ganadora.
+    Solicitud pasa a OFERTA_ACEPTADA. El admin deberá asignar un mecánico.
+    """
+    service = PujaService(db)
+
+    # Obtener la puja para extraer solicitud_id
+    from app.repositories.puja_repository import PujaRepository
+    puja_repo = PujaRepository(db)
+    puja = await puja_repo.get_by_id(puja_id)
+    if not puja:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Puja #{puja_id} no encontrada.",
+        )
+
+    try:
+        resultado = await service.seleccionar_puja(
+            solicitud_id=puja.solicitud_id,
+            puja_id=puja_id,
+            current_user_id=current_user.id,
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+
+    return {
+        "message": "Oferta aceptada exitosamente. El taller ha sido notificado para asignar un mecánico.",
+        **resultado,
     }
