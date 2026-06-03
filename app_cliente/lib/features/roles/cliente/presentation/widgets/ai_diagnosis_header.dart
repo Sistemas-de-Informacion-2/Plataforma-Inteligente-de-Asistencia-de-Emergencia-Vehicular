@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../../core/theme/app_theme.dart';
 import '../../data/models/diagnostico_model.dart';
 
-/// Header del diagnÃ³stico de IA que se muestra en el BottomSheet de recomendaciones.
+/// Header del diagnostico de IA que se muestra en el BottomSheet de recomendaciones.
 class AiDiagnosisHeader extends StatelessWidget {
   final DiagnosticoModel diagnostico;
 
@@ -106,7 +106,7 @@ class AiDiagnosisHeader extends StatelessWidget {
               ),
             ),
 
-            // Contenido del DiagnÃ³stico
+            // Contenido del Diagnostico
             Padding(
               padding: const EdgeInsets.all(20),
               child: Column(

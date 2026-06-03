@@ -1,11 +1,12 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:lottie/lottie.dart';
 
 import '../../../../../core/theme/app_theme.dart';
 import '../providers/vehiculo_provider.dart';
 import '../providers/emergencia_provider.dart';
 import '../providers/inicio_provider.dart';
-//import '../../../../auth/presentation/providers/auth_provider.dart';
 import 'tracking_screen.dart';
 import 'radar_espera_screen.dart';
 
@@ -16,7 +17,6 @@ import '../widgets/attach_option_tile.dart';
 import '../widgets/sos_bottom_bar.dart';
 
 class InicioScreen extends StatefulWidget {
-  /// Callback que abre el Drawer del [HomeScreen] padre.
   final VoidCallback? onOpenDrawer;
   const InicioScreen({super.key, this.onOpenDrawer});
 
@@ -24,12 +24,19 @@ class InicioScreen extends StatefulWidget {
   State<InicioScreen> createState() => _InicioScreenState();
 }
 
-class _InicioScreenState extends State<InicioScreen> {
+class _InicioScreenState extends State<InicioScreen> with SingleTickerProviderStateMixin {
   EmergenciaProvider? _emProvider;
+  late AnimationController _entranceController;
 
   @override
   void initState() {
     super.initState();
+    // Animación de entrada fluida para la UI
+    _entranceController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..forward();
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         _emProvider = context.read<EmergenciaProvider>();
@@ -44,6 +51,7 @@ class _InicioScreenState extends State<InicioScreen> {
   @override
   void dispose() {
     _emProvider?.removeListener(_onEmergenciaStateChanged);
+    _entranceController.dispose();
     super.dispose();
   }
 
@@ -53,7 +61,6 @@ class _InicioScreenState extends State<InicioScreen> {
     final flowState = _emProvider!.flowState;
     if (flowState == EmergenciaFlowState.waitingForBids) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        // Evitar doble navegación
         if (ModalRoute.of(context)?.settings.name != '/radar') {
           Navigator.push(
             context,
@@ -65,9 +72,7 @@ class _InicioScreenState extends State<InicioScreen> {
         }
       });
     } else if (flowState == EmergenciaFlowState.accepted || flowState == EmergenciaFlowState.serviceInProgress) {
-      // Cierra el BottomSheet si está abierto
       if (Navigator.canPop(context)) Navigator.pop(context);
-      // Navega al TrackingScreen
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (ModalRoute.of(context)?.settings.name != '/tracking') {
           Navigator.push(
@@ -159,18 +164,10 @@ class _InicioScreenState extends State<InicioScreen> {
   Future<void> _enviarSOS() async {
     final formProvider = context.read<InicioProvider>();
     final emProvider = context.read<EmergenciaProvider>();
-    // final authProvider = context.read<AuthProvider>();
 
     await formProvider.validarAudioExistente();
     if (!formProvider.hasContent) return;
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Obteniendo ubicación y enviando SOS...'),
-        backgroundColor: AppTheme.primaryColor,
-        duration: Duration(seconds: 2),
-      ),
-    );
 
     await formProvider.determinePosition();
     if (formProvider.userLocation == null) {
@@ -210,7 +207,6 @@ class _InicioScreenState extends State<InicioScreen> {
     if (result != null) {
       emProvider.connectWebSocket();
       formProvider.limpiarFormulario();
-      // Navegar a la pantalla de Radar para esperar las pujas en tiempo real
       if (mounted) {
         Navigator.push(
           context,
@@ -260,19 +256,19 @@ class _InicioScreenState extends State<InicioScreen> {
             ),
           ),
 
-          // ── 2. GRADIENT OVERLAYS (For readability) ──────────
+          // ── 2. GRADIENT OVERLAYS (Mejor legibilidad y estética) ──────────
           Positioned(
             top: 0,
             left: 0,
             right: 0,
-            height: mq.padding.top + 80,
+            height: mq.padding.top + 100,
             child: Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Colors.black.withValues(alpha: 0.15),
+                    AppTheme.primaryColor.withValues(alpha: 0.25),
                     Colors.transparent,
                   ],
                 ),
@@ -280,97 +276,175 @@ class _InicioScreenState extends State<InicioScreen> {
             ),
           ),
 
-          // ── 3. LOADING OVERLAY ─────────────────────────────
-          if (emergenciaProvider.isUploading)
-            Positioned.fill(
-              child: Container(
-                color: Colors.black.withValues(alpha: 0.7),
-                child: Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(24),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.1),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const CircularProgressIndicator(
-                          color: AppTheme.danger,
-                          strokeWidth: 3,
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      const Text(
-                        'ENVIANDO SEÑAL SOS',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 2.0,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Analizando situación con IA...',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.7),
-                          fontSize: 14,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-
-          // ── 4. HEADER FLOTANTE ────────────────────────────
+          // ── 3. HEADER FLOTANTE ANIMADO ────────────────────────────
           Positioned(
             top: mq.padding.top + 12,
             left: 16,
             right: 16,
-            child: Row(
-              children: [
-                MapCircleButton(
-                  icon: Icons.menu_rounded,
-                  onTap: widget.onOpenDrawer ?? () {},
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.1),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: VehiclePillSelector(
-                      vehiculos: vehiculoProvider.vehiculos,
-                      selected: inicioProvider.vehiculoSeleccionado,
-                      onChanged: inicioProvider.setVehiculo,
+            child: AnimatedBuilder(
+              animation: _entranceController,
+              builder: (context, child) {
+                final val = Curves.easeOutBack.transform(_entranceController.value);
+                return Transform.translate(
+                  offset: Offset(0, -50 * (1 - val)),
+                  child: Opacity(
+                    opacity: val.clamp(0.0, 1.0),
+                    child: child,
+                  ),
+                );
+              },
+              child: Row(
+                children: [
+                  MapCircleButton(
+                    icon: Icons.menu_rounded,
+                    onTap: widget.onOpenDrawer ?? () {},
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppTheme.primaryColor.withValues(alpha: 0.15),
+                            blurRadius: 15,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
+                      ),
+                      child: VehiclePillSelector(
+                        vehiculos: vehiculoProvider.vehiculos,
+                        selected: inicioProvider.vehiculoSeleccionado,
+                        onChanged: inicioProvider.setVehiculo,
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                MapCircleButton(
-                  icon: Icons.my_location_rounded,
-                  onTap: inicioProvider.determinePosition,
-                ),
-              ],
+                  const SizedBox(width: 12),
+                  MapCircleButton(
+                    icon: Icons.my_location_rounded,
+                    onTap: inicioProvider.determinePosition,
+                  ),
+                ],
+              ),
             ),
           ),
 
-          // ── 5. BARRA SOS INFERIOR ─────────────────────────
-          SosBottomBar(
-            inicioProvider: inicioProvider,
-            emergenciaProvider: emergenciaProvider,
-            onSendSOS: _enviarSOS,
-            onRecord: _handleGrabacion,
-            onShowAttachments: _showAttachmentOptions,
+          // ── 4. BARRA SOS INFERIOR ANIMADA ─────────────────────────
+          AnimatedBuilder(
+            animation: _entranceController,
+            builder: (context, child) {
+              final val = Curves.easeOutCubic.transform(_entranceController.value);
+              return Transform.translate(
+                offset: Offset(0, 100 * (1 - val)),
+                child: Opacity(
+                  opacity: val.clamp(0.0, 1.0),
+                  child: child,
+                ),
+              );
+            },
+            child: SosBottomBar(
+              inicioProvider: inicioProvider,
+              emergenciaProvider: emergenciaProvider,
+              onSendSOS: _enviarSOS,
+              onRecord: _handleGrabacion,
+              onShowAttachments: _showAttachmentOptions,
+            ),
           ),
+
+          // ── 5. LOADING OVERLAY (Lottie + Glassmorphism) ───────────
+          if (emergenciaProvider.isUploading)
+            Positioned.fill(
+              child: TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0.0, end: 1.0),
+                duration: const Duration(milliseconds: 300),
+                builder: (context, value, child) {
+                  return Opacity(
+                    opacity: value,
+                    child: child,
+                  );
+                },
+                child: ClipRect(
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                    child: Container(
+                      color: AppTheme.primaryColor.withValues(alpha: 0.85), // Fondo premium
+                      child: Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Lottie Animation
+                            Lottie.asset(
+                              'assets/animaciones/tuerca-cargando.json',
+                              width: 160,
+                              height: 160,
+                              fit: BoxFit.contain,
+                            ),
+                            const SizedBox(height: 24),
+                            // Texto Animado Pulsante
+                            TweenAnimationBuilder<double>(
+                              tween: Tween(begin: 0.6, end: 1.0),
+                              duration: const Duration(milliseconds: 800),
+                              curve: Curves.easeInOut,
+                              builder: (context, value, child) {
+                                return Transform.scale(
+                                  scale: value,
+                                  child: Opacity(
+                                    opacity: value,
+                                    child: child,
+                                  ),
+                                );
+                              },
+                              onEnd: () {
+                                // Para hacer un efecto de pulsación continua tendríamos que usar un controller,
+                                // pero el Tween estático le da un toque suave al aparecer.
+                              },
+                              child: const Text(
+                                'ENVIANDO SEÑAL SOS',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 3.0,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const SizedBox(
+                                    width: 14,
+                                    height: 14,
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Text(
+                                    'Analizando situación con IA...',
+                                    style: TextStyle(
+                                      color: Colors.white.withValues(alpha: 0.9),
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );

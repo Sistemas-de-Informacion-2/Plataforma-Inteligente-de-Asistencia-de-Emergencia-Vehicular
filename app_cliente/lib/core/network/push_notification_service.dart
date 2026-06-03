@@ -3,6 +3,8 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'api_client.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:go_router/go_router.dart';
+import '../router/app_router.dart';
 
 // IMPORTANTE: Esta función debe estar fuera de la clase (top-level)
 // Es la encargada de recibir notificaciones cuando la app está cerrada
@@ -120,8 +122,13 @@ class PushNotificationService {
     }
   }
 
-  static void _onMessageOpenApp(RemoteMessage message) {
-    debugPrint('👆 El usuario tocó la notificación: ${message.data}');
-    // TODO: Navegar a la pantalla correspondiente según message.data
+  static void _onMessageOpenApp(RemoteMessage message) {    
+    // Si la app está abierta y tocan la notificación de nueva asignación, redirigir al mecánico
+    if (message.data['type'] == 'NUEVA_ASIGNACION' || message.notification?.title?.toLowerCase().contains('asignación') == true) {
+      final context = rootNavigatorKey.currentContext;
+      if (context != null && context.mounted) {
+        context.push('/tecnico-asignaciones');
+      }
+    }
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:audioplayers/audioplayers.dart';
 import '../../../../../core/theme/app_theme.dart';
 import '../providers/emergencia_provider.dart';
 import '../providers/inicio_provider.dart';
@@ -18,6 +19,18 @@ class TrackingScreen extends StatefulWidget {
 class _TrackingScreenState extends State<TrackingScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _animController;
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  EmergenciaFlowState? _lastFlowState;
+
+  void _onProviderChange() {
+    final provider = context.read<EmergenciaProvider>();
+    if (_lastFlowState != provider.flowState) {
+      if (_lastFlowState != null && provider.flowState == EmergenciaFlowState.arrived) {
+        _audioPlayer.play(AssetSource('sounds/notificacion-user.mp3'));
+      }
+      _lastFlowState = provider.flowState;
+    }
+  }
 
   @override
   void initState() {
@@ -27,8 +40,16 @@ class _TrackingScreenState extends State<TrackingScreen>
       duration: const Duration(milliseconds: 800),
     )..forward();
 
+    // Optimización: Pre-cargar y configurar modo
+    _audioPlayer.setReleaseMode(ReleaseMode.stop);
+    
+    // Reproducir inmediatamente al montar
+    _audioPlayer.play(AssetSource('sounds/notificacion-user.mp3'));
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = context.read<EmergenciaProvider>();
+      _lastFlowState = provider.flowState;
+      provider.addListener(_onProviderChange);
 
       // Callback para cuando el servicio finaliza → Reseña → Home
       provider.onServiceFinished = () async {
@@ -80,7 +101,12 @@ class _TrackingScreenState extends State<TrackingScreen>
 
   @override
   void dispose() {
+    // Remover listener de forma segura
+    final provider = context.read<EmergenciaProvider>();
+    provider.removeListener(_onProviderChange);
+    
     _animController.dispose();
+    _audioPlayer.dispose();
     super.dispose();
   }
 
@@ -214,54 +240,77 @@ class _TrackingScreenState extends State<TrackingScreen>
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       // Header: Icono + Ayuda en Camino + ETA
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: AppTheme.success.withValues(alpha: 0.1),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.check_circle_rounded,
-                              color: AppTheme.success,
-                              size: 28,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  '¡Ayuda en Camino!',
-                                  style: TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppTheme.textPrimary,
-                                  ),
+                      Selector<EmergenciaProvider, EmergenciaFlowState>(
+                        selector: (_, p) => p.flowState,
+                        builder: (context, flowState, child) {
+                          return Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: flowState == EmergenciaFlowState.arrived
+                                      ? Colors.orange.withValues(alpha: 0.1)
+                                      : AppTheme.success.withValues(alpha: 0.1),
+                                  shape: BoxShape.circle,
                                 ),
-                                const SizedBox(height: 4),
-                                Selector<EmergenciaProvider, String>(
-                                  selector: (_, p) => p.etaText,
-                                  builder: (context, etaValue, child) {
-                                    final finalEta = etaValue != '--'
-                                        ? etaValue
-                                        : '${asignacion?.tiempoEstimado?.toStringAsFixed(0) ?? '--'} min';
-                                    return Text(
-                                      'Llegada aprox: $finalEta',
+                                child: Icon(
+                                  flowState == EmergenciaFlowState.arrived
+                                      ? Icons.build_circle_rounded
+                                      : Icons.check_circle_rounded,
+                                  color: flowState == EmergenciaFlowState.arrived
+                                      ? Colors.orange
+                                      : AppTheme.success,
+                                  size: 28,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      flowState == EmergenciaFlowState.arrived
+                                          ? 'Técnico trabajando'
+                                          : '¡Ayuda en Camino!',
                                       style: const TextStyle(
-                                        fontSize: 14,
-                                        color: AppTheme.primaryColor,
-                                        fontWeight: FontWeight.w600,
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppTheme.textPrimary,
                                       ),
-                                    );
-                                  },
+                                    ),
+                                    const SizedBox(height: 4),
+                                    if (flowState == EmergenciaFlowState.arrived)
+                                      const Text(
+                                        'Revisando tu vehículo...',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: Colors.orange,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      )
+                                    else
+                                      Selector<EmergenciaProvider, String>(
+                                        selector: (_, p) => p.etaText,
+                                        builder: (context, etaValue, child) {
+                                          final finalEta = etaValue != '--'
+                                              ? etaValue
+                                              : '${asignacion?.tiempoEstimado?.toStringAsFixed(0) ?? '--'} min';
+                                          return Text(
+                                            'Llegada aprox: $finalEta',
+                                            style: const TextStyle(
+                                              fontSize: 14,
+                                              color: AppTheme.primaryColor,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                  ],
                                 ),
-                              ],
-                            ),
-                          ),
-                        ],
+                              ),
+                            ],
+                          );
+                        },
                       ),
                       const SizedBox(height: 24),
 

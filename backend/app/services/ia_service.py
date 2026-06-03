@@ -8,12 +8,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# ══════════════════════════════════════════════════════════════
 # CATÁLOGO PLANO DE SERVICIOS DE EMERGENCIA VEHICULAR
-# ──────────────────────────────────────────────────────────────
 # Esta lista es la ÚNICA fuente de verdad. La IA debe mapear
 # cada emergencia a uno o más de estos nombres EXACTOS.
-# ══════════════════════════════════════════════════════════════
 CATALOGO_SERVICIOS = [
     "Remolque con Grúa de Plataforma",
     "Servicio de Rescate / Salvamento (Winch)",

@@ -76,8 +76,8 @@ class _VehiculoFormSheetState extends State<VehiculoFormSheet> {
                 const SizedBox(width: 12),
                 Text(
                   _isEditing
-                      ? 'VehÃ­culo actualizado correctamente'
-                      : 'VehÃ­culo guardado en tu garaje',
+                      ? 'Vehículo actualizado correctamente'
+                      : 'Vehículo guardado en tu garaje',
                 ),
               ],
             ),
@@ -140,7 +140,7 @@ class _VehiculoFormSheetState extends State<VehiculoFormSheet> {
               ),
               const SizedBox(height: 24),
 
-              // TÃ­tulo con Icono
+              // Titulo del formulario
               Row(
                 children: [
                   Container(
@@ -162,7 +162,7 @@ class _VehiculoFormSheetState extends State<VehiculoFormSheet> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          _isEditing ? 'Editar VehÃ­culo' : 'Nuevo VehÃ­culo',
+                          _isEditing ? 'Editar Vehículo' : 'Nuevo Vehículo',
                           style: const TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
@@ -189,7 +189,7 @@ class _VehiculoFormSheetState extends State<VehiculoFormSheet> {
               // Marca
               _FormField(
                 controller: _marcaController,
-                label: 'Marca del VehÃ­culo',
+                label: 'Marca del Vehí­culo',
                 hint: 'Ej. Toyota, Nissan...',
                 icon: Icons.branding_watermark_outlined,
                 validator: (v) =>
@@ -208,14 +208,14 @@ class _VehiculoFormSheetState extends State<VehiculoFormSheet> {
               ),
               const SizedBox(height: 16),
 
-              // AÃ±o y Placa en fila
+              // Año y Placa en fila
               Row(
                 children: [
                   Expanded(
                     flex: 2,
                     child: _FormField(
                       controller: _anioController,
-                      label: 'AÃ±o',
+                      label: 'Año',
                       hint: '2024',
                       icon: Icons.calendar_month_outlined,
                       keyboardType: TextInputType.number,
@@ -238,7 +238,7 @@ class _VehiculoFormSheetState extends State<VehiculoFormSheet> {
                     flex: 3,
                     child: _FormField(
                       controller: _placaController,
-                      label: 'Placa / MatrÃ­cula',
+                      label: 'Placa / Matrícula',
                       hint: 'ABC-123',
                       icon: Icons.pin_outlined,
                       textCapitalization: TextCapitalization.characters,
@@ -253,7 +253,7 @@ class _VehiculoFormSheetState extends State<VehiculoFormSheet> {
 
               const SizedBox(height: 40),
 
-              // BotÃ³n Guardar con estilo premium
+              // Boton Guardar con estilo premium
               SizedBox(
                 height: 56,
                 child: _isLoading
@@ -275,7 +275,7 @@ class _VehiculoFormSheetState extends State<VehiculoFormSheet> {
                         child: Text(
                           _isEditing
                               ? 'ACTUALIZAR DATOS'
-                              : 'REGISTRAR VEHÃCULO',
+                              : 'REGISTRAR VEHÍCULO',
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 15,

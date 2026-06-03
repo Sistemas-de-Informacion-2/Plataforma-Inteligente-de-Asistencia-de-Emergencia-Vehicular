@@ -184,10 +184,10 @@ class AsignacionService:
     async def obtener_asignacion_activa(self, solicitud_id: int) -> Asignacion | None:
         return await self.asignacion_repo.get_activa_de_solicitud(solicitud_id)
 
-    # ══════════════════════════════════════════════════════════
-    #  Métodos internos del algoritmo
-    # ══════════════════════════════════════════════════════════
+    async def obtener_asignacion_activa_por_empleado(self, empleado_id: int) -> Asignacion | None:
+        return await self.asignacion_repo.get_activa_de_empleado(empleado_id)
 
+    #  Métodos internos del algoritmo
     async def _obtener_servicios_compatibles_batch(
         self,
         sucursal_ids: list[int],

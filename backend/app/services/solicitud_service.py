@@ -260,6 +260,7 @@ class SolicitudService:
                 select(Asignacion)
                 .where(
                     Asignacion.empleado_id == empleado_id,
+                    Asignacion.solicitud_id != solicitud_id,
                     Asignacion.estado.in_([
                         EstadoAsignacion.PENDIENTE,
                         EstadoAsignacion.ACEPTADA,
@@ -298,6 +299,7 @@ class SolicitudService:
                 .where(
                     Asignacion.empleado_id.is_(None),
                     Asignacion.sucursal_id == sucursal_id,
+                    Asignacion.solicitud_id != solicitud_id,
                     Asignacion.estado.in_([
                         EstadoAsignacion.PENDIENTE,
                         EstadoAsignacion.ACEPTADA,
@@ -316,10 +318,11 @@ class SolicitudService:
                 )
 
         # 5. Obtener la Asignación existente (creada por seleccionar_puja)
-        asignacion = await self.asignacion_service.obtener_asignacion_activa(solicitud_id)
+        asignaciones = await self.asignacion_service.obtener_asignaciones_solicitud(solicitud_id)
+        asignacion = asignaciones[0] if asignaciones else None
         if not asignacion:
             raise ValueError(
-                f"No se encontró una asignación activa para la solicitud #{solicitud_id}."
+                f"No se encontró ninguna asignación para la solicitud #{solicitud_id}."
             )
 
         # Actualizar la asignación con el mecánico
@@ -328,6 +331,8 @@ class SolicitudService:
         if empleado_id is not None:
             # Flujo normal con empleado: requiere confirmación
             asignacion.estado = EstadoAsignacion.PENDIENTE
+            asignacion.motivo_rechazo = None
+
             await self.session.flush()
             await self.session.refresh(asignacion)
 
@@ -361,6 +366,17 @@ class SolicitudService:
                 logger.info(f"[Asignación] WS enviado al mecánico {empleado.usuario_id}")
             except Exception as e:
                 logger.error(f"[Asignación] Error WS mecánico: {e}")
+
+            # Iniciar timeout de falta de respuesta del mecánico (1 minuto)
+            import asyncio
+            asyncio.create_task(
+                verificar_respuesta_mecanico_timeout(
+                    solicitud_id=solicitud_id,
+                    asignacion_id=asignacion.id,
+                    timeout_seconds=60
+                )
+            )
+            logger.info(f"[Asignación] Tarea de timeout (60s) iniciada para asignación #{asignacion.id}")
         else:
             # Auto-asignación de Admin: Salta directamente a EN_CAMINO
             asignacion.estado = EstadoAsignacion.ACEPTADA
@@ -478,8 +494,15 @@ class SolicitudService:
             mensaje_cliente = f"{nombre_mecanico} aceptó la asignación y va en camino."
             await self.notificacion_service.enviar_a_usuario(solicitud.cliente_id, mensaje_cliente)
 
+            # Notificar al admin
+            admin_usuario_id = await self._obtener_admin_de_sucursal(asignacion.sucursal_id)
+            if admin_usuario_id:
+                mensaje_admin = f"El mecánico {nombre_mecanico} aceptó la asignación #{solicitud.id} y va en camino."
+                await self.notificacion_service.enviar_a_usuario(admin_usuario_id, mensaje_admin)
+
             try:
                 from app.api.v1.endpoints.notificaciones_ws import manager
+                # WS Cliente
                 await manager.send_personal_message(
                     {
                         "type": "MECANICO_EN_CAMINO",
@@ -494,8 +517,20 @@ class SolicitudService:
                     },
                     str(solicitud.cliente_id)
                 )
+                
+                # WS Admin
+                if admin_usuario_id:
+                    await manager.send_personal_message(
+                        {
+                            "type": "MECANICO_EN_CAMINO",
+                            "solicitud_id": solicitud.id,
+                            "asignacion_id": asignacion_id,
+                            "mensaje": mensaje_admin,
+                        },
+                        str(admin_usuario_id)
+                    )
             except Exception as e:
-                logger.error(f"[Mecánico] Error WS cliente (aceptación): {e}")
+                logger.error(f"[Mecánico] Error WS cliente/admin (aceptación): {e}")
 
         else:
             # ── RECHAZAR ──
@@ -595,8 +630,15 @@ class SolicitudService:
             asignacion.solicitud.cliente_id, mensaje
         )
 
+        # Notificar al admin
+        admin_usuario_id = await self._obtener_admin_de_sucursal(asignacion.sucursal_id)
+        if admin_usuario_id:
+            mensaje_admin = f"{nombre} ha llegado al lugar de la emergencia #{asignacion.solicitud.id}."
+            await self.notificacion_service.enviar_a_usuario(admin_usuario_id, mensaje_admin)
+
         try:
             from app.api.v1.endpoints.notificaciones_ws import manager
+            # WS Cliente
             await manager.send_personal_message(
                 {
                     "type": "MECANICO_EN_SITIO",
@@ -606,8 +648,19 @@ class SolicitudService:
                 },
                 str(asignacion.solicitud.cliente_id)
             )
+            # WS Admin
+            if admin_usuario_id:
+                await manager.send_personal_message(
+                    {
+                        "type": "MECANICO_EN_SITIO",
+                        "solicitud_id": asignacion.solicitud.id,
+                        "asignacion_id": asignacion_id,
+                        "mensaje": mensaje_admin,
+                    },
+                    str(admin_usuario_id)
+                )
         except Exception as e:
-            logger.error(f"[Llegada] Error WS cliente: {e}")
+            logger.error(f"[Llegada] Error WS cliente/admin: {e}")
 
         return asignacion
 
@@ -616,12 +669,16 @@ class SolicitudService:
         self,
         asignacion_id: int,
         usuario_id: int,
+        monto_total: float | None = None,
     ) -> Asignacion:
         """
         El mecánico o admin finaliza el trabajo.
         Asignación → COMPLETADA, Solicitud → FINALIZADO.
+        Si se provee monto_total, crea automáticamente el Pago.
         """
+        from sqlalchemy import select
         from sqlalchemy.orm import selectinload
+        from app.services.pago_service import PagoService
 
         stmt = (
             select(Asignacion)
@@ -679,6 +736,28 @@ class SolicitudService:
             )
         except Exception as e:
             logger.error(f"[Finalización] Error WS cliente: {e}")
+
+        # Si el técnico proporcionó el monto, creamos el pago automáticamente
+        if monto_total is not None:
+            try:
+                pago_service = PagoService(self.session)
+                admin_uid = await self._obtener_admin_de_sucursal(asignacion.sucursal_id)
+                if admin_uid:
+                    # El admin_uid es el usuario_id del admin, pero PagoService.crear_pago espera el admin_id (ID de la tabla Admin)
+                    from app.models.admin import Admin
+                    stmt_admin = select(Admin.id).where(Admin.usuario_id == admin_uid)
+                    res_admin = await self.session.execute(stmt_admin)
+                    admin_tabla_id = res_admin.scalar_one_or_none()
+
+                    if admin_tabla_id:
+                        await pago_service.crear_pago(
+                            solicitud_id=asignacion.solicitud.id,
+                            monto_total=monto_total,
+                            admin_id=admin_tabla_id,
+                            metodo_pago="APP"
+                        )
+            except Exception as e:
+                logger.error(f"[Finalización] Error creando el pago automático: {e}")
 
         return asignacion
 
@@ -809,3 +888,127 @@ class SolicitudService:
 
     async def obtener_evidencias(self, solicitud_id: int) -> list[Evidencia]:
         return list(await self.evidencia_repo.get_by_solicitud(solicitud_id))
+
+
+async def verificar_respuesta_mecanico_timeout(solicitud_id: int, asignacion_id: int, timeout_seconds: int = 60):
+    """
+    Background task to check if the mechanic has responded to the assignment.
+    If still PENDIENTE after timeout_seconds, it marks the assignment as RECHAZADA (timeout)
+    and resets the request status back to OFERTA_ACEPTADA.
+    """
+    import logging
+    import asyncio
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+    from app.core.database import AsyncSessionLocal
+    from app.models.asignacion import Asignacion, EstadoAsignacion
+    from app.models.solicitud_emergencia import SolicitudEmergencia, EstadoSolicitud
+    from app.models.empleado import Empleado
+    from app.models.taller import Taller, Sucursal
+    from app.models.admin import Admin
+    from app.services.notificacion_service import NotificacionService
+
+    logger = logging.getLogger(__name__)
+    logger.info(f"[Background Timeout] Iniciando espera de {timeout_seconds} segundos para asignación #{asignacion_id}")
+    await asyncio.sleep(timeout_seconds)
+    logger.info(f"[Background Timeout] Comprobando respuesta para asignación #{asignacion_id}...")
+
+    async with AsyncSessionLocal() as session:
+        try:
+            # 1. Obtener asignación con relaciones
+            stmt = (
+                select(Asignacion)
+                .where(Asignacion.id == asignacion_id)
+                .options(
+                    selectinload(Asignacion.empleado).selectinload(Empleado.usuario),
+                    selectinload(Asignacion.solicitud),
+                    selectinload(Asignacion.sucursal),
+                )
+            )
+            res = await session.execute(stmt)
+            asignacion = res.scalar_one_or_none()
+            
+            if not asignacion:
+                logger.info(f"[Background Timeout] Asignación #{asignacion_id} ya no existe.")
+                return
+
+            if asignacion.estado != EstadoAsignacion.PENDIENTE:
+                logger.info(f"[Background Timeout] El mecánico ya respondió o no está pendiente (estado: {asignacion.estado.value}). No se requiere timeout.")
+                return
+
+            # Si sigue pendiente, aplicar timeout
+            logger.warning(f"[Background Timeout] Asignación #{asignacion_id} expiró por inactividad. Aplicando rechazo automático por timeout.")
+            
+            solicitud = asignacion.solicitud
+            
+            # Cambiar estados
+            asignacion.estado = EstadoAsignacion.RECHAZADA
+            asignacion.motivo_rechazo = "No respondió a la asignación en el tiempo límite (Timeout)."
+            
+            # Liberar el mecánico de la asignación
+            nombre_mecanico = asignacion.empleado.usuario.nombre if asignacion.empleado and asignacion.empleado.usuario else "El mecánico"
+            asignacion.empleado_id = None
+            
+            # Regresar solicitud a OFERTA_ACEPTADA
+            solicitud.estado = EstadoSolicitud.OFERTA_ACEPTADA
+            
+            await session.commit()
+            logger.info(f"[Background Timeout] Asignación #{asignacion_id} rechazada por timeout. Solicitud #{solicitud.id} devuelta a OFERTA_ACEPTADA.")
+
+            # Buscar el ID del administrador de la sucursal
+            stmt_admin = (
+                select(Admin.usuario_id)
+                .join(Taller, Admin.id == Taller.admin_id)
+                .join(Sucursal, Taller.id == Sucursal.taller_id)
+                .where(Sucursal.id == asignacion.sucursal_id)
+            )
+            res_admin = await session.execute(stmt_admin)
+            admin_usuario_id = res_admin.scalar_one_or_none()
+
+            mensaje_admin = (
+                f"{nombre_mecanico} no respondió a la asignación para la emergencia #{solicitud.id} a tiempo. "
+                f"La solicitud ha sido restablecida a tu radar. Reasigna a otro técnico."
+            )
+
+            # Notificar al administrador
+            notificacion_service = NotificacionService(session)
+            if admin_usuario_id:
+                await notificacion_service.enviar_a_usuario(admin_usuario_id, mensaje_admin)
+                try:
+                    from app.api.v1.endpoints.notificaciones_ws import manager
+                    # Enviar mensaje por WS al administrador
+                    await manager.send_personal_message(
+                        {
+                            "type": "MECANICO_RECHAZO",
+                            "solicitud_id": solicitud.id,
+                            "asignacion_id": asignacion_id,
+                            "motivo": "TIMEOUT",
+                            "mensaje": mensaje_admin,
+                        },
+                        str(admin_usuario_id)
+                    )
+                    logger.info(f"[Background Timeout] WS enviado al administrador {admin_usuario_id}")
+                except Exception as ws_err:
+                    logger.error(f"[Background Timeout] Error enviando WS al administrador: {ws_err}")
+
+            # Opcional: Notificar al mecánico que su asignación expiró
+            if asignacion.empleado and asignacion.empleado.usuario_id:
+                mensaje_mecanico = f"La asignación de la emergencia #{solicitud.id} ha expirado por falta de respuesta."
+                await notificacion_service.enviar_a_usuario(asignacion.empleado.usuario_id, mensaje_mecanico)
+                try:
+                    from app.api.v1.endpoints.notificaciones_ws import manager
+                    await manager.send_personal_message(
+                        {
+                            "type": "ASIGNACION_TIMEOUT",
+                            "solicitud_id": solicitud.id,
+                            "asignacion_id": asignacion_id,
+                            "mensaje": mensaje_mecanico,
+                        },
+                        str(asignacion.empleado.usuario_id)
+                    )
+                except Exception as ws_err:
+                    logger.error(f"[Background Timeout] Error enviando WS al mecánico: {ws_err}")
+
+        except Exception as e:
+            await session.rollback()
+            logger.error(f"[Background Timeout] Error crítico en verificación de timeout: {e}", exc_info=True)

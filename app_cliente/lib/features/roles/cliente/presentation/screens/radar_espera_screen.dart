@@ -70,9 +70,11 @@ class _RadarEsperaScreenState extends State<RadarEsperaScreen> {
               ),
               child: Column(
                 children: [
-                  const Text(
-                    'Buscando talleres cercanos...',
-                    style: TextStyle(
+                  Text(
+                    emProvider.flowState == EmergenciaFlowState.waitingForMechanic 
+                      ? 'Esperando al mecánico asignado...' 
+                      : 'Buscando talleres cercanos...',
+                    style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                       color: AppTheme.textPrimary,
@@ -80,11 +82,13 @@ class _RadarEsperaScreenState extends State<RadarEsperaScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Hemos notificado a los talleres. Las ofertas aparecerán en tiempo real abajo.',
+                    emProvider.flowState == EmergenciaFlowState.waitingForMechanic 
+                      ? 'El taller está asignando al técnico ideal para tu emergencia.'
+                      : 'Hemos notificado a los talleres. Las ofertas aparecerán en tiempo real abajo.',
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
                   ),
-                  if (emProvider.recomendaciones?.diagnosticoIa != null) ...[
+                  if (emProvider.recomendaciones?.diagnosticoIa != null && emProvider.flowState != EmergenciaFlowState.waitingForMechanic) ...[
                     const SizedBox(height: 12),
                     Container(
                       decoration: BoxDecoration(
@@ -177,7 +181,7 @@ class _RadarEsperaScreenState extends State<RadarEsperaScreen> {
           ),
 
           // 4. Panel inferior de Pujas (DraggableScrollableSheet)
-          if (pujas.isNotEmpty)
+          if (pujas.isNotEmpty && emProvider.flowState != EmergenciaFlowState.waitingForMechanic)
             DraggableScrollableSheet(
               initialChildSize: 0.45,
               minChildSize: 0.25,

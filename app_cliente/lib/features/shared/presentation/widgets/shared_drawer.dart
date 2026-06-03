@@ -21,9 +21,10 @@ class _HomeDrawerState extends State<HomeDrawer>
   @override
   void initState() {
     super.initState();
+    // Animación más rápida y fluida para no consumir recursos
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 650),
     );
     _controller.forward();
   }
@@ -41,114 +42,29 @@ class _HomeDrawerState extends State<HomeDrawer>
     final mq = MediaQuery.of(context);
 
     return Drawer(
-      backgroundColor: Colors.white,
+      backgroundColor: AppTheme.backgroundColor,
+      elevation: 0,
+      width: mq.size.width * 0.85, // Un poco más ancho para más elegancia
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.horizontal(right: Radius.circular(32)),
       ),
       child: Column(
         children: [
-          // ── Header Premium con Gradiente ────────────────────
-          Container(
-            width: double.infinity,
-            padding: EdgeInsets.fromLTRB(24, mq.padding.top + 20, 24, 30),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  AppTheme.primaryColor,
-                  AppTheme.primaryColor.withAlpha(220),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: const BorderRadius.only(
-                bottomRight: Radius.circular(40),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: AppTheme.primaryColor.withValues(alpha: 0.3),
-                  blurRadius: 15,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                // Avatar con Borde Elegante
-                Container(
-                  padding: const EdgeInsets.all(3),
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                  ),
-                  child: CircleAvatar(
-                    radius: 34,
-                    backgroundColor: Colors.grey.shade100,
-                    backgroundImage: perfil?.fotoPerfil != null
-                        ? NetworkImage(perfil!.fotoPerfil!)
-                        : null,
-                    child: perfil?.fotoPerfil == null
-                        ? const Icon(
-                            Icons.person_rounded,
-                            size: 38,
-                            color: AppTheme.primaryColor,
-                          )
-                        : null,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        perfil?.nombre ?? 'Cargando...',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 19,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: -0.5,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          perfil?.email ?? 'Cliente Verificado',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
+          // ── Header Premium ────────────────────
+          _buildPremiumHeader(context, perfil, mq),
 
           // ── Menú Items con Animación Staggered ───────────────
           Expanded(
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 24, 16, 24),
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
               children: [
                 _AnimatedTile(
                   index: 0,
                   controller: _controller,
-                  icon: Icons.person_outline_rounded,
+                  icon: Icons.person_rounded,
                   label: 'Mi Perfil',
+                  subtitle: 'Datos personales y foto',
                   onTap: () {
                     Navigator.pop(context);
                     Navigator.push(
@@ -160,8 +76,9 @@ class _HomeDrawerState extends State<HomeDrawer>
                 _AnimatedTile(
                   index: 1,
                   controller: _controller,
-                  icon: Icons.directions_car_outlined,
-                  label: 'Mis Autos',
+                  icon: Icons.directions_car_rounded,
+                  label: 'Mi Garaje',
+                  subtitle: 'Gestiona tus vehículos',
                   onTap: () {
                     Navigator.pop(context);
                     Navigator.push(
@@ -174,26 +91,38 @@ class _HomeDrawerState extends State<HomeDrawer>
                   index: 2,
                   controller: _controller,
                   icon: Icons.history_rounded,
-                  label: 'Historial de Servicios',
+                  label: 'Historial',
+                  subtitle: 'Servicios anteriores',
                   onTap: () => Navigator.pop(context),
                 ),
                 _AnimatedTile(
                   index: 3,
                   controller: _controller,
-                  icon: Icons.notifications_none_rounded,
+                  icon: Icons.notifications_active_rounded,
                   label: 'Notificaciones',
+                  subtitle: 'Avisos y alertas',
                   onTap: () => Navigator.pop(context),
                 ),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  child: Divider(height: 1, color: Color(0xFFF2F2F7)),
-                ),
+                
+                const SizedBox(height: 16),
+                const Divider(height: 1, color: Color(0xFFE5E5EA)),
+                const SizedBox(height: 16),
+
                 _AnimatedTile(
                   index: 4,
                   controller: _controller,
-                  icon: Icons.settings_outlined,
+                  icon: Icons.settings_rounded,
                   label: 'Configuración',
                   onTap: () => Navigator.pop(context),
+                  isSimple: true,
+                ),
+                _AnimatedTile(
+                  index: 5,
+                  controller: _controller,
+                  icon: Icons.help_outline_rounded,
+                  label: 'Soporte y Ayuda',
+                  onTap: () => Navigator.pop(context),
+                  isSimple: true,
                 ),
               ],
             ),
@@ -201,25 +130,25 @@ class _HomeDrawerState extends State<HomeDrawer>
 
           // ── Logo Fixo Footer ────────────────────────────────
           Opacity(
-            opacity: 0.4,
+            opacity: 0.5,
             child: Padding(
-              padding: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.only(bottom: 16),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+               mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Icon(
                     Icons.bolt_rounded,
                     color: AppTheme.primaryColor,
-                    size: 18,
+                    size: 20,
                   ),
                   const SizedBox(width: 4),
                   Text(
                     'FIXO v1.0.2',
                     style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.2,
-                      color: Colors.grey.shade600,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.5,
+                      color: Colors.grey.shade700,
                     ),
                   ),
                 ],
@@ -229,11 +158,8 @@ class _HomeDrawerState extends State<HomeDrawer>
 
           // ── Botón Cerrar Sesión ──────────────────────────────
           Padding(
-            padding: EdgeInsets.fromLTRB(24, 0, 24, mq.padding.bottom + 20),
-            child: _DrawerTile(
-              icon: Icons.logout_rounded,
-              label: 'Cerrar Sesión',
-              destructive: true,
+            padding: EdgeInsets.fromLTRB(24, 0, 24, mq.padding.bottom + 24),
+            child: InkWell(
               onTap: () async {
                 Navigator.pop(context);
                 await context.read<AuthProvider>().logout();
@@ -243,8 +169,144 @@ class _HomeDrawerState extends State<HomeDrawer>
                   );
                 }
               },
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                decoration: BoxDecoration(
+                  color: AppTheme.danger.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppTheme.danger.withValues(alpha: 0.2)),
+                ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.logout_rounded, color: AppTheme.danger, size: 22),
+                    SizedBox(width: 12),
+                    Text(
+                      'Cerrar Sesión',
+                      style: TextStyle(
+                        color: AppTheme.danger,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPremiumHeader(BuildContext context, dynamic perfil, MediaQueryData mq) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.fromLTRB(24, mq.padding.top + 30, 24, 30),
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceColor,
+        borderRadius: const BorderRadius.only(
+          bottomRight: Radius.circular(40),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Avatar con Glow
+              Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.primaryColor.withValues(alpha: 0.2),
+                      blurRadius: 15,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+                child: CircleAvatar(
+                  radius: 36,
+                  backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.1),
+                  backgroundImage: perfil?.fotoPerfil != null
+                      ? NetworkImage(perfil!.fotoPerfil!)
+                      : null,
+                  child: perfil?.fotoPerfil == null
+                      ? const Icon(
+                          Icons.person_rounded,
+                          size: 40,
+                          color: AppTheme.primaryColor,
+                        )
+                      : null,
+                ),
+              ),
+              const SizedBox(width: 20),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      perfil?.nombre ?? 'Usuario',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppTheme.success.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppTheme.success.withValues(alpha: 0.3)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.verified_rounded, color: AppTheme.success, size: 14),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Cuenta Verificada',
+                            style: TextStyle(
+                              color: AppTheme.success.withValues(alpha: 0.9),
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (perfil?.email != null) ...[
+            const SizedBox(height: 16),
+            Text(
+              perfil!.email!,
+              style: const TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ]
         ],
       ),
     );
@@ -256,94 +318,145 @@ class _AnimatedTile extends StatelessWidget {
   final AnimationController controller;
   final IconData icon;
   final String label;
+  final String? subtitle;
   final VoidCallback onTap;
+  final bool isSimple;
 
   const _AnimatedTile({
     required this.index,
     required this.controller,
     required this.icon,
     required this.label,
+    this.subtitle,
     required this.onTap,
+    this.isSimple = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final start = 0.1 * index;
-    final end = start + 0.5;
+    // Staggered timing
+    final start = (0.05 * index).clamp(0.0, 1.0);
+    final end = (start + 0.4).clamp(0.0, 1.0);
 
     return AnimatedBuilder(
       animation: controller,
       builder: (context, child) {
         final animation = CurvedAnimation(
           parent: controller,
-          curve: Interval(
-            start.clamp(0.0, 1.0),
-            end.clamp(0.0, 1.0),
-            curve: Curves.easeOutCubic,
-          ),
+          curve: Interval(start, end, curve: Curves.easeOutBack), // Efecto resorte suave
         );
         return Transform.translate(
-          offset: Offset(30 * (1 - animation.value), 0),
-          child: Opacity(opacity: animation.value, child: child),
+          offset: Offset(40 * (1 - animation.value), 0),
+          child: Opacity(opacity: animation.value.clamp(0.0, 1.0), child: child),
         );
       },
-      child: _DrawerTile(icon: icon, label: label, onTap: onTap),
+      child: _DrawerItem(
+        icon: icon, 
+        label: label, 
+        subtitle: subtitle, 
+        onTap: onTap,
+        isSimple: isSimple,
+      ),
     );
   }
 }
 
-class _DrawerTile extends StatelessWidget {
+class _DrawerItem extends StatefulWidget {
   final IconData icon;
   final String label;
+  final String? subtitle;
   final VoidCallback onTap;
-  final bool destructive;
+  final bool isSimple;
 
-  const _DrawerTile({
+  const _DrawerItem({
     required this.icon,
     required this.label,
+    this.subtitle,
     required this.onTap,
-    this.destructive = false,
+    this.isSimple = false,
   });
 
   @override
-  Widget build(BuildContext context) {
-    final color = destructive ? AppTheme.danger : AppTheme.textPrimary;
+  State<_DrawerItem> createState() => _DrawerItemState();
+}
 
+class _DrawerItemState extends State<_DrawerItem> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        color: destructive ? color.withValues(alpha: 0.06) : Colors.transparent,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: ListTile(
-        onTap: onTap,
-        leading: Container(
-          padding: const EdgeInsets.all(8),
+      margin: const EdgeInsets.only(bottom: 12),
+      child: InkWell(
+        onTap: widget.onTap,
+        onHighlightChanged: (val) => setState(() => _isHovered = val),
+        borderRadius: BorderRadius.circular(20),
+        splashColor: AppTheme.primaryColor.withValues(alpha: 0.05),
+        highlightColor: AppTheme.primaryColor.withValues(alpha: 0.1),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOutCubic,
+          padding: EdgeInsets.all(widget.isSimple ? 12 : 16),
           decoration: BoxDecoration(
-            color: destructive ? Colors.transparent : Colors.grey.shade50,
-            borderRadius: BorderRadius.circular(12),
+            color: _isHovered ? AppTheme.primaryColor.withValues(alpha: 0.03) : Colors.transparent,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: _isHovered ? AppTheme.primaryColor.withValues(alpha: 0.1) : Colors.transparent,
+            ),
           ),
-          child: Icon(icon, color: color, size: 22),
-        ),
-        title: Text(
-          label,
-          style: TextStyle(
-            color: color,
-            fontSize: 15,
-            fontWeight: destructive ? FontWeight.bold : FontWeight.w600,
-          ),
-        ),
-        trailing: destructive
-            ? null
-            : const Icon(
-                Icons.chevron_right_rounded,
-                size: 20,
-                color: Color(0xFFC7C7CC),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: widget.isSimple ? Colors.grey.shade100 : AppTheme.primaryColor.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(
+                  widget.icon,
+                  color: widget.isSimple ? Colors.grey.shade700 : AppTheme.primaryColor,
+                  size: widget.isSimple ? 20 : 24,
+                ),
               ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-        visualDensity: VisualDensity.compact,
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      widget.label,
+                      style: TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontSize: widget.isSimple ? 15 : 16,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                    if (widget.subtitle != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        widget.subtitle!,
+                        style: TextStyle(
+                          color: AppTheme.textSecondary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 14,
+                color: _isHovered ? AppTheme.primaryColor : Colors.grey.shade400,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
 }
+

@@ -50,3 +50,8 @@ class MecanicoRespuestaCreate(BaseModel):
         None, max_length=500,
         description="Motivo del rechazo (requerido si aceptar=False)"
     )
+
+
+class MecanicoFinalizarCreate(BaseModel):
+    """Request body para que el mecánico finalice el trabajo y defina el monto."""
+    monto_total: float = Field(..., gt=0, description="El monto final cobrado por el servicio en Bs.")

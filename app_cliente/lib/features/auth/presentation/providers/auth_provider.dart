@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/storage/secure_storage.dart';
 import '../../../../core/network/push_notification_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 enum AuthStatus { checking, authenticated, unauthenticated }
 
@@ -78,12 +79,8 @@ class AuthProvider extends ChangeNotifier {
         final token = response.data['access_token'];
         await SecureStorage.saveToken(token);
         
-        _extractRoleFromToken(token);
-        authStatus = AuthStatus.authenticated;
+        await checkAuthStatus();
         errorMessage = '';
-        notifyListeners();
-        // Registrar token FCM tras login exitoso
-        PushNotificationService.registrarTokenEnBackend();
         return true;
       }
     } on DioException catch (e) {
@@ -149,11 +146,24 @@ class AuthProvider extends ChangeNotifier {
 
   // Logout
   Future<void> logout() async {
+    // 1. Limpiar token seguro
     await SecureStorage.deleteToken();
+    
+    // 2. Limpiar todo el caché de SharedPreferences
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.clear();
+    } catch (e) {
+      // Ignore si no está instalado
+    }
+
+    // 3. Resetear el estado en memoria de Auth
     _userId = null;
     userRole = null;
     authStatus = AuthStatus.unauthenticated;
     errorMessage = '';
+    
+    // Notificamos para que el enrutador fuerce la salida a /login
     notifyListeners();
   }
 

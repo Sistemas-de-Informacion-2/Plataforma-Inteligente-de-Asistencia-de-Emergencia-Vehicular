@@ -8,15 +8,20 @@ import '../../features/roles/cliente/presentation/screens/client_home_screen.dar
 import '../../features/roles/admin/presentation/screens/admin_home_screen.dart';
 import '../../features/roles/tecnico/presentation/screens/tecnico_home_screen.dart';
 
+import '../../features/roles/tecnico/presentation/screens/asignaciones_screen.dart';
+import '../../features/roles/tecnico/presentation/screens/mechanic_profile_screen.dart';
 
 final authNotifierProvider = Provider<AuthProvider>((ref) {
   return AuthProvider();
 });
 
+final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
+
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authNotifierProvider);
 
   return GoRouter(
+    navigatorKey: rootNavigatorKey,
     initialLocation: '/',
     // RefreshListenable hace que GoRouter re-evalúe el redirect cada vez que authState hace notifyListeners()
     refreshListenable: authState,
@@ -52,6 +57,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute( path: '/cliente-home', builder: (context, state) => const HomeScreen(), ),
       GoRoute( path: '/admin-home', builder: (context, state) => const AdminHomeScreen(), ),
       GoRoute( path: '/tecnico-home', builder: (context, state) => const TecnicoHomeScreen(), ),
+      GoRoute( path: '/tecnico-asignaciones', builder: (context, state) => const AsignacionesScreen(), ),
+      GoRoute( path: '/tecnico-perfil', builder: (context, state) => const MechanicProfileScreen(), ),
     ],
   );
 });

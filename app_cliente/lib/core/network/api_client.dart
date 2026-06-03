@@ -30,8 +30,6 @@ class ApiClient {
           if (e.response?.statusCode == 401) {
             // El token expiró o es inválido
             await SecureStorage.deleteToken();
-            // TODO: Podríamos disparar un evento global o usar navigatorKey para redirigir al Login acá, 
-            // pero lo manejaremos desde el AuthProvider para limpiar el estado
           }
           return handler.next(e);
         },

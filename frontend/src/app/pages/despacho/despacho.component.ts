@@ -22,10 +22,7 @@ import {
   selector: 'app-despacho',
   standalone: true,
   imports: [
-    CommonModule,
-    ReactiveFormsModule,
-    FormsModule,
-    MapSelectorComponent,
+    CommonModule, ReactiveFormsModule, FormsModule, MapSelectorComponent,
     LucideAngularModule
   ],
   providers: [{
@@ -142,9 +139,7 @@ export class DespachoComponent implements OnInit, OnDestroy {
     });
   }
 
-  /**
-   * Carga servicios activos (EN_PROCESO) y finalizados (ATENDIDOS)
-   */
+  /** Carga servicios activos (EN_PROCESO) y finalizados (ATENDIDOS) */
   private cargarSolicitudesPendientes(sucursalId: number) {
     console.log('[Despacho] Cargando solicitudes para sucursal:', sucursalId);
 
@@ -156,7 +151,8 @@ export class DespachoComponent implements OnInit, OnDestroy {
           mecanicoSeleccionado: null as number | null,
           montoCobro: null as number | null,
           metodoPago: 'APP' as 'APP' | 'EFECTIVO' | 'QR',
-          mostrandoCobro: false
+          mostrandoCobro: false,
+          asignando: false
         }));
 
         this.solicitudesEntrantes.set(enProcesoUI);
@@ -184,9 +180,7 @@ export class DespachoComponent implements OnInit, OnDestroy {
     });
   }
 
-  /**
-   * Carga el historial de notificaciones desde la BD y actualiza el contador
-   */
+  /** Carga el historial de notificaciones desde la BD y actualiza el contador */
   cargarNotificaciones() {
     this.notificacionesService.listarNotificaciones(false, 0, 50).subscribe({
       next: (notifs) => {
@@ -206,9 +200,7 @@ export class DespachoComponent implements OnInit, OnDestroy {
     });
   }
 
-  /**
-   * WebSocket: escucha eventos en tiempo real
-   */
+  /** WebSocket: escucha eventos en tiempo real */
   private iniciarWebsockets() {
     this.wsSubscription = this.wsService.getNotifications().subscribe({
       next: (notificacion) => {
@@ -277,17 +269,59 @@ export class DespachoComponent implements OnInit, OnDestroy {
               return o;
             }));
           }
-          else if (notificacion.type === 'SOLICITUD_CANCELADA' && notificacion.solicitud_id) {
-            // El cliente canceló la solicitud, retirarla del radar
+          else if ((notificacion.type === 'SOLICITUD_CANCELADA' || notificacion.type === 'SOS_CERRADO') && notificacion.solicitud_id) {
+            // El cliente canceló la solicitud o eligió otro taller (SOS_CERRADO)
             this.oportunidadesPuja.update(lista => lista.filter(o => o.id !== notificacion.solicitud_id));
+            if (notificacion.type === 'SOLICITUD_CANCELADA') {
+              Swal.fire({
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 4000,
+                icon: 'warning',
+                title: 'Solicitud Cancelada',
+                text: `El cliente canceló la solicitud #${notificacion.solicitud_id}.`
+              });
+            }
+          }
+          else if (notificacion.type === 'MECANICO_RECHAZO' && notificacion.solicitud_id) {
+            // El mecánico rechazó o se acabó el tiempo límite
+            // Forzar actualización inmediata del estado en la memoria local
+            this.solicitudesEntrantes.update(lista => lista.map(s => {
+              if (s.id === notificacion.solicitud_id) {
+                return { ...s, estado: 'OFERTA_ACEPTADA', asignando: false, mecanicoSeleccionado: null };
+              }
+              return s;
+            }));
+
+            if (sucursalId) {
+              this.cargarSolicitudesPendientes(sucursalId);
+              this.cargarMecanicosDisponibles(sucursalId);
+            }
+            
+            Swal.fire({
+              icon: 'warning',
+              title: 'Asignación Rechazada / Sin Respuesta',
+              text: notificacion['mensaje'] || 'El mecánico no pudo atender la asignación.',
+              confirmButtonText: 'Entendido'
+            });
+          }
+          else if ((notificacion.type === 'MECANICO_EN_CAMINO' || notificacion.type === 'MECANICO_EN_SITIO') && notificacion.solicitud_id) {
+            // El mecánico aceptó y está en camino (o en sitio)
+            this.solicitudesEntrantes.update(lista => lista.map(s => {
+              if (s.id === notificacion.solicitud_id) {
+                return { ...s, estado: notificacion.type === 'MECANICO_EN_CAMINO' ? 'EN_CAMINO' : 'EN_SITIO', asignando: false };
+              }
+              return s;
+            }));
             Swal.fire({
               toast: true,
               position: 'top-end',
               showConfirmButton: false,
               timer: 4000,
-              icon: 'warning',
-              title: 'Solicitud Cancelada',
-              text: `El cliente canceló la solicitud #${notificacion.solicitud_id}.`
+              icon: 'success',
+              title: 'Mecánico en acción',
+              text: notificacion['mensaje'] || 'El mecánico aceptó la asignación y ya está trabajando.'
             });
           }
         });
@@ -307,9 +341,7 @@ export class DespachoComponent implements OnInit, OnDestroy {
     }
   }
 
-  /**
-   * Envía una puja de precio para una oportunidad
-   */
+  /** Envía una puja de precio para una oportunidad */
   enviarPuja(solicitud: any) {
     const sucursalId = this.sucursalActiva()?.id;
     if (!sucursalId || !solicitud.id) return;
@@ -333,9 +365,7 @@ export class DespachoComponent implements OnInit, OnDestroy {
     });
   }
 
-  /**
-   * Acciones del Drawer de notificaciones
-   */
+  /** Acciones del Drawer de notificaciones */
   toggleDrawer() {
     this.notificacionesService.isDrawerOpen.update(v => !v);
   }
@@ -365,36 +395,46 @@ export class DespachoComponent implements OnInit, OnDestroy {
     });
   }
 
-  /**
-   * Asigna un técnico del taller al servicio activo (EN_PROCESO)
-   */
+  /** Asigna un técnico del taller al servicio activo (EN_PROCESO) */
   asignarTecnico(solicitud: SolicitudEmergencia) {
     const sucursalId = this.sucursalActiva()?.id;
     if (!sucursalId || !solicitud.id) return;
 
     const payload = {
-      aceptar: true,
       empleado_id: solicitud.mecanicoSeleccionado ?? null
     };
 
     console.log('[Despacho] Asignando mecánico al servicio:', solicitud.id, payload);
+    solicitud.asignando = true;
 
-    this.solicitudesService.responderSolicitud(sucursalId, solicitud.id, payload).subscribe({
+    this.solicitudesService.asignarMecanico(sucursalId, solicitud.id, payload).subscribe({
       next: () => {
         console.log('[Despacho] Mecánico asignado exitosamente');
-        Swal.fire('Éxito', 'Técnico asignado correctamente al servicio.', 'success');
+        Swal.fire({
+          toast: true,
+          position: 'top-end',
+          showConfirmButton: false,
+          timer: 3000,
+          icon: 'success',
+          title: 'Asignado',
+          text: 'Técnico asignado correctamente.'
+        });
+        
+        // Optimistic UI update
+        solicitud.estado = payload.empleado_id ? 'ESPERANDO_CONFIRMACION_MECANICO' : 'EN_CAMINO';
+        solicitud.asignando = false;
+        
         this.cargarSolicitudesPendientes(sucursalId);
       },
       error: (err) => {
+        solicitud.asignando = false;
         console.error('[Despacho] Error al asignar técnico:', err);
-        Swal.fire('Error', 'Hubo un error al asignar al técnico.', 'error');
+        Swal.fire('Error', err.error?.detail || 'Hubo un error al asignar al técnico.', 'error');
       }
     });
   }
 
-  /**
-   * UI de Cobro final
-   */
+  /** UI de Cobro final*/
   mostrarModalCobro(solicitud: SolicitudEmergencia) {
     this.solicitudesEntrantes.update(solicitudes =>
       solicitudes.map(s =>

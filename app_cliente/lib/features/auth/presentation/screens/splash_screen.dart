@@ -1,15 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
-
-// Widgets de splash
 import '../widgets/splash/splash_background.dart';
 import '../widgets/splash/splash_content.dart';
 import '../widgets/splash/splash_footer.dart';
 
-/// SplashScreen ahora es puramente visual.
-/// La lógica de redirección por rol se maneja en app_router.dart (redirect).
-/// Cuando AuthProvider termina checkAuthStatus() y hace notifyListeners(),
-/// GoRouter re-evalúa el redirect y navega automáticamente.
+// SplashScreen cumple con lo siguiente: 
+//- Es puramente visual
+//- La lógica de redirección por rol se maneja en app_router.dart (redirect)
+//- Cuando AuthProvider termina checkAuthStatus() y hace notifyListeners(), GoRouter re-evalúa el redirect y navega automáticamente
+
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 

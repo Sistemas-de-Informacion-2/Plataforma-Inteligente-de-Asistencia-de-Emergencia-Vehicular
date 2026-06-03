@@ -19,8 +19,10 @@ enum EmergenciaFlowState {
   sendingSelection,
   waitingForShopResponse,
   waitingForBids,
+  waitingForMechanic,
   serviceInProgress,
   accepted,
+  arrived,
   rejected,
   timeout,
   error,
@@ -114,7 +116,15 @@ class EmergenciaProvider extends ChangeNotifier {
         } else if (estado == 'EN_PROCESO') {
           // Restaurar Seguimiento
           _flowState = EmergenciaFlowState.serviceInProgress;
-          // TODO: Mapear asignación si existe en data['asignaciones']
+          
+          if (data['asignaciones'] != null && (data['asignaciones'] as List).isNotEmpty) {
+            final asigActiva = (data['asignaciones'] as List).firstWhere(
+              (a) => a['estado'] == 'ACEPTADA' || a['estado'] == 'EN_CAMINO' || a['estado'] == 'EN_SITIO',
+              orElse: () => data['asignaciones'][0],
+            );
+            _asignacion = AsignacionModel.fromJson(asigActiva);
+          }
+
           await connectWebSocket();
           notifyListeners();
         }
@@ -161,7 +171,7 @@ class EmergenciaProvider extends ChangeNotifier {
       _timeoutTimer = null;
       _recomendaciones = null;
       
-      // Parsear la asignación y cargar coords para el tracking
+      // Parsear la asignación inicial (sucursal)
       if (msg['sucursal'] != null) {
         _asignacion = AsignacionModel(
           tiempoEstimado: (msg['tiempo_estimado'] as num?)?.toDouble(),
@@ -169,27 +179,36 @@ class EmergenciaProvider extends ChangeNotifier {
         );
       }
 
+      // Nos quedamos esperando al mecánico
+      _flowState = EmergenciaFlowState.waitingForMechanic;
+      notifyListeners();
+    }
+    // Cuando el mecánico acepta la asignación
+    else if (type == 'MECANICO_EN_CAMINO') {
       if (_solicitudId != null) {
         final detalle = await _repository.obtenerDetalleIncidente(_solicitudId!);
-        if (detalle != null && _asignacion?.sucursal != null) {
-          final latTaller = _asignacion!.sucursal!['latitud'] as double?;
-          final lngTaller = _asignacion!.sucursal!['longitud'] as double?;
+        final mecanicoData = msg['mecanico'];
+        
+        if (detalle != null && mecanicoData != null) {
+          final latTaller = mecanicoData['latitud'] as double?;
+          final lngTaller = mecanicoData['longitud'] as double?;
           final latCliente = detalle['latitud'] as double?;
           final lngCliente = detalle['longitud'] as double?;
 
           if (latTaller != null && lngTaller != null && latCliente != null && lngCliente != null) {
             _mechanicLocation = LatLng(latTaller, lngTaller);
             await _fetchRoute(lngTaller, latTaller, lngCliente, latCliente);
-            _startMechanicSimulation(LatLng(latTaller, lngTaller), LatLng(latCliente, lngCliente));
+            // Ya no simulamos si vamos a recibir coords reales
+            // _startMechanicSimulation(LatLng(latTaller, lngTaller), LatLng(latCliente, lngCliente));
           }
         }
       }
 
       _flowState = EmergenciaFlowState.accepted;
-      onPujaAceptadaCallback?.call();
+      onPujaAceptadaCallback?.call(); // Este trigger nos mandará al mapa de tracking
       notifyListeners();
     }
-    // Mantener compatibilidad con el flujo antiguo temporalmente
+  // Mantener compatibilidad con el flujo antiguo temporalmente
     else if (type == 'SOLICITUD_ACEPTADA_TALLER') {
       _timeoutTimer?.cancel();
       _timeoutTimer = null;
@@ -210,12 +229,23 @@ class EmergenciaProvider extends ChangeNotifier {
           if (latTaller != null && lngTaller != null && latCliente != null && lngCliente != null) {
             _mechanicLocation = LatLng(latTaller, lngTaller);
             await _fetchRoute(lngTaller, latTaller, lngCliente, latCliente);
-            _startMechanicSimulation(LatLng(latTaller, lngTaller), LatLng(latCliente, lngCliente));
+            // _startMechanicSimulation(LatLng(latTaller, lngTaller), LatLng(latCliente, lngCliente));
           }
         }
       }
 
       _flowState = EmergenciaFlowState.accepted;
+      onPujaAceptadaCallback?.call();
+      notifyListeners();
+    } else if (type == 'MECANICO_UBICACION') {
+      final lat = msg['latitud'] as double?;
+      final lng = msg['longitud'] as double?;
+      if (lat != null && lng != null) {
+        _mechanicLocation = LatLng(lat, lng);
+        notifyListeners();
+      }
+    } else if (type == 'MECANICO_EN_SITIO') {
+      _flowState = EmergenciaFlowState.arrived;
       notifyListeners();
     } else if (type == 'SOLICITUD_RECHAZADA_TALLER') {
       _timeoutTimer?.cancel();
@@ -260,36 +290,6 @@ class EmergenciaProvider extends ChangeNotifier {
       _etaText = '${(durationSecs / 60).ceil()} min';
       notifyListeners();
     }
-  }
-
-  void _startMechanicSimulation(LatLng start, LatLng end) {
-    _mechanicSimTimer?.cancel();
-    
-    // Simula movimiento cada 5 segundos interpolando hacia el destino
-    double currentLat = start.latitude;
-    double currentLng = start.longitude;
-    final double stepLat = (end.latitude - start.latitude) / 20; // 20 pasos
-    final double stepLng = (end.longitude - start.longitude) / 20;
-    
-    int step = 0;
-    _mechanicSimTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
-      if (step >= 20) {
-        timer.cancel();
-        return;
-      }
-      step++;
-      currentLat += stepLat;
-      currentLng += stepLng;
-      
-      // Enviar al WS (Simulando que el mecánico lo envía, pero el WS del backend espera UPDATE_LOCATION)
-      // Como esto es simulación de prueba en el cliente, actualizamos directo.
-      _mechanicLocation = LatLng(currentLat, currentLng);
-      // Simular reducción de ETA
-      if (_polylineCoords.isNotEmpty) {
-         _etaText = '${((20 - step) * 0.5).ceil()} min';
-      }
-      notifyListeners();
-    });
   }
 
   void _startTimeout() {

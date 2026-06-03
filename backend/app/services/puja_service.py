@@ -232,6 +232,11 @@ class PujaService:
         sucursal = await self.session.get(Sucursal, puja.sucursal_id)
         taller = await self.session.get(Taller, sucursal.taller_id) if sucursal else None
 
+        # Hacer commit explícito para que el cambio de estado esté en BD
+        # ANTES de enviar los websockets. Esto evita race conditions donde el
+        # frontend recibe el WS, consulta la BD y la BD todavía no actualizó el estado.
+        await self.session.commit()
+
         # 8. Notificaciones WebSocket
         try:
             from app.api.v1.endpoints.notificaciones_ws import manager
@@ -283,7 +288,7 @@ class PujaService:
                     )
                 )
 
-            # A los talleres perdedores: tu puja fue rechazada
+            # A los talleres perdedores (que sí enviaron puja): tu puja fue rechazada
             import asyncio
             pujas_perdedoras = await self.puja_repo.get_by_solicitud(solicitud_id)
             tareas_notificacion = []
@@ -306,6 +311,12 @@ class PujaService:
 
             if tareas_notificacion:
                 await asyncio.gather(*tareas_notificacion)
+
+            # Broadcast general para quitar la solicitud de los radares de los que NO pujaron
+            await manager.broadcast({
+                "type": "SOS_CERRADO",
+                "solicitud_id": solicitud_id,
+            })
 
         except Exception as e:
             logger.error(f"[Match] Error en notificaciones WebSocket: {e}")

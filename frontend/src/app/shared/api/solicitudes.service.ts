@@ -44,6 +44,7 @@ export interface SolicitudEmergencia {
   montoCobro?: number | null;
   metodoPago?: 'APP' | 'EFECTIVO' | 'QR';
   mostrandoCobro?: boolean;
+  asignando?: boolean;
   asignaciones?: any[];
   monto_cobrado?: number | null;
   // Campos legacy (usados por DashboardComponent)
@@ -53,7 +54,6 @@ export interface SolicitudEmergencia {
   fecha?: string;
   resumen_ia?: string;
   clasificacion_ia?: string;
-  [key: string]: any;
 }
 
 @Injectable({
@@ -88,8 +88,7 @@ export class SolicitudesService {
   }
 
   /** Obtiene las solicitudes atendidas (finalizadas).
-   * GET /api/v1/sucursales/{sucursalId}/solicitudes/atendidas
-   */
+   * GET /api/v1/sucursales/{sucursalId}/solicitudes/atendidas */
   getAtendidasPorSucursal(sucursalId: number): Observable<SolicitudEmergencia[]> {
     return this.http.get<SolicitudEmergencia[]>(
       `${this.SUCURSALES_URL}/${sucursalId}/solicitudes/atendidas`
@@ -98,31 +97,27 @@ export class SolicitudesService {
 
   /** Obtiene el detalle completo de una solicitud (con evidencias y diagnóstico).
    * Usado cuando llega un WebSocket con solo el solicitud_id.
-   * GET /api/v1/incidentes/{solicitudId}
-   */
+   * GET /api/v1/incidentes/{solicitudId} */
   getDetalleSolicitud(solicitudId: number): Observable<SolicitudEmergencia> {
     return this.http.get<SolicitudEmergencia>(
       `${this.INCIDENTES_URL}/${solicitudId}`
     );
   }
 
-  /** Legacy: Obtiene solicitudes pendientes (estado PENDIENTE).
-   * Usado por DashboardComponent.
-   */
+  /** Legacy: Obtiene solicitudes pendientes (estado PENDIENTE). Usado por DashboardComponent. */
   getPendientes(): Observable<SolicitudEmergencia[]> {
     return this.http.get<SolicitudEmergencia[]>(`${this.API_URL}/pendientes`);
   }
 
-  /** Envía la respuesta del taller (aceptar/rechazar).
-   * POST /api/v1/sucursales/{sucursalId}/solicitudes/{solicitudId}/respuesta
-   */
-  responderSolicitud(
+  /** Envía la respuesta del taller (asignar mecánico).
+   * POST /api/v1/sucursales/{sucursalId}/solicitudes/{solicitudId}/asignar */
+  asignarMecanico(
     sucursalId: number,
     solicitudId: number,
-    payload: { aceptar: boolean; empleado_id?: number | null }
+    payload: { empleado_id?: number | null }
   ): Observable<any> {
     return this.http.post(
-      `${this.SUCURSALES_URL}/${sucursalId}/solicitudes/${solicitudId}/respuesta`,
+      `${this.SUCURSALES_URL}/${sucursalId}/solicitudes/${solicitudId}/asignar`,
       payload
     );
   }

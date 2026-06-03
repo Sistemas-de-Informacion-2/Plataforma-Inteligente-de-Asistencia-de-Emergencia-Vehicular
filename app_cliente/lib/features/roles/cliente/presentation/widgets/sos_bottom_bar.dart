@@ -70,7 +70,7 @@ class SosBottomBar extends StatelessWidget {
                           ),
                         ),
 
-                      // Ãrea de texto o indicador de grabaciÃ³n
+                      // Area de texto o indicador de grabacion
                       AnimatedSwitcher(
                         duration: const Duration(milliseconds: 300),
                         child: inicioProvider.isRecording
@@ -78,24 +78,24 @@ class SosBottomBar extends StatelessWidget {
                             : _DescriptionField(inicioProvider: inicioProvider),
                       ),
 
-                      // Fila de botones de acciÃ³n (MÃ¡s grandes para dedos gruesos)
+                      // Fila de botones de accion (Mas grandes para dedos gruesos)
                       Padding(
                         padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            // BotÃ³n de adjuntar
+                            // Boton de adjuntar
                             IconButton(
                               icon: const Icon(
                                 Icons.add_circle_outline_rounded,
                               ),
                               color: AppTheme.textSecondary,
-                              iconSize: 32, // MÃ¡s grande
+                              iconSize: 32, // Mas grande
                               constraints: const BoxConstraints(
                                 minWidth: 48,
                                 minHeight: 48,
-                              ), // Ãrea tÃ¡ctil amplia
+                              ), // Area tactil amplia
                               padding: EdgeInsets.zero,
                               onPressed: () =>
                                   onShowAttachments(inicioProvider),
@@ -114,11 +114,11 @@ class SosBottomBar extends StatelessWidget {
                                   color: inicioProvider.isRecording
                                       ? AppTheme.danger
                                       : AppTheme.textSecondary,
-                                  iconSize: 32, // MÃ¡s grande
+                                  iconSize: 32, // Mas grande
                                   constraints: const BoxConstraints(
                                     minWidth: 48,
                                     minHeight: 48,
-                                  ), // Ãrea tÃ¡ctil amplia
+                                  ), // Area tactil amplia
                                   padding: EdgeInsets.zero,
                                   onPressed: () => onRecord(inicioProvider),
                                 ),
@@ -202,7 +202,7 @@ class _RecordingIndicatorState extends State<_RecordingIndicator>
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 56, // Un poco mÃ¡s alto
+      height: 56, // Un poco mas alto
       padding: const EdgeInsets.symmetric(horizontal: 16),
       alignment: Alignment.centerLeft,
       child: Row(
@@ -211,7 +211,7 @@ class _RecordingIndicatorState extends State<_RecordingIndicator>
             opacity: _controller,
             child: Container(
               width: 12,
-              height: 12, // Punto mÃ¡s grande
+              height: 12, // Punto mas grande
               decoration: const BoxDecoration(
                 color: AppTheme.danger,
                 shape: BoxShape.circle,
@@ -245,7 +245,7 @@ class _SendButton extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        width: 48, // Ãrea tÃ¡ctil mÃ¡s grande
+        width: 48, // Area tactil mas grande
         height: 48,
         decoration: BoxDecoration(
           color: isActive ? AppTheme.primaryColor : Colors.grey.shade300,
@@ -254,7 +254,7 @@ class _SendButton extends StatelessWidget {
         child: const Icon(
           Icons.arrow_upward_rounded,
           color: Colors.white,
-          size: 26, // Ãcono mÃ¡s grande
+          size: 26, // Icono mas grande
         ),
       ),
     );
