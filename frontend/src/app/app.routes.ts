@@ -14,18 +14,18 @@ import { DespachoComponent } from './pages/despacho/despacho.component';
 
 export const routes: Routes = [
   // Rutas públicas
-  { 
-    path: 'login', 
-    component: LoginComponent 
+  {
+    path: 'login',
+    component: LoginComponent
   },
   {
     path: 'registro-taller',
     component: RegistroTallerComponent
   },
-  
+
   // Rutas protegidas — Admin de Taller (ADMIN_TALLER)
-  { 
-    path: '', 
+  {
+    path: '',
     component: AdminLayoutComponent,
     canActivate: [authGuard],
     children: [
@@ -34,7 +34,8 @@ export const routes: Routes = [
       { path: 'sucursales', component: SucursalesComponent },
       { path: 'tecnicos', component: TecnicosComponent },
       { path: 'perfil', component: PerfilComponent },
-      { path: 'finanzas', loadComponent: () => import('./pages/finanzas/finanzas').then(m => m.Finanzas) }
+      { path: 'finanzas', loadComponent: () => import('./pages/finanzas/finanzas').then(m => m.Finanzas) },
+      { path: 'dashboard', loadComponent: () => import('./pages/sucursales/ta-dashboard/ta-dashboard.component').then(m => m.TaDashboardComponent) },
     ]
   },
 
@@ -44,10 +45,11 @@ export const routes: Routes = [
     component: SuperAdminLayoutComponent,
     canActivate: [authGuard],
     children: [
-      { path: '', redirectTo: 'servicios', pathMatch: 'full' },
+      { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
       { path: 'servicios', component: SaServiciosComponent },
       { path: 'usuarios', component: SaUsuariosComponent },
-      { path: 'roles', loadComponent: () => import('./pages/super-admin/sa-roles/sa-roles.component').then(m => m.SaRolesComponent) }
+      { path: 'roles', loadComponent: () => import('./pages/super-admin/sa-roles/sa-roles.component').then(m => m.SaRolesComponent) },
+      { path: 'dashboard', loadComponent: () => import('./pages/super-admin/sa-dashboard/sa-dashboard.component').then(m => m.SaDashboardComponent) },
     ]
   },
 

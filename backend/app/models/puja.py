@@ -41,6 +41,9 @@ class Puja(Base):
     fecha: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+    fecha_aceptacion: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     # FK
     solicitud_id: Mapped[int] = mapped_column(
