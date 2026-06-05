@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../../../core/theme/app_theme.dart';
 import '../providers/emergencia_provider.dart';
 import '../providers/inicio_provider.dart';
 import 'attachments_row.dart';
 
+// Widget que representa la barra inferior de la pantalla SOS.
+// Contiene campo de descripción, adjuntos, grabación y envío.
 class SosBottomBar extends StatelessWidget {
   final InicioProvider inicioProvider;
   final EmergenciaProvider emergenciaProvider;
@@ -22,114 +25,117 @@ class SosBottomBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hasAttachments =
-        inicioProvider.imagenesSeleccionadas.isNotEmpty ||
+    final hasAttachments = inicioProvider.imagenesSeleccionadas.isNotEmpty ||
         inicioProvider.recordedAudio != null;
+
     return Align(
       alignment: Alignment.bottomCenter,
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 10,
-              offset: const Offset(0, -4),
-            ),
-          ],
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          boxShadow: AppTheme.bottomBarShadow,
         ),
         child: SafeArea(
           top: false,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Contenedor principal unificado (Adjuntos + Texto + Botones)
+                // Handle drag indicator
+                Container(
+                  width: 36,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+
+                // Contenedor de entrada unificado
                 Container(
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF2F2F7), // Fondo unificado
-                    borderRadius: BorderRadius.circular(24),
+                    color: const Color(0xFFF3F4F6),
+                    borderRadius: BorderRadius.circular(22),
+                    border: Border.all(
+                      color: Colors.grey.shade200,
+                      width: 1,
+                    ),
                   ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      // Fila de adjuntos (ahora dentro del contenedor gris)
-                      if (hasAttachments)
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                          child: AttachmentsRow(
-                            imagenes: inicioProvider.imagenesSeleccionadas,
-                            audio: inicioProvider.recordedAudio,
-                            onRemoveImage: inicioProvider.removeImage,
-                            onRemoveAudio: inicioProvider.removeAudio,
-                            isPlayingAudio: inicioProvider.isPlayingAudio,
-                            onToggleAudio: inicioProvider.toggleAudioPlayback,
-                          ),
-                        ),
+                      // Adjuntos (visible solo cuando existen)
+                      AnimatedSize(
+                        duration: const Duration(milliseconds: 280),
+                        curve: Curves.easeOutCubic,
+                        child: hasAttachments
+                            ? Padding(
+                                padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
+                                child: AttachmentsRow(
+                                  imagenes: inicioProvider.imagenesSeleccionadas,
+                                  audio: inicioProvider.recordedAudio,
+                                  onRemoveImage: inicioProvider.removeImage,
+                                  onRemoveAudio: inicioProvider.removeAudio,
+                                  isPlayingAudio: inicioProvider.isPlayingAudio,
+                                  onToggleAudio: inicioProvider.toggleAudioPlayback,
+                                ),
+                              )
+                            : const SizedBox.shrink(),
+                      ),
 
-                      // Area de texto o indicador de grabacion
+                      // Campo de texto / indicador de grabación
                       AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 300),
+                        duration: const Duration(milliseconds: 280),
+                        switchInCurve: Curves.easeOutCubic,
+                        switchOutCurve: Curves.easeIn,
+                        transitionBuilder: (child, anim) {
+                          return FadeTransition(
+                            opacity: anim,
+                            child: SlideTransition(
+                              position: Tween<Offset>(
+                                begin: const Offset(0, 0.15),
+                                end: Offset.zero,
+                              ).animate(anim),
+                              child: child,
+                            ),
+                          );
+                        },
                         child: inicioProvider.isRecording
-                            ? _RecordingIndicator()
+                            ? const _RecordingIndicator()
                             : _DescriptionField(inicioProvider: inicioProvider),
                       ),
 
-                      // Fila de botones de accion (Mas grandes para dedos gruesos)
+                      // Fila de botones de acción
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+                        padding: const EdgeInsets.fromLTRB(6, 0, 6, 6),
                         child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          crossAxisAlignment: CrossAxisAlignment.end,
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            // Boton de adjuntar
-                            IconButton(
-                              icon: const Icon(
-                                Icons.add_circle_outline_rounded,
-                              ),
-                              color: AppTheme.textSecondary,
-                              iconSize: 32, // Mas grande
-                              constraints: const BoxConstraints(
-                                minWidth: 48,
-                                minHeight: 48,
-                              ), // Area tactil amplia
-                              padding: EdgeInsets.zero,
-                              onPressed: () =>
-                                  onShowAttachments(inicioProvider),
+                            // Adjuntar
+                            _BarIconButton(
+                              icon: Icons.add_circle_outline_rounded,
+                              onTap: () => onShowAttachments(inicioProvider),
+                              tooltip: 'Adjuntar archivo',
                             ),
 
-                            // Botones Mic y Enviar
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  icon: Icon(
-                                    inicioProvider.isRecording
-                                        ? Icons.stop_circle_rounded
-                                        : Icons.mic_none_rounded,
-                                  ),
-                                  color: inicioProvider.isRecording
-                                      ? AppTheme.danger
-                                      : AppTheme.textSecondary,
-                                  iconSize: 32, // Mas grande
-                                  constraints: const BoxConstraints(
-                                    minWidth: 48,
-                                    minHeight: 48,
-                                  ), // Area tactil amplia
-                                  padding: EdgeInsets.zero,
-                                  onPressed: () => onRecord(inicioProvider),
-                                ),
-                                const SizedBox(width: 8),
-                                _SendButton(
-                                  isActive: inicioProvider.hasContent,
-                                  onTap: inicioProvider.hasContent
-                                      ? onSendSOS
-                                      : () {},
-                                ),
-                              ],
+                            const Spacer(),
+
+                            // Micrófono
+                            _MicButton(
+                              isRecording: inicioProvider.isRecording,
+                              onTap: () => onRecord(inicioProvider),
+                            ),
+
+                            const SizedBox(width: 8),
+
+                            // Enviar
+                            _SendButton(
+                              isActive: inicioProvider.hasContent,
+                              onTap: inicioProvider.hasContent ? onSendSOS : null,
                             ),
                           ],
                         ),
@@ -146,6 +152,8 @@ class SosBottomBar extends StatelessWidget {
   }
 }
 
+// Sub-widgets internos
+
 class _DescriptionField extends StatelessWidget {
   final InicioProvider inicioProvider;
   const _DescriptionField({required this.inicioProvider});
@@ -153,23 +161,27 @@ class _DescriptionField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(top: 8, bottom: 4),
+      padding: const EdgeInsets.only(top: 6, bottom: 2),
       child: TextField(
         controller: inicioProvider.descripcionController,
         minLines: 1,
         maxLines: 5,
         textCapitalization: TextCapitalization.sentences,
         style: const TextStyle(
-          fontSize: 16,
+          fontSize: 15,
           fontWeight: FontWeight.w400,
           color: AppTheme.textPrimary,
+          height: 1.4,
         ),
         decoration: InputDecoration(
           hintText: 'Describe tu emergencia...',
-          hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: 16),
+          hintStyle: TextStyle(
+            color: Colors.grey.shade400,
+            fontSize: 15,
+          ),
           border: InputBorder.none,
           isDense: true,
-          contentPadding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+          contentPadding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
         ),
       ),
     );
@@ -177,54 +189,64 @@ class _DescriptionField extends StatelessWidget {
 }
 
 class _RecordingIndicator extends StatefulWidget {
+  const _RecordingIndicator();
+
   @override
   State<_RecordingIndicator> createState() => _RecordingIndicatorState();
 }
 
 class _RecordingIndicatorState extends State<_RecordingIndicator>
     with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
+  late final AnimationController _blinkCtrl;
+
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
+    _blinkCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 1),
+      duration: const Duration(milliseconds: 900),
     )..repeat(reverse: true);
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _blinkCtrl.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 56, // Un poco mas alto
+      height: 52,
       padding: const EdgeInsets.symmetric(horizontal: 16),
       alignment: Alignment.centerLeft,
       child: Row(
         children: [
           FadeTransition(
-            opacity: _controller,
+            opacity: _blinkCtrl,
             child: Container(
-              width: 12,
-              height: 12, // Punto mas grande
-              decoration: const BoxDecoration(
+              width: 10,
+              height: 10,
+              decoration: BoxDecoration(
                 color: AppTheme.danger,
                 shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: AppTheme.danger.withValues(alpha: 0.5),
+                    blurRadius: 8,
+                    spreadRadius: 2,
+                  ),
+                ],
               ),
             ),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 12),
           const Text(
             'Grabando nota de voz...',
             style: TextStyle(
               color: AppTheme.danger,
               fontWeight: FontWeight.w600,
-              fontSize: 16,
+              fontSize: 15,
             ),
           ),
         ],
@@ -233,28 +255,148 @@ class _RecordingIndicatorState extends State<_RecordingIndicator>
   }
 }
 
-class _SendButton extends StatelessWidget {
-  final bool isActive;
+/// Botón de icono compacto para la barra inferior (adjuntar, etc.)
+class _BarIconButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+  final String? tooltip;
+
+  const _BarIconButton({
+    required this.icon,
+    required this.onTap,
+    this.tooltip,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final btn = GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap();
+      },
+      child: Padding(
+        padding: const EdgeInsets.all(8),
+        child: Icon(
+          icon,
+          size: 28,
+          color: AppTheme.textSecondary,
+        ),
+      ),
+    );
+    return tooltip != null ? Tooltip(message: tooltip!, child: btn) : btn;
+  }
+}
+
+/// Botón de micrófono con animación de color entre estados
+class _MicButton extends StatelessWidget {
+  final bool isRecording;
   final VoidCallback onTap;
 
-  const _SendButton({required this.isActive, required this.onTap});
+  const _MicButton({required this.isRecording, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: () {
+        HapticFeedback.mediumImpact();
+        onTap();
+      },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        width: 48, // Area tactil mas grande
-        height: 48,
+        curve: Curves.easeInOut,
+        padding: const EdgeInsets.all(6),
         decoration: BoxDecoration(
-          color: isActive ? AppTheme.primaryColor : Colors.grey.shade300,
-          shape: BoxShape.circle,
+          color: isRecording
+              ? AppTheme.danger.withValues(alpha: 0.1)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
         ),
-        child: const Icon(
-          Icons.arrow_upward_rounded,
-          color: Colors.white,
-          size: 26, // Icono mas grande
+        child: Icon(
+          isRecording ? Icons.stop_circle_rounded : Icons.mic_none_rounded,
+          size: 28,
+          color: isRecording ? AppTheme.danger : AppTheme.textSecondary,
+        ),
+      ),
+    );
+  }
+}
+
+/// Botón de envío con transición de color activo/inactivo y scale press
+class _SendButton extends StatefulWidget {
+  final bool isActive;
+  final VoidCallback? onTap;
+
+  const _SendButton({required this.isActive, this.onTap});
+
+  @override
+  State<_SendButton> createState() => _SendButtonState();
+}
+
+class _SendButtonState extends State<_SendButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pressCtrl;
+  late final Animation<double> _scaleAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _pressCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 90),
+      reverseDuration: const Duration(milliseconds: 180),
+    );
+    _scaleAnim = Tween<double>(begin: 1.0, end: 0.88).animate(
+      CurvedAnimation(parent: _pressCtrl, curve: Curves.easeOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _pressCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: widget.isActive
+          ? (_) {
+              _pressCtrl.forward();
+              HapticFeedback.mediumImpact();
+            }
+          : null,
+      onTapUp: widget.isActive
+          ? (_) {
+              _pressCtrl.reverse();
+              widget.onTap?.call();
+            }
+          : null,
+      onTapCancel: widget.isActive ? () => _pressCtrl.reverse() : null,
+      child: ScaleTransition(
+        scale: _scaleAnim,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeInOut,
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: widget.isActive ? AppTheme.primaryColor : Colors.grey.shade200,
+            shape: BoxShape.circle,
+            boxShadow: widget.isActive
+                ? [
+                    BoxShadow(
+                      color: AppTheme.primaryColor.withValues(alpha: 0.35),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ]
+                : [],
+          ),
+          child: Icon(
+            Icons.arrow_upward_rounded,
+            color: widget.isActive ? Colors.white : Colors.grey.shade400,
+            size: 22,
+          ),
         ),
       ),
     );

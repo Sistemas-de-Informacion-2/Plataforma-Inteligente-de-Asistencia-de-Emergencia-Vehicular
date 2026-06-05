@@ -35,6 +35,7 @@ class EmergenciaProvider extends ChangeNotifier {
   late final ReportarEmergenciaUseCase _reportarUseCase;
   late final SeleccionarTallerUseCase _seleccionarUseCase;
   final WebSocketService _wsService = WebSocketService();
+  WebSocketService get wsService => _wsService;
 
   // ── Estado ──────────────────────────────────────────────────
   EmergenciaFlowState _flowState = EmergenciaFlowState.initial;

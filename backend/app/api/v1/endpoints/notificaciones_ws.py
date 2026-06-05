@@ -50,6 +50,13 @@ async def websocket_endpoint(websocket: WebSocket, token: str | None = None):
                     if cliente_id:
                         # Enviamos el mismo mensaje al cliente
                         await manager.send_personal_message(msg_json, str(cliente_id))
+                        
+                # Reenvío de señalización de llamadas VoIP
+                elif msg_json.get("type") in ["CALL_OFFER", "CALL_ANSWER", "CALL_END", "CALL_DECLINE"]:
+                    target_id = msg_json.get("target_id")
+                    if target_id:
+                        msg_json["sender_id"] = usuario_id
+                        await manager.send_personal_message(msg_json, str(target_id))
                                 
             except json.JSONDecodeError:
                 pass

@@ -9,6 +9,7 @@ class AsignacionEntity {
   final double? latitud;
   final double? longitud;
   final String? motivoRechazo;
+  final int? clienteId;
 
   AsignacionEntity({
     required this.id,
@@ -21,6 +22,7 @@ class AsignacionEntity {
     this.latitud,
     this.longitud,
     this.motivoRechazo,
+    this.clienteId,
   });
 
   factory AsignacionEntity.fromSolicitudMap(Map<String, dynamic> asignacionMap, Map<String, dynamic> solicitudMap) {
@@ -39,6 +41,7 @@ class AsignacionEntity {
       latitud: (solicitudMap['latitud'] is num) ? (solicitudMap['latitud'] as num).toDouble() : null,
       longitud: (solicitudMap['longitud'] is num) ? (solicitudMap['longitud'] as num).toDouble() : null,
       motivoRechazo: asignacionMap['motivo_rechazo'],
+      clienteId: solicitudMap['cliente_id'],
     );
   }
 }

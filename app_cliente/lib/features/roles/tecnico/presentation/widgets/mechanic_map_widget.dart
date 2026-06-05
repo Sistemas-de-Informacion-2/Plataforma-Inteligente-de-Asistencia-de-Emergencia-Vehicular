@@ -18,6 +18,8 @@ class MechanicMapWidget extends ConsumerStatefulWidget {
 
 class _MechanicMapWidgetState extends ConsumerState<MechanicMapWidget> with TickerProviderStateMixin {
   final MapController _mapController = MapController();
+  final GlobalKey _pulseMarkerKey = GlobalKey();
+  final GlobalKey _clientMarkerKey = GlobalKey();
   LatLng _currentLocation = const LatLng(-17.7833, -63.1821); // Default Santa Cruz
   StreamSubscription<Position>? _positionStream;
   bool _isMapReady = false;
@@ -161,12 +163,12 @@ class _MechanicMapWidgetState extends ConsumerState<MechanicMapWidget> with Tick
                   Marker(
                     point: emergencyLocation,
                     width: 70, height: 70,
-                    child: const _ClientMarker(),
+                    child: _ClientMarker(key: _clientMarkerKey),
                   ),
                 Marker(
                   point: _currentLocation,
                   width: 80, height: 80,
-                  child: const _PulseMarker(),
+                  child: _PulseMarker(key: _pulseMarkerKey),
                 ),
               ],
             ),
@@ -219,7 +221,7 @@ class _MechanicMapWidgetState extends ConsumerState<MechanicMapWidget> with Tick
 
 // ── Custom Markers ────────────────────────────────────────────────────────────
 class _PulseMarker extends StatefulWidget {
-  const _PulseMarker();
+  const _PulseMarker({super.key});
 
   @override
   State<_PulseMarker> createState() => _PulseMarkerState();
@@ -280,7 +282,7 @@ class _PulseMarkerState extends State<_PulseMarker> with SingleTickerProviderSta
 }
 
 class _ClientMarker extends StatelessWidget {
-  const _ClientMarker();
+  const _ClientMarker({super.key});
 
   @override
   Widget build(BuildContext context) {

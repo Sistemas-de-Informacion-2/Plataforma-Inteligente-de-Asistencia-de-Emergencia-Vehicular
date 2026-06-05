@@ -113,6 +113,15 @@ class WebSocketService {
     });
   }
 
+  /// Envía un mensaje JSON al backend si está conectado.
+  void sendMessage(Map<String, dynamic> message) {
+    if (_channel != null) {
+      _channel!.sink.add(jsonEncode(message));
+    } else {
+      debugPrint('[WS] No se pudo enviar el mensaje, WebSocket no conectado.');
+    }
+  }
+
   /// Cierra la conexión WebSocket limpiamente.
   /// No intenta reconectar tras un cierre manual.
   void disconnect() {

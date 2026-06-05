@@ -5,10 +5,13 @@ import 'package:geolocator/geolocator.dart';
 
 import '../../../../../core/network/api_client.dart';
 import '../../../../../core/network/websocket_service.dart';
+import '../../../../../core/utils/polyline_decoder.dart';
+import 'package:latlong2/latlong.dart';
 import '../../domain/entities/asignacion_entity.dart';
 import '../../domain/repositories/tecnico_repository.dart';
 import '../../data/datasources/tecnico_datasource.dart';
 import '../../data/repositories/tecnico_repository_impl.dart';
+import '../../data/repositories/routing_repository.dart';
 
 enum MecanicoStateStatus { idle, sosRecibido, enRuta, enSitio }
 
@@ -18,6 +21,7 @@ class MecanicoState {
   final List<AsignacionEntity> historial;
   final bool isLoading;
   final String? error;
+  final List<LatLng> polylineCoords;
 
   MecanicoState({
     this.status = MecanicoStateStatus.idle,
@@ -25,6 +29,7 @@ class MecanicoState {
     this.historial = const [],
     this.isLoading = false,
     this.error,
+    this.polylineCoords = const [],
   });
 
   MecanicoState copyWith({
@@ -33,6 +38,7 @@ class MecanicoState {
     List<AsignacionEntity>? historial,
     bool? isLoading,
     String? error,
+    List<LatLng>? polylineCoords,
   }) {
     return MecanicoState(
       status: status ?? this.status,
@@ -40,6 +46,7 @@ class MecanicoState {
       historial: historial ?? this.historial,
       isLoading: isLoading ?? this.isLoading,
       error: error,
+      polylineCoords: polylineCoords ?? this.polylineCoords,
     );
   }
 }
@@ -58,6 +65,8 @@ final mecanicoWsProvider = Provider<WebSocketService>((ref) {
 
 class MecanicoNotifier extends Notifier<MecanicoState> {
   Timer? _locationTimer;
+  final RoutingRepository _routingRepository = RoutingRepository();
+  final Distance _distanceCalc = const Distance();
 
   @override
   MecanicoState build() {
@@ -129,10 +138,60 @@ class MecanicoNotifier extends Notifier<MecanicoState> {
           latitud: position.latitude, 
           longitud: position.longitude
         );
+        
+        await _fetchRouteIfNeeded(position);
+        
+        // Validación Off-Route Local
+        if (state.polylineCoords.isNotEmpty && state.asignacion!.latitud != null) {
+          final currentLatLng = LatLng(position.latitude, position.longitude);
+          if (_isOffRoute(currentLatLng, state.polylineCoords)) {
+            debugPrint("Off-route detectado! Recalculando ruta...");
+            final routeData = await _routingRepository.recalcularRuta(
+              lng1: position.longitude,
+              lat1: position.latitude,
+              lng2: state.asignacion!.longitud!,
+              lat2: state.asignacion!.latitud!,
+              solicitudId: state.asignacion!.solicitudId,
+            );
+            if (routeData != null && routeData['polyline'] != null) {
+              final decoded = PolylineDecoder.decode(routeData['polyline']);
+              state = state.copyWith(polylineCoords: decoded);
+            }
+          }
+        }
       } catch (e) {
         debugPrint("Error al enviar ubicación: $e");
       }
     });
+  }
+
+  Future<void> _fetchRouteIfNeeded(Position position) async {
+    if (state.asignacion == null || state.asignacion!.latitud == null || state.asignacion!.longitud == null) return;
+    
+    if (state.polylineCoords.isEmpty) {
+      final routeData = await _routingRepository.obtenerRuta(
+        lng1: position.longitude,
+        lat1: position.latitude,
+        lng2: state.asignacion!.longitud!,
+        lat2: state.asignacion!.latitud!,
+      );
+      if (routeData != null && routeData['polyline'] != null) {
+        final decoded = PolylineDecoder.decode(routeData['polyline']);
+        state = state.copyWith(polylineCoords: decoded);
+      }
+    }
+  }
+
+  bool _isOffRoute(LatLng currentPos, List<LatLng> polyline) {
+    if (polyline.isEmpty) return false;
+    double minDistance = double.infinity;
+    for (var point in polyline) {
+      final d = _distanceCalc.as(LengthUnit.Meter, currentPos, point);
+      if (d < minDistance) {
+        minDistance = d;
+      }
+    }
+    return minDistance > 200;
   }
 
   void _stopLocationTracking() {
