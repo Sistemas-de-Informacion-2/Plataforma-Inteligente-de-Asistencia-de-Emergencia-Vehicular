@@ -5,7 +5,7 @@ Resultado del análisis automático de un incidente.
 """
 import enum
 from datetime import datetime
-from sqlalchemy import String, Float, ForeignKey, Text, DateTime, Enum as SAEnum
+from sqlalchemy import String, Float, ForeignKey, Text, DateTime, Enum as SAEnum, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 from app.core.database import Base
@@ -43,6 +43,10 @@ class DiagnosticoIA(Base):
     prioridad: Mapped[Prioridad] = mapped_column(
         SAEnum(Prioridad, name="prioridad", create_constraint=True),
         nullable=False,
+    )
+
+    categoria_incidencia: Mapped[str | None] = mapped_column(
+        String(100), nullable=True, index=True
     )
 
     # FK — relación 1:1 con solicitud

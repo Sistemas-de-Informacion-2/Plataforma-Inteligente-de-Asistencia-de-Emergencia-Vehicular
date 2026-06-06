@@ -11,10 +11,11 @@ Nota de seguridad:
 """
 from fastapi import APIRouter, Depends
 
-from app.api.v1.endpoints import ( 
+from app.api.v1.endpoints import (
     usuarios, talleres, solicitudes, ordenes, auth, notificaciones_ws,
     empleados, servicios, vehiculos, incidentes, admin, sucursales, rutas,
-    dispositivos, pagos, pujas, notificaciones, asignaciones
+    dispositivos, pagos, pujas, notificaciones, asignaciones, dashboard,
+    reportes,
 )
 from app.api.deps import get_current_user
 
@@ -116,4 +117,20 @@ api_router.include_router(
     prefix="/asignaciones",
     tags=["Asignaciones (Flujo Mecánico)"],
     dependencies=[Depends(get_current_user)]
+)
+
+# ── Dashboard KPIs ────────────────────────────────────────────
+api_router.include_router(
+    dashboard.router,
+    prefix="/dashboard",
+    tags=["Dashboard KPIs"],
+    dependencies=[Depends(get_current_user)],
+)
+
+# ── Reportes Avanzados ────────────────────────────────────────
+api_router.include_router(
+    reportes.router,
+    prefix="/reportes",
+    tags=["Reportes Avanzados"],
+    dependencies=[Depends(get_current_user)],
 )
