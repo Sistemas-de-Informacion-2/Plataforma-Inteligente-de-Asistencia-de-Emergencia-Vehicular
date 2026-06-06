@@ -122,6 +122,19 @@ class WebSocketService {
     }
   }
 
+  /// Fuerza una reconexión inmediata (sin backoff).
+  /// Útil cuando la app vuelve del background y el canal puede estar muerto.
+  void forceReconnect() {
+    debugPrint('[WS] 🔄 Forzando reconexión inmediata...');
+    _reconnectTimer?.cancel();
+    _reconnectAttempts = 0;
+    // Cerrar canal actual si existe (sin desactivar reconexión)
+    _channel?.sink.close();
+    _channel = null;
+    _shouldReconnect = true;
+    connect();
+  }
+
   /// Cierra la conexión WebSocket limpiamente.
   /// No intenta reconectar tras un cierre manual.
   void disconnect() {

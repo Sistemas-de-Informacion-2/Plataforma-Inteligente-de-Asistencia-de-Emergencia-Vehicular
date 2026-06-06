@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:lottie/lottie.dart';
 import '../../../../../core/network/api_client.dart';
 import '../../../../../core/theme/app_theme.dart';
 import 'package:dio/dio.dart';
 
-// Widget para calificar el servicio
+/// Widget para calificar el servicio después del pago.
+/// Muestra animación Lottie de estrellas + campo de reseña.
 class ReviewModal extends StatefulWidget {
   final int sucursalId;
   
@@ -15,6 +17,8 @@ class ReviewModal extends StatefulWidget {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      isDismissible: false,
+      enableDrag: false,
       backgroundColor: AppTheme.surfaceColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
@@ -92,7 +96,7 @@ class _ReviewModalState extends State<ReviewModal> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(24, 12, 24, 28),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -103,7 +107,7 @@ class _ReviewModalState extends State<ReviewModal> {
             child: Container(
               width: 40,
               height: 4,
-              margin: const EdgeInsets.only(bottom: 20),
+              margin: const EdgeInsets.only(bottom: 12),
               decoration: BoxDecoration(
                 color: Colors.grey.shade300,
                 borderRadius: BorderRadius.circular(2),
@@ -111,21 +115,19 @@ class _ReviewModalState extends State<ReviewModal> {
             ),
           ),
 
-          // Icon
-          Container(
-            width: 64,
-            height: 64,
-            margin: const EdgeInsets.only(bottom: 16),
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: AppTheme.success.withValues(alpha: 0.1),
-              shape: BoxShape.circle,
+          // Animación Lottie de estrella
+          SizedBox(
+            height: 100,
+            child: Lottie.asset(
+              'assets/animaciones/star-resena.json',
+              fit: BoxFit.contain,
+              repeat: true,
             ),
-            child: const Icon(Icons.check_circle_rounded, color: AppTheme.success, size: 36),
           ),
+          const SizedBox(height: 8),
 
           const Text(
-            'Servicio Finalizado',
+            '¡Servicio Completado!',
             style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.w800,

@@ -17,7 +17,8 @@ class TecnicoHomeScreen extends ConsumerStatefulWidget {
   ConsumerState<TecnicoHomeScreen> createState() => _TecnicoHomeScreenState();
 }
 
-class _TecnicoHomeScreenState extends ConsumerState<TecnicoHomeScreen> {
+class _TecnicoHomeScreenState extends ConsumerState<TecnicoHomeScreen> 
+    with WidgetsBindingObserver {
   bool _isDialogShowing = false;
   final AudioPlayer _audioPlayer = AudioPlayer();
   StreamSubscription? _wsCallSub;
@@ -25,6 +26,7 @@ class _TecnicoHomeScreenState extends ConsumerState<TecnicoHomeScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final wsService = ref.read(mecanicoWsProvider);
       _wsCallSub = wsService.messageStream.listen((msg) {
@@ -52,9 +54,21 @@ class _TecnicoHomeScreenState extends ConsumerState<TecnicoHomeScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _wsCallSub?.cancel();
     _audioPlayer.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Forzar reconexión del WebSocket al volver del background
+      final isOnline = ref.read(isOnlineProvider);
+      if (isOnline) {
+        ref.read(mecanicoWsProvider).forceReconnect();
+      }
+    }
   }
 
   @override

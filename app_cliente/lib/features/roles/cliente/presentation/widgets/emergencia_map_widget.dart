@@ -159,8 +159,8 @@ class _EmergenciaMapWidgetState extends State<EmergenciaMapWidget>
                   markers: [
                     Marker(
                       point: LatLng(currentLat, currentLng),
-                      width: 68,
-                      height: 68,
+                      width: 44,
+                      height: 44,
                       child: _MechanicMarker(key: _mechanicMarkerKey),
                     ),
                   ],
@@ -304,18 +304,18 @@ class _MechanicMarkerState extends State<_MechanicMarker>
           // Icono estilo inDrive (Carro / Grúa en vista cenital si se tiene)
           // Usaremos un estilo glassmorphism limpio
           ClipRRect(
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(12),
             child: BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
               child: Container(
-                width: 56,
-                height: 56,
+                width: 36,
+                height: 36,
                 decoration: BoxDecoration(
                   color: AppTheme.surfaceColor,
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: AppTheme.primaryColor,
-                    width: 2.0,
+                    width: 1.5,
                   ),
                   boxShadow: [
                     BoxShadow(
@@ -334,7 +334,7 @@ class _MechanicMarkerState extends State<_MechanicMarker>
                   child: Icon(
                     Icons.car_repair_rounded,
                     color: AppTheme.primaryColor,
-                    size: 30,
+                    size: 20,
                   ),
                 ),
               ),
@@ -342,11 +342,11 @@ class _MechanicMarkerState extends State<_MechanicMarker>
           ),
           // Badge "En camino"
           Positioned(
-            top: -4,
-            right: -4,
+            top: -3,
+            right: -3,
             child: Container(
-              width: 16,
-              height: 16,
+              width: 12,
+              height: 12,
               decoration: BoxDecoration(
                 color: AppTheme.success,
                 shape: BoxShape.circle,
