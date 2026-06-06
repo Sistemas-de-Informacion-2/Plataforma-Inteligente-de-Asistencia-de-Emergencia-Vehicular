@@ -25,3 +25,4 @@ from app.models.puja import Puja  # noqa: F401
 from app.models.pago import Pago, MetodoPago  # noqa: F401
 from app.models.notificacion import Notificacion  # noqa: F401
 from app.models.resena import ResenaForo  # noqa: F401
+from app.models.sos_notificacion_sucursal import SosNotificacionSucursal  # noqa: F401

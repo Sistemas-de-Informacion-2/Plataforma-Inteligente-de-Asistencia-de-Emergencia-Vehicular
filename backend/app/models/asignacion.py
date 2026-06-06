@@ -41,6 +41,12 @@ class Asignacion(Base):
     motivo_rechazo: Mapped[str | None] = mapped_column(
         Text, nullable=True
     )
+    fecha_aceptacion: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    fecha_llegada: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     # FK
     solicitud_id: Mapped[int] = mapped_column(

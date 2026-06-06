@@ -72,6 +72,9 @@ class Sucursal(AuditableMixin, Base):
     pujas: Mapped[list["Puja"]] = relationship(
         back_populates="sucursal"
     )
+    sos_notificaciones: Mapped[list["SosNotificacionSucursal"]] = relationship(
+        back_populates="sucursal"
+    )
 
     def __repr__(self) -> str:
         return f"<Sucursal(id={self.id}, nombre='{self.nombre}')>"

@@ -38,6 +38,10 @@ class SolicitudEmergencia(AuditableMixin, Base):
         nullable=False,
     )
 
+    fecha_finalizacion: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
     # Columna PostGIS para queries espaciales
     ubicacion = mapped_column(
         Geometry(geometry_type="POINT", srid=4326), nullable=True

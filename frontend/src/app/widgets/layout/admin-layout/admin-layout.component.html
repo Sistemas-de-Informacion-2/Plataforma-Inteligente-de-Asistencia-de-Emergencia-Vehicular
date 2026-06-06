@@ -44,8 +44,27 @@
               <span *ngIf="notificationCount() > 0" class="absolute right-4 flex h-2 w-2 rounded-full bg-alert animate-ping"></span>
             </a>
           </li>
+          <li>
+            <a routerLink="/dashboard"
+              routerLinkActive="nav-link--active"
+              (click)="closeSidebarOnMobile()"
+              class="nav-link group flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 hover:bg-white/5 hover:text-white text-white/70">
+              <i class='bx bx-line-chart text-xl transition-colors group-hover:text-primary-400'></i>
+              <span class="font-medium text-sm">Dashboard Analítico</span>
+            </a>
+          </li>
+          <li>
+            <a routerLink="/reportes"
+              routerLinkActive="nav-link--active"
+              (click)="closeSidebarOnMobile()"
+              class="nav-link group flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 hover:bg-white/5 hover:text-white text-white/70">
+              <i class='bx bx-bar-chart-alt-2 text-xl transition-colors group-hover:text-primary-400'></i>
+              <span class="font-medium text-sm">Reportes</span>
+            </a>
+          </li>
         </ul>
       </section>
+
 
       <section>
         <h2 class="text-[10px] font-bold text-white/30 uppercase tracking-widest px-4 mb-3">Gestión</h2>
