@@ -2,11 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'dart:async';
 
 import '../../../../../core/theme/app_theme.dart';
 import '../providers/mecanico_provider.dart';
 import '../widgets/mechanic_map_widget.dart';
 import '../widgets/mechanic_drawer_widget.dart';
+import '../../../../shared/call/presentation/screens/call_screen.dart';
+import '../../../../../core/utils/offline_utils.dart';
+import '../../../../../core/widgets/offline_banner.dart';
 
 class TecnicoHomeScreen extends ConsumerStatefulWidget {
   const TecnicoHomeScreen({super.key});
@@ -15,14 +19,58 @@ class TecnicoHomeScreen extends ConsumerStatefulWidget {
   ConsumerState<TecnicoHomeScreen> createState() => _TecnicoHomeScreenState();
 }
 
-class _TecnicoHomeScreenState extends ConsumerState<TecnicoHomeScreen> {
+class _TecnicoHomeScreenState extends ConsumerState<TecnicoHomeScreen> 
+    with WidgetsBindingObserver {
   bool _isDialogShowing = false;
   final AudioPlayer _audioPlayer = AudioPlayer();
+  StreamSubscription? _wsCallSub;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final wsService = ref.read(mecanicoWsProvider);
+      _wsCallSub = wsService.messageStream.listen((msg) {
+        if (msg['type'] == 'CALL_OFFER') {
+          if (!mounted) return;
+          final senderId = msg['sender_id'];
+          final state = ref.read(mecanicoControllerProvider);
+          final clienteNombre = state.asignacion?.clienteNombre ?? 'Cliente';
+          
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => CallScreen(
+                wsService: wsService,
+                contactName: clienteNombre,
+                targetId: int.tryParse(senderId.toString()) ?? 0,
+                isIncoming: true,
+              ),
+            ),
+          );
+        }
+      });
+    });
+  }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _wsCallSub?.cancel();
     _audioPlayer.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Forzar reconexión del WebSocket al volver del background
+      final isOnline = ref.read(isOnlineProvider);
+      if (isOnline) {
+        ref.read(mecanicoWsProvider).forceReconnect();
+      }
+    }
   }
 
   @override
@@ -49,6 +97,14 @@ class _TecnicoHomeScreenState extends ConsumerState<TecnicoHomeScreen> {
         children: [
           // Capa Fondo: Mapa Animado
           const MechanicMapWidget(),
+
+          // ── OFFLINE BANNER ───────────────────────────────
+          const Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: OfflineBanner(),
+          ),
 
           // Capa Superior: Top Bar Flotante
           SafeArea(
@@ -218,19 +274,49 @@ class _TecnicoHomeScreenState extends ConsumerState<TecnicoHomeScreen> {
                 ),
               ),
               const SizedBox(height: 20),
-              ElevatedButton.icon(
-                icon: const Icon(CupertinoIcons.checkmark_alt_circle_fill),
-                label: const Text('Llegué al Destino', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.success,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  elevation: 0,
-                ),
-                onPressed: () {
-                  ref.read(mecanicoControllerProvider.notifier).arriveAtLocation();
-                },
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      icon: const Icon(CupertinoIcons.checkmark_alt_circle_fill),
+                      label: const Text('Llegué al Destino', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.success,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        elevation: 0,
+                      ),
+                      onPressed: () async {
+                        if (await OfflineUtils.checkOfflineAndShowDialog(context)) return;
+                        ref.read(mecanicoControllerProvider.notifier).arriveAtLocation();
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  _GlassButton(
+                    icon: CupertinoIcons.phone_fill,
+                    onPressed: () {
+                      if (state.asignacion?.clienteId == null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('ID de cliente no disponible')),
+                        );
+                        return;
+                      }
+                      final wsService = ref.read(mecanicoWsProvider);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => CallScreen(
+                            wsService: wsService,
+                            contactName: state.asignacion!.clienteNombre,
+                            targetId: state.asignacion!.clienteId!,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ],
               ),
             ],
           ),
@@ -274,9 +360,10 @@ class _TecnicoHomeScreenState extends ConsumerState<TecnicoHomeScreen> {
                     borderRadius: BorderRadius.circular(24),
                     boxShadow: AppTheme.cardShadow,
                   ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
                       // Header de Alerta
                       Container(
                         padding: const EdgeInsets.all(16),
@@ -304,11 +391,11 @@ class _TecnicoHomeScreenState extends ConsumerState<TecnicoHomeScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _DialogInfoRow(icon: CupertinoIcons.wrench_fill, label: 'Problema', value: asignacion.problemaDetectado),
-                            const Divider(height: 24),
                             _DialogInfoRow(icon: CupertinoIcons.car_fill, label: 'Vehículo', value: asignacion.vehiculoInfo),
                             const Divider(height: 24),
                             _DialogInfoRow(icon: CupertinoIcons.person_fill, label: 'Cliente', value: asignacion.clienteNombre),
+                            const SizedBox(height: 16),
+                            _ExpandableAiDiagnosisRow(diagnosis: asignacion.problemaDetectado),
                           ],
                         ),
                       ),
@@ -329,19 +416,27 @@ class _TecnicoHomeScreenState extends ConsumerState<TecnicoHomeScreen> {
                                     );
                                     return;
                                   }
-                                  _audioPlayer.stop();
-                                  ref.read(mecanicoControllerProvider.notifier).rejectJob(asignacion.id, rejectReasonController.text);
-                                  Navigator.of(ctx).pop();
-                                  _isDialogShowing = false;
+                                  OfflineUtils.checkOfflineAndShowDialog(context).then((isOffline) {
+                                    if (isOffline) return;
+                                    _audioPlayer.stop();
+                                    ref.read(mecanicoControllerProvider.notifier).rejectJob(asignacion.id, rejectReasonController.text);
+                                    if (ctx.mounted && Navigator.canPop(ctx)) {
+                                      Navigator.of(ctx).pop();
+                                    }
+                                    _isDialogShowing = false;
+                                  });
                                 }
                               )
                             : _buildAcceptRejectButtons(
                                 ctx, asignacion.id,
                                 onReject: () => setStateDialog(() => isRejecting = true),
-                                onAccept: () {
+                                onAccept: () async {
+                                  if (await OfflineUtils.checkOfflineAndShowDialog(context)) return;
                                   _audioPlayer.stop();
                                   ref.read(mecanicoControllerProvider.notifier).acceptJob(asignacion.id);
-                                  Navigator.of(ctx).pop();
+                                  if (ctx.mounted && Navigator.canPop(ctx)) {
+                                    Navigator.of(ctx).pop();
+                                  }
                                   _isDialogShowing = false;
                                 }
                               ),
@@ -349,6 +444,7 @@ class _TecnicoHomeScreenState extends ConsumerState<TecnicoHomeScreen> {
                     ],
                   ),
                 ),
+              ),
               ),
             );
           }
@@ -493,6 +589,64 @@ class _DialogInfoRow extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _ExpandableAiDiagnosisRow extends StatefulWidget {
+  final String diagnosis;
+  const _ExpandableAiDiagnosisRow({required this.diagnosis});
+
+  @override
+  State<_ExpandableAiDiagnosisRow> createState() => _ExpandableAiDiagnosisRowState();
+}
+
+class _ExpandableAiDiagnosisRowState extends State<_ExpandableAiDiagnosisRow> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.primaryColor.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.2)),
+      ),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+          childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          leading: const Icon(Icons.psychology_rounded, color: AppTheme.primaryColor),
+          title: const Text(
+            'Diagnóstico IA',
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppTheme.primaryColor),
+          ),
+          onExpansionChanged: (val) => setState(() => _expanded = val),
+          trailing: Icon(
+            _expanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
+            color: AppTheme.primaryColor,
+          ),
+          children: [
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                widget.diagnosis,
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: AppTheme.textSecondary,
+                  height: 1.4,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

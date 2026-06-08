@@ -1,12 +1,17 @@
+// src/features/roles/cliente/presentation/screens/inicio_screen.dart
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:lottie/lottie.dart';
-
 import '../../../../../core/theme/app_theme.dart';
+import '../../../../../core/widgets/offline_banner.dart';
+import '../../../../../core/utils/offline_utils.dart';
+
 import '../providers/vehiculo_provider.dart';
 import '../providers/emergencia_provider.dart';
 import '../providers/inicio_provider.dart';
+import '../../../../shared/presentation/providers/perfil_provider.dart';
 import 'tracking_screen.dart';
 import 'radar_espera_screen.dart';
 
@@ -27,6 +32,8 @@ class InicioScreen extends StatefulWidget {
 class _InicioScreenState extends State<InicioScreen> with SingleTickerProviderStateMixin {
   EmergenciaProvider? _emProvider;
   late AnimationController _entranceController;
+
+  EmergenciaFlowState? _lastProcessedState;
 
   @override
   void initState() {
@@ -57,15 +64,22 @@ class _InicioScreenState extends State<InicioScreen> with SingleTickerProviderSt
 
   void _onEmergenciaStateChanged() {
     if (!mounted || _emProvider == null) return;
-
+    
     final flowState = _emProvider!.flowState;
+
+    if (_lastProcessedState == flowState) return;
+    _lastProcessedState = flowState;
+    
     if (flowState == EmergenciaFlowState.waitingForBids) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (ModalRoute.of(context)?.settings.name != '/radar') {
           Navigator.push(
             context,
-            MaterialPageRoute(
-              builder: (_) => const RadarEsperaScreen(),
+            PageRouteBuilder(
+              pageBuilder: (context, animation, secondaryAnimation) => const RadarEsperaScreen(),
+              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                return FadeTransition(opacity: animation, child: child);
+              },
               settings: const RouteSettings(name: '/radar'),
             ),
           );
@@ -77,8 +91,11 @@ class _InicioScreenState extends State<InicioScreen> with SingleTickerProviderSt
         if (ModalRoute.of(context)?.settings.name != '/tracking') {
           Navigator.push(
             context,
-            MaterialPageRoute(
-              builder: (_) => const TrackingScreen(),
+            PageRouteBuilder(
+              pageBuilder: (context, animation, secondaryAnimation) => const TrackingScreen(),
+              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                return FadeTransition(opacity: animation, child: child);
+              },
               settings: const RouteSettings(name: '/tracking'),
             ),
           );
@@ -97,6 +114,7 @@ class _InicioScreenState extends State<InicioScreen> with SingleTickerProviderSt
 
   // ── Attachment Options ─────────────────────────────────────
   void _showAttachmentOptions(InicioProvider provider) {
+    HapticFeedback.lightImpact();
     final colorScheme = Theme.of(context).colorScheme;
     showModalBottomSheet(
       context: context,
@@ -148,13 +166,14 @@ class _InicioScreenState extends State<InicioScreen> with SingleTickerProviderSt
 
   // ── Audio Recording ────────────────────────────────────────
   Future<void> _handleGrabacion(InicioProvider provider) async {
+    HapticFeedback.mediumImpact();
     if (provider.isRecording) {
       await provider.detenerGrabacion();
     } else {
       final error = await provider.iniciarGrabacion();
       if (error != null && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error), backgroundColor: AppTheme.warning),
+          SnackBar(content: Text(error), backgroundColor: Colors.orange),
         );
       }
     }
@@ -162,6 +181,18 @@ class _InicioScreenState extends State<InicioScreen> with SingleTickerProviderSt
 
   // ── Send SOS ───────────────────────────────────────────────
   Future<void> _enviarSOS() async {
+    HapticFeedback.heavyImpact();
+    
+    // Offline check
+    if (await OfflineUtils.checkOfflineAndShowDialog(
+      context,
+      customMessage: 'Debes conectarte a una red para poder solicitar asistencia. Tu solicitud se guardará automáticamente.',
+    )) {
+      return;
+    }
+
+    if (!mounted) return;
+
     final formProvider = context.read<InicioProvider>();
     final emProvider = context.read<EmergenciaProvider>();
 
@@ -210,7 +241,13 @@ class _InicioScreenState extends State<InicioScreen> with SingleTickerProviderSt
       if (mounted) {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => const RadarEsperaScreen()),
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) => const RadarEsperaScreen(),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              return FadeTransition(opacity: animation, child: child);
+            },
+            settings: const RouteSettings(name: '/radar'),
+          ),
         );
       }
     } else {
@@ -256,6 +293,22 @@ class _InicioScreenState extends State<InicioScreen> with SingleTickerProviderSt
             ),
           ),
 
+          // ── OFFLINE BANNER ───────────────────────────────
+        // Banner Offline
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          child: OfflineBanner(
+            onOnline: () {
+              if (mounted) {
+                context.read<PerfilProvider>().fetchPerfil();
+                context.read<VehiculoProvider>().fetchVehiculos();
+              }
+            },
+          ),
+        ),
+
           // ── 2. GRADIENT OVERLAYS (Mejor legibilidad y estética) ──────────
           Positioned(
             top: 0,
@@ -268,7 +321,7 @@ class _InicioScreenState extends State<InicioScreen> with SingleTickerProviderSt
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    AppTheme.primaryColor.withValues(alpha: 0.25),
+                    AppTheme.inkDark.withValues(alpha: 0.6),
                     Colors.transparent,
                   ],
                 ),
@@ -305,7 +358,7 @@ class _InicioScreenState extends State<InicioScreen> with SingleTickerProviderSt
                       decoration: BoxDecoration(
                         boxShadow: [
                           BoxShadow(
-                            color: AppTheme.primaryColor.withValues(alpha: 0.15),
+                            color: Colors.black.withValues(alpha: 0.15),
                             blurRadius: 15,
                             offset: const Offset(0, 5),
                           ),
@@ -321,7 +374,10 @@ class _InicioScreenState extends State<InicioScreen> with SingleTickerProviderSt
                   const SizedBox(width: 12),
                   MapCircleButton(
                     icon: Icons.my_location_rounded,
-                    onTap: inicioProvider.determinePosition,
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      inicioProvider.determinePosition();
+                    },
                   ),
                 ],
               ),
@@ -364,74 +420,79 @@ class _InicioScreenState extends State<InicioScreen> with SingleTickerProviderSt
                 },
                 child: ClipRect(
                   child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                    filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
                     child: Container(
-                      color: AppTheme.primaryColor.withValues(alpha: 0.85), // Fondo premium
+                      color: AppTheme.inkDark.withValues(alpha: 0.8), // Dark premium background
                       child: Center(
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             // Lottie Animation
-                            Lottie.asset(
-                              'assets/animaciones/tuerca-cargando.json',
-                              width: 160,
-                              height: 160,
-                              fit: BoxFit.contain,
+                            Container(
+                              padding: const EdgeInsets.all(24),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.05),
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                              ),
+                              child: Lottie.asset(
+                                'assets/animaciones/oso-jugo.json', // Asumiendo que es una animación de carga
+                                width: 120,
+                                height: 120,
+                                fit: BoxFit.contain,
+                              ),
                             ),
-                            const SizedBox(height: 24),
+                            const SizedBox(height: 32),
                             // Texto Animado Pulsante
                             TweenAnimationBuilder<double>(
-                              tween: Tween(begin: 0.6, end: 1.0),
-                              duration: const Duration(milliseconds: 800),
-                              curve: Curves.easeInOut,
+                              tween: Tween(begin: 0.8, end: 1.0),
+                              duration: const Duration(milliseconds: 1000),
+                              curve: Curves.elasticOut,
                               builder: (context, value, child) {
                                 return Transform.scale(
                                   scale: value,
                                   child: Opacity(
-                                    opacity: value,
+                                    opacity: value.clamp(0.0, 1.0),
                                     child: child,
                                   ),
                                 );
                               },
-                              onEnd: () {
-                                // Para hacer un efecto de pulsación continua tendríamos que usar un controller,
-                                // pero el Tween estático le da un toque suave al aparecer.
-                              },
                               child: const Text(
-                                'ENVIANDO SEÑAL SOS',
+                                'SOLICITANDO AYUDA',
                                 style: TextStyle(
                                   color: Colors.white,
-                                  fontSize: 20,
+                                  fontSize: 22,
                                   fontWeight: FontWeight.w900,
-                                  letterSpacing: 3.0,
+                                  letterSpacing: 2.5,
                                 ),
                               ),
                             ),
-                            const SizedBox(height: 12),
+                            const SizedBox(height: 16),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                               decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.15),
+                                color: AppTheme.success.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: AppTheme.success.withValues(alpha: 0.3)),
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   const SizedBox(
-                                    width: 14,
-                                    height: 14,
+                                    width: 16,
+                                    height: 16,
                                     child: CircularProgressIndicator(
-                                      color: Colors.white,
+                                      color: AppTheme.success,
                                       strokeWidth: 2,
                                     ),
                                   ),
                                   const SizedBox(width: 12),
                                   Text(
-                                    'Analizando situación con IA...',
+                                    'Procesando con Inteligencia Artificial...',
                                     style: TextStyle(
                                       color: Colors.white.withValues(alpha: 0.9),
                                       fontSize: 14,
-                                      fontWeight: FontWeight.w500,
+                                      fontWeight: FontWeight.bold,
                                     ),
                                   ),
                                 ],
@@ -450,3 +511,4 @@ class _InicioScreenState extends State<InicioScreen> with SingleTickerProviderSt
     );
   }
 }
+

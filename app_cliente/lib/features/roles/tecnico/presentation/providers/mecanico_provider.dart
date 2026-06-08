@@ -1,14 +1,20 @@
+// src/features/roles/tecnico/presentation/providers/mecanico_provider.dart
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../../core/network/api_client.dart';
 import '../../../../../core/network/websocket_service.dart';
+import '../../../../../core/utils/polyline_decoder.dart';
+import 'package:latlong2/latlong.dart';
 import '../../domain/entities/asignacion_entity.dart';
 import '../../domain/repositories/tecnico_repository.dart';
 import '../../data/datasources/tecnico_datasource.dart';
 import '../../data/repositories/tecnico_repository_impl.dart';
+import '../../data/repositories/routing_repository.dart';
 
 enum MecanicoStateStatus { idle, sosRecibido, enRuta, enSitio }
 
@@ -18,6 +24,7 @@ class MecanicoState {
   final List<AsignacionEntity> historial;
   final bool isLoading;
   final String? error;
+  final List<LatLng> polylineCoords;
 
   MecanicoState({
     this.status = MecanicoStateStatus.idle,
@@ -25,6 +32,7 @@ class MecanicoState {
     this.historial = const [],
     this.isLoading = false,
     this.error,
+    this.polylineCoords = const [],
   });
 
   MecanicoState copyWith({
@@ -33,6 +41,7 @@ class MecanicoState {
     List<AsignacionEntity>? historial,
     bool? isLoading,
     String? error,
+    List<LatLng>? polylineCoords,
   }) {
     return MecanicoState(
       status: status ?? this.status,
@@ -40,6 +49,7 @@ class MecanicoState {
       historial: historial ?? this.historial,
       isLoading: isLoading ?? this.isLoading,
       error: error,
+      polylineCoords: polylineCoords ?? this.polylineCoords,
     );
   }
 }
@@ -58,10 +68,64 @@ final mecanicoWsProvider = Provider<WebSocketService>((ref) {
 
 class MecanicoNotifier extends Notifier<MecanicoState> {
   Timer? _locationTimer;
+  final RoutingRepository _routingRepository = RoutingRepository();
+  final Distance _distanceCalc = const Distance();
 
   @override
   MecanicoState build() {
+    _loadOfflineData();
     return MecanicoState();
+  }
+
+  Future<void> _loadOfflineData() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      
+      final String? activeJson = prefs.getString('mecanico_activa');
+      AsignacionEntity? asignacionCached;
+      MecanicoStateStatus cachedStatus = MecanicoStateStatus.idle;
+      
+      if (activeJson != null) {
+        asignacionCached = AsignacionEntity.fromJson(jsonDecode(activeJson));
+        if (asignacionCached.estado == 'PENDIENTE') {
+          cachedStatus = MecanicoStateStatus.sosRecibido;
+        } else if (asignacionCached.estado == 'ACEPTADA' || asignacionCached.estado == 'EN_CAMINO') {
+          cachedStatus = MecanicoStateStatus.enRuta;
+        } else if (asignacionCached.estado == 'EN_SITIO') {
+          cachedStatus = MecanicoStateStatus.enSitio; 
+        }
+      }
+
+      final String? histJson = prefs.getString('mecanico_historial');
+      List<AsignacionEntity> historialCached = [];
+      if (histJson != null) {
+        final List<dynamic> list = jsonDecode(histJson);
+        historialCached = list.map((e) => AsignacionEntity.fromJson(e)).toList();
+      }
+
+      state = state.copyWith(
+        status: cachedStatus,
+        asignacion: asignacionCached,
+        historial: historialCached,
+      );
+    } catch (e) {
+      debugPrint('Error cargando cache: $e');
+    }
+  }
+
+  Future<void> _saveActiveOffline(AsignacionEntity? asignacion) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (asignacion == null) {
+      await prefs.remove('mecanico_activa');
+    } else {
+      await prefs.setString('mecanico_activa', jsonEncode(asignacion.toJson()));
+    }
+  }
+
+  Future<void> _saveHistorialOffline(List<AsignacionEntity> historial) async {
+    final prefs = await SharedPreferences.getInstance();
+    final jsonList = historial.map((e) => e.toJson()).toList();
+    await prefs.setString('mecanico_historial', jsonEncode(jsonList));
   }
 
   void connectWebSocket() {
@@ -93,6 +157,7 @@ class MecanicoNotifier extends Notifier<MecanicoState> {
       final repo = ref.read(tecnicoRepositoryProvider);
       final list = await repo.obtenerHistorial();
       state = state.copyWith(historial: list);
+      _saveHistorialOffline(list);
     } catch (e) {
       debugPrint("Error obteniendo historial: $e");
     }
@@ -129,10 +194,60 @@ class MecanicoNotifier extends Notifier<MecanicoState> {
           latitud: position.latitude, 
           longitud: position.longitude
         );
+        
+        await _fetchRouteIfNeeded(position);
+        
+        // Validación Off-Route Local
+        if (state.polylineCoords.isNotEmpty && state.asignacion!.latitud != null) {
+          final currentLatLng = LatLng(position.latitude, position.longitude);
+          if (_isOffRoute(currentLatLng, state.polylineCoords)) {
+            debugPrint("Off-route detectado! Recalculando ruta...");
+            final routeData = await _routingRepository.recalcularRuta(
+              lng1: position.longitude,
+              lat1: position.latitude,
+              lng2: state.asignacion!.longitud!,
+              lat2: state.asignacion!.latitud!,
+              solicitudId: state.asignacion!.solicitudId,
+            );
+            if (routeData != null && routeData['polyline'] != null) {
+              final decoded = PolylineDecoder.decode(routeData['polyline']);
+              state = state.copyWith(polylineCoords: decoded);
+            }
+          }
+        }
       } catch (e) {
         debugPrint("Error al enviar ubicación: $e");
       }
     });
+  }
+
+  Future<void> _fetchRouteIfNeeded(Position position) async {
+    if (state.asignacion == null || state.asignacion!.latitud == null || state.asignacion!.longitud == null) return;
+    
+    if (state.polylineCoords.isEmpty) {
+      final routeData = await _routingRepository.obtenerRuta(
+        lng1: position.longitude,
+        lat1: position.latitude,
+        lng2: state.asignacion!.longitud!,
+        lat2: state.asignacion!.latitud!,
+      );
+      if (routeData != null && routeData['polyline'] != null) {
+        final decoded = PolylineDecoder.decode(routeData['polyline']);
+        state = state.copyWith(polylineCoords: decoded);
+      }
+    }
+  }
+
+  bool _isOffRoute(LatLng currentPos, List<LatLng> polyline) {
+    if (polyline.isEmpty) return false;
+    double minDistance = double.infinity;
+    for (var point in polyline) {
+      final d = _distanceCalc.as(LengthUnit.Meter, currentPos, point);
+      if (d < minDistance) {
+        minDistance = d;
+      }
+    }
+    return minDistance > 200;
   }
 
   void _stopLocationTracking() {
@@ -188,6 +303,7 @@ class MecanicoNotifier extends Notifier<MecanicoState> {
         asignacion: updated,
         isLoading: false,
       );
+      _saveActiveOffline(updated);
       _startLocationTracking();
       fetchHistorial();
     } catch (e) {
@@ -208,6 +324,7 @@ class MecanicoNotifier extends Notifier<MecanicoState> {
       // Si la que rechazó era la activa global, volvemos a idle
       if (state.asignacion?.id == asignacionId) {
         state = state.copyWith(status: MecanicoStateStatus.idle, asignacion: null, isLoading: false);
+        _saveActiveOffline(null);
       } else {
         state = state.copyWith(isLoading: false);
       }
@@ -240,8 +357,10 @@ class MecanicoNotifier extends Notifier<MecanicoState> {
           asignacion: asignacion,
           isLoading: false,
         );
+        _saveActiveOffline(asignacion);
       } else {
         state = state.copyWith(isLoading: false, status: MecanicoStateStatus.idle, asignacion: null);
+        _saveActiveOffline(null);
       }
       fetchHistorial();
     } catch (e) {
@@ -261,6 +380,7 @@ class MecanicoNotifier extends Notifier<MecanicoState> {
         asignacion: updated,
         isLoading: false,
       );
+      _saveActiveOffline(updated);
       _stopLocationTracking();
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
@@ -278,6 +398,7 @@ class MecanicoNotifier extends Notifier<MecanicoState> {
       );
       
       state = MecanicoState(); // Volvemos a idle
+      _saveActiveOffline(null);
       fetchHistorial();
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());

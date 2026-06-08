@@ -1,3 +1,4 @@
+// src/features/roles/cliente/presentation/providers/emergencia_provider.dart
 import 'dart:io';
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -23,6 +24,7 @@ enum EmergenciaFlowState {
   serviceInProgress,
   accepted,
   arrived,
+  serviceFinished, // Mecánico finalizó, esperando datos de pago
   rejected,
   timeout,
   error,
@@ -35,6 +37,7 @@ class EmergenciaProvider extends ChangeNotifier {
   late final ReportarEmergenciaUseCase _reportarUseCase;
   late final SeleccionarTallerUseCase _seleccionarUseCase;
   final WebSocketService _wsService = WebSocketService();
+  WebSocketService get wsService => _wsService;
 
   // ── Estado ──────────────────────────────────────────────────
   EmergenciaFlowState _flowState = EmergenciaFlowState.initial;
@@ -262,9 +265,10 @@ class EmergenciaProvider extends ChangeNotifier {
       _timeoutTimer?.cancel();
       _mechanicSimTimer?.cancel();
       
-      if (onServiceFinished != null) {
-        onServiceFinished!();
-      }
+      // Solo marcamos que el servicio finalizó.
+      // La reseña se mostrará DESPUÉS del pago (en onPaymentRequired).
+      _flowState = EmergenciaFlowState.serviceFinished;
+      notifyListeners();
     } else if (type == 'UPDATE_LOCATION') {
       final lat = msg['latitud'];
       final lng = msg['longitud'];

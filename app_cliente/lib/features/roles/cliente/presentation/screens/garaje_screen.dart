@@ -14,7 +14,8 @@ class GarajeScreen extends StatefulWidget {
   State<GarajeScreen> createState() => _GarajeScreenState();
 }
 
-class _GarajeScreenState extends State<GarajeScreen> with SingleTickerProviderStateMixin {
+class _GarajeScreenState extends State<GarajeScreen>
+    with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
 
   @override
@@ -46,33 +47,38 @@ class _GarajeScreenState extends State<GarajeScreen> with SingleTickerProviderSt
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         title: const Text(
           'Eliminar Vehículo',
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
         ),
         content: Text(
           '¿Estás seguro de que deseas eliminar tu ${vehiculo.marca} ${vehiculo.modelo}?\n\nEsta acción no se puede deshacer.',
-          style: const TextStyle(height: 1.5),
+          style: const TextStyle(height: 1.5, color: AppTheme.textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: Text(
               'CANCELAR',
-              style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                  color: Colors.grey.shade600, fontWeight: FontWeight.bold),
             ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.danger,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
               elevation: 0,
             ),
             onPressed: () async {
               Navigator.pop(ctx);
-              final success = await context.read<VehiculoProvider>().deleteVehiculo(vehiculo.id);
+              final success = await context
+                  .read<VehiculoProvider>()
+                  .deleteVehiculo(vehiculo.id);
               if (success && context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
@@ -83,14 +89,16 @@ class _GarajeScreenState extends State<GarajeScreen> with SingleTickerProviderSt
                         Text('Vehículo eliminado correctamente'),
                       ],
                     ),
-                    backgroundColor: const Color.fromRGBO(239, 68, 68, 1),
+                    backgroundColor: AppTheme.danger,
                     behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
                   ),
                 );
               }
             },
-            child: const Text('ELIMINAR', style: TextStyle(fontWeight: FontWeight.bold)),
+            child: const Text('ELIMINAR',
+                style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -101,18 +109,6 @@ class _GarajeScreenState extends State<GarajeScreen> with SingleTickerProviderSt
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
-      appBar: AppBar(
-        title: const Text('Mi Garaje'),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        centerTitle: true,
-        iconTheme: const IconThemeData(color: AppTheme.textPrimary),
-        titleTextStyle: const TextStyle(
-          color: AppTheme.textPrimary,
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
       body: Consumer<VehiculoProvider>(
         builder: (context, provider, child) {
           if (provider.isLoading && provider.vehiculos.isEmpty) {
@@ -122,37 +118,76 @@ class _GarajeScreenState extends State<GarajeScreen> with SingleTickerProviderSt
           }
 
           if (provider.vehiculos.isEmpty) {
-            return EmptyGaraje(
-              onAddTap: () => _showAddOrEditSheet(context),
+            return Column(
+              children: [
+                AppBar(
+                  backgroundColor: Colors.transparent,
+                  elevation: 0,
+                  iconTheme: const IconThemeData(color: AppTheme.textPrimary),
+                ),
+                Expanded(
+                  child: EmptyGaraje(
+                    onAddTap: () => _showAddOrEditSheet(context),
+                  ),
+                ),
+              ],
             );
           }
 
           return RefreshIndicator(
             color: AppTheme.primaryColor,
             onRefresh: provider.fetchVehiculos,
-            child: ListView.builder(
-              padding: const EdgeInsets.fromLTRB(24, 16, 24, 100),
-              itemCount: provider.vehiculos.length,
-              itemBuilder: (context, index) {
-                final vehiculo = provider.vehiculos[index];
-                
-                // Intervalo de animación escalonado
-                final animation = CurvedAnimation(
-                  parent: _animationController,
-                  curve: Interval(
-                    (0.1 * index).clamp(0, 1.0),
-                    (0.1 * index + 0.5).clamp(0, 1.0),
-                    curve: Curves.easeOutCubic,
+            child: CustomScrollView(
+              slivers: [
+                SliverAppBar(
+                  backgroundColor: AppTheme.backgroundColor,
+                  surfaceTintColor: Colors.transparent,
+                  elevation: 0,
+                  pinned: true,
+                  iconTheme: const IconThemeData(color: AppTheme.textPrimary),
+                  expandedHeight: 120.0,
+                  flexibleSpace: const FlexibleSpaceBar(
+                    titlePadding: EdgeInsets.only(left: 24, bottom: 16),
+                    title: Text(
+                      'Mi Garaje',
+                      style: TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 24,
+                      ),
+                    ),
                   ),
-                );
+                ),
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(24, 8, 24, 100),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                        final vehiculo = provider.vehiculos[index];
 
-                return VehiculoCard(
-                  vehiculo: vehiculo,
-                  animation: animation,
-                  onEdit: () => _showAddOrEditSheet(context, vehiculo: vehiculo),
-                  onDelete: () => _showDeleteDialog(context, vehiculo),
-                );
-              },
+                        // Intervalo de animación escalonado
+                        final animation = CurvedAnimation(
+                          parent: _animationController,
+                          curve: Interval(
+                            (0.1 * index).clamp(0, 1.0),
+                            (0.1 * index + 0.5).clamp(0, 1.0),
+                            curve: Curves.easeOutCubic,
+                          ),
+                        );
+
+                        return VehiculoCard(
+                          vehiculo: vehiculo,
+                          animation: animation,
+                          onEdit: () =>
+                              _showAddOrEditSheet(context, vehiculo: vehiculo),
+                          onDelete: () => _showDeleteDialog(context, vehiculo),
+                        );
+                      },
+                      childCount: provider.vehiculos.length,
+                    ),
+                  ),
+                ),
+              ],
             ),
           );
         },
@@ -161,13 +196,14 @@ class _GarajeScreenState extends State<GarajeScreen> with SingleTickerProviderSt
         onPressed: () => _showAddOrEditSheet(context),
         backgroundColor: AppTheme.primaryColor,
         foregroundColor: Colors.white,
-        elevation: 4,
-        icon: const Icon(Icons.add_rounded),
+        elevation: 6,
+        icon: const Icon(Icons.add_circle_outline_rounded),
         label: const Text(
-          'AÑADIR AUTO',
-          style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.5),
+          'Añadir auto',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
       ),
     );
   }
 }
+
