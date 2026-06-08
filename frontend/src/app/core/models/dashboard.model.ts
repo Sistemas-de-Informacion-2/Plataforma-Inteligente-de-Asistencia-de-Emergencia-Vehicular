@@ -79,3 +79,55 @@ export interface Kpi11MecanicoRankingItem {
   tiempo_promedio_eta_min: number | null;
   delta_promedio_min: number | null;
 }
+
+export interface Kpi12LiquidezMarketplace {
+  promedio_pujas: number;
+  total_solicitudes: number;
+}
+
+export interface Kpi13IngresosComisiones {
+  mes: string;
+  total_comision: number;
+}
+
+export interface Kpi14HorasPico {
+  dia_semana: number;
+  hora: number;
+  cantidad: number;
+}
+
+export interface Kpi15RetencionClientes {
+  tipo: string;
+  cantidad: number;
+  porcentaje: number;
+}
+
+export interface Kpi16EmbudoAbandono {
+  etapa: string;
+  cantidad: number;
+}
+
+export interface Kpi17WinRatePujas {
+  estado: string;
+  cantidad: number;
+  porcentaje: number;
+}
+
+export interface Kpi18EvolucionIngresos {
+  mes: string;
+  ingresos_netos: number;
+  ticket_promedio: number;
+}
+
+export interface Kpi19TopVehiculos {
+  marca: string;
+  modelo: string;
+  cantidad: number;
+}
+
+export interface Kpi20TiemposOperativosMecanico {
+  empleado_id: number;
+  nombre: string;
+  tiempo_ruta_min: number | null;
+  tiempo_sitio_min: number | null;
+}

@@ -8,6 +8,9 @@ import {
   Kpi4TiempoLlegada, Kpi5IncidenciaItem, Kpi6TallerEficiente,
   Kpi7MapaCalorItem, Kpi8CanceladosMes, Kpi9PuntualidadItem,
   Kpi10PrecisionCostoItem, Kpi11MecanicoRankingItem,
+  Kpi12LiquidezMarketplace, Kpi13IngresosComisiones, Kpi14HorasPico,
+  Kpi15RetencionClientes, Kpi16EmbudoAbandono, Kpi17WinRatePujas,
+  Kpi18EvolucionIngresos, Kpi19TopVehiculos, Kpi20TiemposOperativosMecanico
 } from '../../core/models/dashboard.model';
 
 @Injectable({ providedIn: 'root' })
@@ -64,5 +67,41 @@ export class DashboardService {
 
   getKpi11(fi?: string, ff?: string): Observable<Kpi11MecanicoRankingItem[]> {
     return this.http.get<Kpi11MecanicoRankingItem[]>(`${this.base}/kpi11-ranking-mecanicos`, { params: this.params(fi, ff) });
+  }
+
+  getKpi12(fi?: string, ff?: string): Observable<Kpi12LiquidezMarketplace> {
+    return this.http.get<Kpi12LiquidezMarketplace>(`${this.base}/kpi12-liquidez-marketplace`, { params: this.params(fi, ff) });
+  }
+
+  getKpi13(fi?: string, ff?: string): Observable<Kpi13IngresosComisiones[]> {
+    return this.http.get<Kpi13IngresosComisiones[]>(`${this.base}/kpi13-ingresos-comisiones`, { params: this.params(fi, ff) });
+  }
+
+  getKpi14(fi?: string, ff?: string): Observable<Kpi14HorasPico[]> {
+    return this.http.get<Kpi14HorasPico[]>(`${this.base}/kpi14-horas-pico`, { params: this.params(fi, ff) });
+  }
+
+  getKpi15(fi?: string, ff?: string): Observable<Kpi15RetencionClientes[]> {
+    return this.http.get<Kpi15RetencionClientes[]>(`${this.base}/kpi15-retencion-clientes`, { params: this.params(fi, ff) });
+  }
+
+  getKpi16(fi?: string, ff?: string): Observable<Kpi16EmbudoAbandono[]> {
+    return this.http.get<Kpi16EmbudoAbandono[]>(`${this.base}/kpi16-embudo-abandono`, { params: this.params(fi, ff) });
+  }
+
+  getKpi17(fi?: string, ff?: string): Observable<Kpi17WinRatePujas[]> {
+    return this.http.get<Kpi17WinRatePujas[]>(`${this.base}/kpi17-win-rate-pujas`, { params: this.params(fi, ff) });
+  }
+
+  getKpi18(fi?: string, ff?: string): Observable<Kpi18EvolucionIngresos[]> {
+    return this.http.get<Kpi18EvolucionIngresos[]>(`${this.base}/kpi18-evolucion-ingresos`, { params: this.params(fi, ff) });
+  }
+
+  getKpi19(fi?: string, ff?: string): Observable<Kpi19TopVehiculos[]> {
+    return this.http.get<Kpi19TopVehiculos[]>(`${this.base}/kpi19-top-vehiculos`, { params: this.params(fi, ff) });
+  }
+
+  getKpi20(fi?: string, ff?: string): Observable<Kpi20TiemposOperativosMecanico[]> {
+    return this.http.get<Kpi20TiemposOperativosMecanico[]>(`${this.base}/kpi20-tiempos-operativos`, { params: this.params(fi, ff) });
   }
 }

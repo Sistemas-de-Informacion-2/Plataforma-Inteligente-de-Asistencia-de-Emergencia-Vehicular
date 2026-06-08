@@ -558,3 +558,271 @@ class DashboardService:
             }
             for r in rows
         ]
+
+    # ── KPI 12 — Liquidez del Marketplace ─────────────────────────────────────
+
+    async def kpi12_liquidez_marketplace(
+        self,
+        fecha_inicio: Optional[datetime],
+        fecha_fin: Optional[datetime],
+        taller_id: Optional[int] = None,
+    ) -> dict:
+        df, params = self._df("sol.fecha_creacion", fecha_inicio, fecha_fin)
+        tf, tparams = self._tf_sol("sol.id", taller_id)
+        params = {**params, **tparams}
+        sql = f"""
+            SELECT 
+                ROUND(AVG(p.cant_pujas)::numeric, 2) AS promedio_pujas,
+                COUNT(sol.id) AS total_solicitudes
+            FROM solicitudes_emergencia sol
+            LEFT JOIN LATERAL (
+                SELECT COUNT(*) as cant_pujas 
+                FROM pujas 
+                WHERE solicitud_id = sol.id
+            ) p ON true
+            WHERE sol.es_eliminado = FALSE
+              {df}{tf}
+        """
+        row = (await self._q(sql, params)).mappings().one_or_none()
+        return {
+            "promedio_pujas": float(row["promedio_pujas"]) if row and row["promedio_pujas"] is not None else 0.0,
+            "total_solicitudes": row["total_solicitudes"] if row else 0
+        }
+
+    # ── KPI 13 — Ingresos por Comisiones ──────────────────────────────────────
+
+    async def kpi13_ingresos_comisiones(
+        self,
+        fecha_inicio: Optional[datetime],
+        fecha_fin: Optional[datetime],
+        taller_id: Optional[int] = None,
+    ) -> list[dict]:
+        df, params = self._df("pago.fecha", fecha_inicio, fecha_fin)
+        tf, tparams = self._tf_puja_suc("puja", taller_id)
+        params = {**params, **tparams}
+        sql = f"""
+            SELECT 
+                TO_CHAR(DATE_TRUNC('month', pago.fecha), 'YYYY-MM') AS mes,
+                SUM(pago.comision) AS total_comision
+            FROM pagos pago
+            JOIN ordenes_trabajo ord ON ord.id = pago.orden_id
+            JOIN pujas puja ON puja.solicitud_id = ord.solicitud_id AND puja.estado = 'ACEPTADA'
+            WHERE pago.estado = 'COMPLETADO'
+              {df}{tf}
+            GROUP BY DATE_TRUNC('month', pago.fecha)
+            ORDER BY DATE_TRUNC('month', pago.fecha) DESC
+        """
+        rows = (await self._q(sql, params)).mappings().all()
+        return [{"mes": r["mes"], "total_comision": float(r["total_comision"]) if r["total_comision"] else 0.0} for r in rows]
+
+    # ── KPI 14 — Horas y Días Pico ────────────────────────────────────────────
+
+    async def kpi14_horas_pico(
+        self,
+        fecha_inicio: Optional[datetime],
+        fecha_fin: Optional[datetime],
+        taller_id: Optional[int] = None,
+    ) -> list[dict]:
+        df, params = self._df("fecha_creacion", fecha_inicio, fecha_fin)
+        tf, tparams = self._tf_sol("id", taller_id)
+        params = {**params, **tparams}
+        sql = f"""
+            SELECT 
+                CAST(EXTRACT(DOW FROM fecha_creacion) AS INTEGER) AS dia_semana,
+                CAST(EXTRACT(HOUR FROM fecha_creacion) AS INTEGER) AS hora,
+                COUNT(*) AS cantidad
+            FROM solicitudes_emergencia
+            WHERE es_eliminado = FALSE
+              {df}{tf}
+            GROUP BY EXTRACT(DOW FROM fecha_creacion), EXTRACT(HOUR FROM fecha_creacion)
+            ORDER BY dia_semana, hora
+        """
+        rows = (await self._q(sql, params)).mappings().all()
+        return [{"dia_semana": r["dia_semana"], "hora": r["hora"], "cantidad": r["cantidad"]} for r in rows]
+
+    # ── KPI 15 — Retención de Clientes ────────────────────────────────────────
+
+    async def kpi15_retencion_clientes(
+        self,
+        fecha_inicio: Optional[datetime],
+        fecha_fin: Optional[datetime],
+        taller_id: Optional[int] = None,
+    ) -> list[dict]:
+        df, params = self._df("fecha_creacion", fecha_inicio, fecha_fin)
+        tf, tparams = self._tf_sol("id", taller_id)
+        params = {**params, **tparams}
+        sql = f"""
+            WITH conteo AS (
+                SELECT cliente_id, COUNT(*) as usos
+                FROM solicitudes_emergencia
+                WHERE es_eliminado = FALSE {df}{tf}
+                GROUP BY cliente_id
+            ),
+            agrupado AS (
+                SELECT 
+                    CASE WHEN usos = 1 THEN 'Un solo uso' ELSE 'Recurrente' END AS tipo,
+                    COUNT(*) AS cantidad
+                FROM conteo
+                GROUP BY CASE WHEN usos = 1 THEN 'Un solo uso' ELSE 'Recurrente' END
+            )
+            SELECT 
+                tipo, 
+                cantidad, 
+                ROUND(cantidad * 100.0 / NULLIF(SUM(cantidad) OVER (), 0)::numeric, 2) AS porcentaje
+            FROM agrupado
+        """
+        rows = (await self._q(sql, params)).mappings().all()
+        return [{"tipo": r["tipo"], "cantidad": r["cantidad"], "porcentaje": float(r["porcentaje"] or 0.0)} for r in rows]
+
+    # ── KPI 16 — Embudo de Abandono ───────────────────────────────────────────
+
+    async def kpi16_embudo_abandono(
+        self,
+        fecha_inicio: Optional[datetime],
+        fecha_fin: Optional[datetime],
+        taller_id: Optional[int] = None,
+    ) -> list[dict]:
+        df, params = self._df("sol.fecha_creacion", fecha_inicio, fecha_fin)
+        tf, tparams = self._tf_sol("sol.id", taller_id)
+        params = {**params, **tparams}
+        sql = f"""
+            SELECT 
+                '1. Creadas' AS etapa, COUNT(*) AS cantidad
+            FROM solicitudes_emergencia sol WHERE es_eliminado = FALSE {df}{tf}
+            UNION ALL
+            SELECT 
+                '2. Con Pujas' AS etapa, COUNT(DISTINCT sol.id) AS cantidad
+            FROM solicitudes_emergencia sol
+            JOIN pujas p ON p.solicitud_id = sol.id
+            WHERE sol.es_eliminado = FALSE {df}{tf}
+            UNION ALL
+            SELECT 
+                '3. Asignadas' AS etapa, COUNT(DISTINCT sol.id) AS cantidad
+            FROM solicitudes_emergencia sol
+            JOIN pujas p ON p.solicitud_id = sol.id AND p.estado = 'ACEPTADA'
+            WHERE sol.es_eliminado = FALSE {df}{tf}
+            UNION ALL
+            SELECT 
+                '4. Completadas' AS etapa, COUNT(DISTINCT sol.id) AS cantidad
+            FROM solicitudes_emergencia sol
+            JOIN asignaciones a ON a.solicitud_id = sol.id AND a.estado = 'COMPLETADA'
+            WHERE sol.es_eliminado = FALSE {df}{tf}
+        """
+        rows = (await self._q(sql, params)).mappings().all()
+        return [{"etapa": r["etapa"], "cantidad": r["cantidad"]} for r in rows]
+
+    # ── KPI 17 — Win Rate de Pujas ────────────────────────────────────────────
+
+    async def kpi17_win_rate_pujas(
+        self,
+        fecha_inicio: Optional[datetime],
+        fecha_fin: Optional[datetime],
+        taller_id: Optional[int] = None,
+    ) -> list[dict]:
+        df, params = self._df("p.fecha_creacion", fecha_inicio, fecha_fin)
+        tf, tparams = self._tf_puja_suc("p", taller_id)
+        params = {**params, **tparams}
+        sql = f"""
+            SELECT 
+                CASE WHEN p.estado = 'ACEPTADA' THEN 'Aceptada' ELSE 'Rechazada/Ignorada' END AS estado,
+                COUNT(*) AS cantidad,
+                ROUND(COUNT(*) * 100.0 / NULLIF(SUM(COUNT(*)) OVER (), 0)::numeric, 2) AS porcentaje
+            FROM pujas p
+            WHERE 1=1 {df}{tf}
+            GROUP BY CASE WHEN p.estado = 'ACEPTADA' THEN 'Aceptada' ELSE 'Rechazada/Ignorada' END
+        """
+        rows = (await self._q(sql, params)).mappings().all()
+        return [{"estado": r["estado"], "cantidad": r["cantidad"], "porcentaje": float(r["porcentaje"] or 0.0)} for r in rows]
+
+    # ── KPI 18 — Evolución de Ingresos y Ticket Promedio ──────────────────────
+
+    async def kpi18_evolucion_ingresos(
+        self,
+        fecha_inicio: Optional[datetime],
+        fecha_fin: Optional[datetime],
+        taller_id: Optional[int] = None,
+    ) -> list[dict]:
+        df, params = self._df("pago.fecha", fecha_inicio, fecha_fin)
+        tf, tparams = self._tf_puja_suc("puja", taller_id)
+        params = {**params, **tparams}
+        sql = f"""
+            SELECT 
+                TO_CHAR(DATE_TRUNC('month', pago.fecha), 'YYYY-MM') AS mes,
+                SUM(pago.monto_taller) AS ingresos_netos,
+                ROUND(AVG(pago.monto_total)::numeric, 2) AS ticket_promedio
+            FROM pagos pago
+            JOIN ordenes_trabajo ord ON ord.id = pago.orden_id
+            JOIN pujas puja ON puja.solicitud_id = ord.solicitud_id AND puja.estado = 'ACEPTADA'
+            WHERE pago.estado = 'COMPLETADO'
+              {df}{tf}
+            GROUP BY DATE_TRUNC('month', pago.fecha)
+            ORDER BY DATE_TRUNC('month', pago.fecha) DESC
+        """
+        rows = (await self._q(sql, params)).mappings().all()
+        return [{
+            "mes": r["mes"], 
+            "ingresos_netos": float(r["ingresos_netos"]) if r["ingresos_netos"] else 0.0,
+            "ticket_promedio": float(r["ticket_promedio"]) if r["ticket_promedio"] else 0.0
+        } for r in rows]
+
+    # ── KPI 19 — Top Vehículos ────────────────────────────────────────────────
+
+    async def kpi19_top_vehiculos(
+        self,
+        fecha_inicio: Optional[datetime],
+        fecha_fin: Optional[datetime],
+        taller_id: Optional[int] = None,
+    ) -> list[dict]:
+        df, params = self._df("sol.fecha_creacion", fecha_inicio, fecha_fin)
+        tf, tparams = self._tf_sol("sol.id", taller_id)
+        params = {**params, **tparams}
+        sql = f"""
+            SELECT 
+                COALESCE(v.marca, 'Desconocida') AS marca,
+                COALESCE(v.modelo, 'Desconocido') AS modelo,
+                COUNT(*) AS cantidad
+            FROM solicitudes_emergencia sol
+            LEFT JOIN vehiculos v ON v.id = sol.vehiculo_id
+            WHERE sol.es_eliminado = FALSE
+              {df}{tf}
+            GROUP BY v.marca, v.modelo
+            ORDER BY cantidad DESC
+            LIMIT 10
+        """
+        rows = (await self._q(sql, params)).mappings().all()
+        return [{"marca": r["marca"], "modelo": r["modelo"], "cantidad": r["cantidad"]} for r in rows]
+
+    # ── KPI 20 — Tiempos Operativos de Mecánicos ──────────────────────────────
+
+    async def kpi20_tiempos_operativos_mecanico(
+        self,
+        taller_id: int,
+        fecha_inicio: Optional[datetime],
+        fecha_fin: Optional[datetime]
+    ) -> list[dict]:
+        df, params = self._df("a.fecha", fecha_inicio, fecha_fin)
+        params["taller_id"] = taller_id
+        sql = f"""
+            SELECT 
+                e.id AS empleado_id,
+                u.nombre AS nombre,
+                ROUND(AVG(EXTRACT(EPOCH FROM (a.fecha_llegada - a.fecha_aceptacion)) / 60)::numeric, 2) AS tiempo_ruta_min,
+                ROUND(AVG(EXTRACT(EPOCH FROM (sol.fecha_finalizacion - a.fecha_llegada)) / 60)::numeric, 2) AS tiempo_sitio_min
+            FROM empleados e
+            JOIN usuarios u ON u.id = e.usuario_id
+            JOIN sucursales su ON su.id = e.sucursal_id
+            JOIN asignaciones a ON a.empleado_id = e.id AND a.estado = 'COMPLETADA'
+            JOIN solicitudes_emergencia sol ON sol.id = a.solicitud_id AND sol.fecha_finalizacion IS NOT NULL
+            WHERE su.taller_id = :taller_id {df}
+            GROUP BY e.id, u.nombre
+            ORDER BY (COALESCE(AVG(EXTRACT(EPOCH FROM (a.fecha_llegada - a.fecha_aceptacion)) / 60), 0) + 
+                      COALESCE(AVG(EXTRACT(EPOCH FROM (sol.fecha_finalizacion - a.fecha_llegada)) / 60), 0)) DESC
+        """
+        rows = (await self._q(sql, params)).mappings().all()
+        def _f(v): return float(v) if v is not None else None
+        return [{
+            "empleado_id": r["empleado_id"],
+            "nombre": r["nombre"],
+            "tiempo_ruta_min": _f(r["tiempo_ruta_min"]),
+            "tiempo_sitio_min": _f(r["tiempo_sitio_min"])
+        } for r in rows]

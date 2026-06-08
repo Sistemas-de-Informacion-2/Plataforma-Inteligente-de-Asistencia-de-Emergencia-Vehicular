@@ -29,6 +29,15 @@ from app.schemas.dashboard import (
     KPI9PuntualidadItem,
     KPI10PrecisionCostoItem,
     KPI11MecanicoRankingItem,
+    KPI12LiquidezMarketplace,
+    KPI13IngresosComisiones,
+    KPI14HorasPico,
+    KPI15RetencionClientes,
+    KPI16EmbudoAbandono,
+    KPI17WinRatePujas,
+    KPI18EvolucionIngresos,
+    KPI19TopVehiculos,
+    KPI20TiemposOperativosMecanico,
 )
 from app.services.dashboard_service import DashboardService
 
@@ -356,3 +365,151 @@ async def kpi11_ranking_mecanicos(
 ) -> list[KPI11MecanicoRankingItem]:
     rows = await DashboardService(db).kpi11_ranking_mecanicos(taller_id, fecha_inicio, fecha_fin)
     return [KPI11MecanicoRankingItem(**r) for r in rows]
+
+
+# ── Nuevos Endpoints (Super Admin / Global) ───────────────────────────────────
+
+@router.get(
+    "/kpi12-liquidez-marketplace",
+    response_model=KPI12LiquidezMarketplace,
+    summary="[SA] KPI 12 — Liquidez del Marketplace",
+    description="Promedio de pujas recibidas por solicitud de emergencia. Mide la competitividad."
+)
+async def kpi12_liquidez_marketplace(
+    fecha_inicio: Optional[datetime] = _FECHA_INICIO,
+    fecha_fin: Optional[datetime] = _FECHA_FIN,
+    taller_id: Optional[int] = Depends(_resolve_taller_id),
+    db: AsyncSession = Depends(get_db),
+) -> KPI12LiquidezMarketplace:
+    data = await DashboardService(db).kpi12_liquidez_marketplace(fecha_inicio, fecha_fin, taller_id)
+    return KPI12LiquidezMarketplace(**data)
+
+
+@router.get(
+    "/kpi13-ingresos-comisiones",
+    response_model=list[KPI13IngresosComisiones],
+    summary="[SA] KPI 13 — Ingresos por Comisiones (Revenue)",
+    description="Tendencia de los ingresos netos de la plataforma generados por el cobro de comisiones."
+)
+async def kpi13_ingresos_comisiones(
+    fecha_inicio: Optional[datetime] = _FECHA_INICIO,
+    fecha_fin: Optional[datetime] = _FECHA_FIN,
+    taller_id: Optional[int] = Depends(_resolve_taller_id),
+    db: AsyncSession = Depends(get_db),
+) -> list[KPI13IngresosComisiones]:
+    rows = await DashboardService(db).kpi13_ingresos_comisiones(fecha_inicio, fecha_fin, taller_id)
+    return [KPI13IngresosComisiones(**r) for r in rows]
+
+
+@router.get(
+    "/kpi14-horas-pico",
+    response_model=list[KPI14HorasPico],
+    summary="[SA / TA] KPI 14 — Mapa de calor temporal (Horas Pico)",
+    description="Matriz de incidencias agrupadas por día de la semana y hora del día."
+)
+async def kpi14_horas_pico(
+    fecha_inicio: Optional[datetime] = _FECHA_INICIO,
+    fecha_fin: Optional[datetime] = _FECHA_FIN,
+    taller_id: Optional[int] = Depends(_resolve_taller_id),
+    db: AsyncSession = Depends(get_db),
+) -> list[KPI14HorasPico]:
+    rows = await DashboardService(db).kpi14_horas_pico(fecha_inicio, fecha_fin, taller_id)
+    return [KPI14HorasPico(**r) for r in rows]
+
+
+@router.get(
+    "/kpi15-retencion-clientes",
+    response_model=list[KPI15RetencionClientes],
+    summary="[SA] KPI 15 — Tasa de Retención de Clientes",
+    description="Porcentaje de usuarios que han solicitado más de una emergencia vs los de uso único."
+)
+async def kpi15_retencion_clientes(
+    fecha_inicio: Optional[datetime] = _FECHA_INICIO,
+    fecha_fin: Optional[datetime] = _FECHA_FIN,
+    taller_id: Optional[int] = Depends(_resolve_taller_id),
+    db: AsyncSession = Depends(get_db),
+) -> list[KPI15RetencionClientes]:
+    rows = await DashboardService(db).kpi15_retencion_clientes(fecha_inicio, fecha_fin, taller_id)
+    return [KPI15RetencionClientes(**r) for r in rows]
+
+
+@router.get(
+    "/kpi16-embudo-abandono",
+    response_model=list[KPI16EmbudoAbandono],
+    summary="[SA / TA] KPI 16 — Tasa de Abandono del Embudo",
+    description="Volumen de solicitudes a través de las etapas: Creadas -> Con Pujas -> Asignadas -> Completadas."
+)
+async def kpi16_embudo_abandono(
+    fecha_inicio: Optional[datetime] = _FECHA_INICIO,
+    fecha_fin: Optional[datetime] = _FECHA_FIN,
+    taller_id: Optional[int] = Depends(_resolve_taller_id),
+    db: AsyncSession = Depends(get_db),
+) -> list[KPI16EmbudoAbandono]:
+    rows = await DashboardService(db).kpi16_embudo_abandono(fecha_inicio, fecha_fin, taller_id)
+    return [KPI16EmbudoAbandono(**r) for r in rows]
+
+
+# ── Nuevos Endpoints (Admin Taller / Exclusivos) ──────────────────────────────
+
+@router.get(
+    "/kpi17-win-rate-pujas",
+    response_model=list[KPI17WinRatePujas],
+    summary="[TA] KPI 17 — Tasa de Éxito en Pujas (Win Rate)",
+    description="Mide el porcentaje de pujas que el taller envía y que finalmente son aceptadas por el cliente."
+)
+async def kpi17_win_rate_pujas(
+    fecha_inicio: Optional[datetime] = _FECHA_INICIO,
+    fecha_fin: Optional[datetime] = _FECHA_FIN,
+    taller_id: Optional[int] = Depends(_resolve_taller_id),
+    db: AsyncSession = Depends(get_db),
+) -> list[KPI17WinRatePujas]:
+    rows = await DashboardService(db).kpi17_win_rate_pujas(fecha_inicio, fecha_fin, taller_id)
+    return [KPI17WinRatePujas(**r) for r in rows]
+
+
+@router.get(
+    "/kpi18-evolucion-ingresos",
+    response_model=list[KPI18EvolucionIngresos],
+    summary="[TA] KPI 18 — Evolución de Ingresos y Ticket Promedio",
+    description="Muestra los ingresos netos del taller y el valor promedio del ticket mes a mes."
+)
+async def kpi18_evolucion_ingresos(
+    fecha_inicio: Optional[datetime] = _FECHA_INICIO,
+    fecha_fin: Optional[datetime] = _FECHA_FIN,
+    taller_id: Optional[int] = Depends(_resolve_taller_id),
+    db: AsyncSession = Depends(get_db),
+) -> list[KPI18EvolucionIngresos]:
+    rows = await DashboardService(db).kpi18_evolucion_ingresos(fecha_inicio, fecha_fin, taller_id)
+    return [KPI18EvolucionIngresos(**r) for r in rows]
+
+
+@router.get(
+    "/kpi19-top-vehiculos",
+    response_model=list[KPI19TopVehiculos],
+    summary="[TA / SA] KPI 19 — Top de Marcas y Modelos",
+    description="Ranking de los vehículos que más se averían o que más atiende el taller."
+)
+async def kpi19_top_vehiculos(
+    fecha_inicio: Optional[datetime] = _FECHA_INICIO,
+    fecha_fin: Optional[datetime] = _FECHA_FIN,
+    taller_id: Optional[int] = Depends(_resolve_taller_id),
+    db: AsyncSession = Depends(get_db),
+) -> list[KPI19TopVehiculos]:
+    rows = await DashboardService(db).kpi19_top_vehiculos(fecha_inicio, fecha_fin, taller_id)
+    return [KPI19TopVehiculos(**r) for r in rows]
+
+
+@router.get(
+    "/kpi20-tiempos-operativos",
+    response_model=list[KPI20TiemposOperativosMecanico],
+    summary="[TA] KPI 20 — Tiempos Operativos de Mecánicos",
+    description="Promedio de tiempo que el mecánico pasa en ruta vs tiempo trabajando en el sitio de la emergencia."
+)
+async def kpi20_tiempos_operativos(
+    fecha_inicio: Optional[datetime] = _FECHA_INICIO,
+    fecha_fin: Optional[datetime] = _FECHA_FIN,
+    taller_id: int = Depends(_require_admin_taller_id),
+    db: AsyncSession = Depends(get_db),
+) -> list[KPI20TiemposOperativosMecanico]:
+    rows = await DashboardService(db).kpi20_tiempos_operativos_mecanico(taller_id, fecha_inicio, fecha_fin)
+    return [KPI20TiemposOperativosMecanico(**r) for r in rows]

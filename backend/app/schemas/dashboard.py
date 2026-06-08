@@ -93,3 +93,68 @@ class KPI11MecanicoRankingItem(BaseModel):
     tiempo_promedio_llegada_min: Optional[float]
     tiempo_promedio_eta_min: Optional[float]
     delta_promedio_min: Optional[float]
+
+
+# ── Nuevos KPIs Super Admin ──
+
+class KPI12LiquidezMarketplace(BaseModel):
+    """KPI 12 — Promedio de pujas recibidas por solicitud."""
+    promedio_pujas: float
+    total_solicitudes: int
+
+
+class KPI13IngresosComisiones(BaseModel):
+    """KPI 13 — Tendencia de ingresos por comisiones."""
+    mes: str
+    total_comision: float
+
+
+class KPI14HorasPico(BaseModel):
+    """KPI 14 — Mapa de calor de incidencias (Día vs Hora)."""
+    dia_semana: int  # 0=Domingo, 1=Lunes, ... 6=Sábado
+    hora: int        # 0-23
+    cantidad: int
+
+
+class KPI15RetencionClientes(BaseModel):
+    """KPI 15 — Retención de clientes (Un solo uso vs Recurrentes)."""
+    tipo: str  # 'Un solo uso', 'Recurrente'
+    cantidad: int
+    porcentaje: float
+
+
+class KPI16EmbudoAbandono(BaseModel):
+    """KPI 16 — Embudo de conversión de la solicitud."""
+    etapa: str
+    cantidad: int
+
+
+# ── Nuevos KPIs Admin Taller ──
+
+class KPI17WinRatePujas(BaseModel):
+    """KPI 17 — Tasa de éxito de pujas enviadas vs aceptadas."""
+    estado: str  # 'Aceptada', 'Rechazada/Ignorada'
+    cantidad: int
+    porcentaje: float
+
+
+class KPI18EvolucionIngresos(BaseModel):
+    """KPI 18 — Evolución de Ingresos Netos y Ticket Promedio."""
+    mes: str
+    ingresos_netos: float
+    ticket_promedio: float
+
+
+class KPI19TopVehiculos(BaseModel):
+    """KPI 19 — Top de marcas y modelos de vehículos atendidos."""
+    marca: str
+    modelo: str
+    cantidad: int
+
+
+class KPI20TiemposOperativosMecanico(BaseModel):
+    """KPI 20 — Tiempos de servicio por mecánico (Ruta vs Sitio)."""
+    empleado_id: int
+    nombre: str
+    tiempo_ruta_min: Optional[float]
+    tiempo_sitio_min: Optional[float]

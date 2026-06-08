@@ -51,20 +51,19 @@
     </div>
   </div>
 
-  <!-- ── FILA 1: KPI 1 — El Pulso del Negocio (ancho completo) ─────────── -->
-  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+  <!-- ── FILA 1: Tarjetas Principales ─────────── -->
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
 
-    <!-- KPI1: Giant Card -->
-    <div class="lg:col-span-1 bg-white border border-[#e5e7eb] rounded-[2rem] p-8 card-border-glow
+    <!-- KPI1: Tiempo Total -->
+    <div class="col-span-1 lg:col-span-2 bg-white border border-[#e5e7eb] rounded-[2rem] p-8 card-border-glow
                 flex flex-col justify-between transition-all hover:shadow-2xl hover:shadow-blue-50">
       <div>
         <span class="text-[10px] font-black text-[#1d4ed8] uppercase tracking-[0.25em] block mb-1">
           El Pulso del Negocio
         </span>
-        <h2 class="text-xl font-black text-[#0a1f44] leading-tight">Tiempo Total de Resolución</h2>
+        <h2 class="text-xl font-black text-[#0a1f44] leading-tight">Tiempo de Resolución</h2>
         <p class="text-xs text-[#475569] mt-2 font-medium leading-relaxed">
-          Mide la promesa de valor principal: cuánto tarda la plataforma desde el SOS hasta el cierre.
-          Un número bajo = clientes felices y recurrentes.
+          Desde el SOS hasta el cierre de la emergencia.
         </p>
       </div>
 
@@ -76,29 +75,96 @@
       } @else {
         <div class="mt-8">
           <div class="flex items-end gap-3">
-            <span class="text-7xl font-black text-[#1d4ed8] leading-none tabular-nums">
+            <span class="text-6xl font-black text-[#1d4ed8] leading-none tabular-nums">
               {{ fmt(kpi1()?.minutos_promedio ?? null, 0) }}
             </span>
-            <span class="text-2xl font-black text-[#475569] mb-2">min</span>
+            <span class="text-xl font-black text-[#475569] mb-1">min</span>
           </div>
           <p class="text-sm text-[#475569] font-semibold mt-3 flex items-center gap-2">
             <i class='bx bx-check-circle text-[#22c55e] text-xl'></i>
-            <span>{{ kpi1()?.total_finalizadas ?? 0 | number }} solicitudes finalizadas</span>
+            <span>{{ kpi1()?.total_finalizadas ?? 0 | number }} finalizadas</span>
           </p>
         </div>
       }
     </div>
 
-    <!-- KPI8: Line Chart — Fuga de Capital -->
-    <div class="lg:col-span-2 bg-white border border-[#e5e7eb] rounded-[2rem] p-6 card-border-glow
+    <!-- KPI12: Liquidez del Marketplace -->
+    <div class="col-span-1 lg:col-span-2 bg-white border border-[#e5e7eb] rounded-[2rem] p-8 card-border-glow
+                flex flex-col justify-between transition-all hover:shadow-2xl hover:shadow-blue-50">
+      <div>
+        <span class="text-[10px] font-black text-[#8b5cf6] uppercase tracking-[0.25em] block mb-1">
+          Competitividad
+        </span>
+        <h2 class="text-xl font-black text-[#0a1f44] leading-tight">Liquidez del Marketplace</h2>
+        <p class="text-xs text-[#475569] mt-2 font-medium leading-relaxed">
+          Promedio de pujas recibidas por solicitud. Mide el interés de los talleres.
+        </p>
+      </div>
+
+      @if (isLoading()) {
+        <div class="mt-8 space-y-3">
+          <div class="shimmer w-2/3 h-16 rounded-2xl"></div>
+          <div class="shimmer w-1/2 h-5 rounded-lg"></div>
+        </div>
+      } @else {
+        <div class="mt-8">
+          <div class="flex items-end gap-3">
+            <span class="text-6xl font-black text-[#8b5cf6] leading-none tabular-nums">
+              {{ fmt(kpi12()?.promedio_pujas ?? null, 1) }}
+            </span>
+            <span class="text-xl font-black text-[#475569] mb-1">pujas/sol.</span>
+          </div>
+          <p class="text-sm text-[#475569] font-semibold mt-3 flex items-center gap-2">
+            <i class='bx bx-bar-chart text-[#8b5cf6] text-xl'></i>
+            <span>{{ kpi12()?.total_solicitudes ?? 0 | number }} solicitudes evaluadas</span>
+          </p>
+        </div>
+      }
+    </div>
+  </div>
+
+  <!-- ── FILA 2: Gráficos de Ingresos y Cancelaciones ─────────── -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+    <!-- KPI13: Ingresos -->
+    <div class="bg-white border border-[#e5e7eb] rounded-[2rem] p-6 card-border-glow
+                transition-all hover:shadow-2xl hover:shadow-blue-50">
+      <div class="mb-4">
+        <span class="text-[10px] font-black text-[#22c55e] uppercase tracking-[0.25em] block mb-1">
+          Monetización
+        </span>
+        <h2 class="text-lg font-black text-[#0a1f44]">Ingresos por Comisiones</h2>
+        <p class="text-xs text-[#475569] mt-1 font-medium">
+          Tendencia de ingresos generados para la plataforma.
+        </p>
+      </div>
+
+      @if (isLoading()) {
+        <div class="shimmer w-full h-56 rounded-2xl"></div>
+      } @else if (kpi13().length === 0) {
+        <div class="flex flex-col items-center justify-center h-56 text-[#475569]">
+          <i class='bx bx-wallet text-5xl text-gray-200 mb-3'></i>
+          <p class="text-sm font-bold">Sin datos de ingresos</p>
+        </div>
+      } @else {
+        <apx-chart
+          [series]="kpi13Series" [chart]="kpi13Chart"
+          [xaxis]="kpi13Xaxis" [colors]="kpi13Colors"
+          [plotOptions]="kpi13PlotOpt" [dataLabels]="kpi13DataL">
+        </apx-chart>
+      }
+    </div>
+
+    <!-- KPI8: Cancelaciones -->
+    <div class="bg-white border border-[#e5e7eb] rounded-[2rem] p-6 card-border-glow
                 transition-all hover:shadow-2xl hover:shadow-blue-50">
       <div class="mb-4">
         <span class="text-[10px] font-black text-amber-600 uppercase tracking-[0.25em] block mb-1">
           Fuga de Capital
         </span>
-        <h2 class="text-lg font-black text-[#0a1f44]">Tendencia de Cancelaciones Mensuales</h2>
+        <h2 class="text-lg font-black text-[#0a1f44]">Tendencia de Cancelaciones</h2>
         <p class="text-xs text-[#475569] mt-1 font-medium">
-          Cada punto porcentual de cancelación es ingreso perdido. Úsalo para detectar meses críticos.
+          Porcentaje de solicitudes canceladas mensualmente.
         </p>
       </div>
 
@@ -107,7 +173,7 @@
       } @else if (kpi8().length === 0) {
         <div class="flex flex-col items-center justify-center h-56 text-[#475569]">
           <i class='bx bx-line-chart text-5xl text-gray-200 mb-3'></i>
-          <p class="text-sm font-bold">Sin datos en el rango seleccionado</p>
+          <p class="text-sm font-bold">Sin datos de cancelaciones</p>
         </div>
       } @else {
         <apx-chart
@@ -121,11 +187,96 @@
     </div>
   </div>
 
-  <!-- ── FILA 2: KPI 5 (Donut) + KPI 6 (Tabla) ─────────────────────────── -->
-  <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+  <!-- ── FILA 3: Horas Pico Heatmap y Embudo ─────────────────────────── -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <!-- KPI14: Heatmap Horas Pico -->
+    <div class="bg-white border border-[#e5e7eb] rounded-[2rem] p-6 card-border-glow
+                transition-all hover:shadow-2xl hover:shadow-blue-50">
+      <div class="mb-2">
+        <span class="text-[10px] font-black text-[#0284c7] uppercase tracking-[0.25em] block mb-1">
+          Demanda Temporal
+        </span>
+        <h2 class="text-lg font-black text-[#0a1f44]">Horas y Días Pico</h2>
+        <p class="text-xs text-[#475569] mt-1 font-medium">
+          Identifica los momentos de mayor saturación en la plataforma.
+        </p>
+      </div>
+      @if (isLoading()) {
+        <div class="shimmer w-full h-[350px] rounded-2xl mt-4"></div>
+      } @else if (kpi14().length === 0) {
+        <div class="flex flex-col items-center justify-center h-[350px] text-[#475569]">
+          <i class='bx bx-calendar text-5xl text-gray-200 mb-3'></i>
+          <p class="text-sm font-bold">Sin datos para heatmap</p>
+        </div>
+      } @else {
+        <apx-chart
+          [series]="kpi14Series" [chart]="kpi14Chart"
+          [plotOptions]="kpi14PlotOpt" [dataLabels]="kpi14DataL">
+        </apx-chart>
+      }
+    </div>
 
-    <!-- KPI5: Donut — Inteligencia de Mercado -->
-    <div class="lg:col-span-2 bg-white border border-[#e5e7eb] rounded-[2rem] p-6 card-border-glow
+    <!-- KPI16: Embudo de Abandono -->
+    <div class="bg-white border border-[#e5e7eb] rounded-[2rem] p-6 card-border-glow
+                transition-all hover:shadow-2xl hover:shadow-blue-50">
+      <div class="mb-2">
+        <span class="text-[10px] font-black text-[#ec4899] uppercase tracking-[0.25em] block mb-1">
+          Comportamiento
+        </span>
+        <h2 class="text-lg font-black text-[#0a1f44]">Embudo de Abandono</h2>
+        <p class="text-xs text-[#475569] mt-1 font-medium">
+          Detección de etapas donde se pierden las solicitudes.
+        </p>
+      </div>
+      @if (isLoading()) {
+        <div class="shimmer w-full h-[250px] rounded-2xl mt-4"></div>
+      } @else if (kpi16().length === 0) {
+        <div class="flex flex-col items-center justify-center h-[250px] text-[#475569]">
+          <i class='bx bx-filter text-5xl text-gray-200 mb-3'></i>
+          <p class="text-sm font-bold">Sin datos del embudo</p>
+        </div>
+      } @else {
+        <apx-chart
+          [series]="kpi16Series" [chart]="kpi16Chart"
+          [plotOptions]="kpi16PlotOpt" [dataLabels]="kpi16DataL"
+          [xaxis]="kpi16Xaxis" [colors]="kpi16Colors">
+        </apx-chart>
+      }
+    </div>
+  </div>
+
+  <!-- ── FILA 4: Retención (KPI 15) y Fallas (KPI 5) ─────────────────────────── -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <!-- KPI15: Retención de Clientes -->
+    <div class="bg-white border border-[#e5e7eb] rounded-[2rem] p-6 card-border-glow
+                transition-all hover:shadow-2xl hover:shadow-blue-50">
+      <div class="mb-2">
+        <span class="text-[10px] font-black text-[#1d4ed8] uppercase tracking-[0.25em] block mb-1">
+          Fidelización
+        </span>
+        <h2 class="text-lg font-black text-[#0a1f44]">Retención de Clientes</h2>
+        <p class="text-xs text-[#475569] mt-1 font-medium">
+          Un solo uso vs Recurrentes.
+        </p>
+      </div>
+      @if (isLoading()) {
+        <div class="shimmer w-full h-[280px] rounded-2xl mt-4"></div>
+      } @else if (kpi15().length === 0) {
+        <div class="flex flex-col items-center justify-center h-[280px] text-[#475569]">
+          <i class='bx bx-user-check text-5xl text-gray-200 mb-3'></i>
+          <p class="text-sm font-bold">Sin datos de clientes</p>
+        </div>
+      } @else {
+        <apx-chart
+          [series]="kpi15Series" [chart]="kpi15Chart"
+          [labels]="kpi15Labels" [colors]="kpi15Colors"
+          [legend]="kpi15Legend">
+        </apx-chart>
+      }
+    </div>
+
+    <!-- KPI5: Distribución de Fallas -->
+    <div class="bg-white border border-[#e5e7eb] rounded-[2rem] p-6 card-border-glow
                 transition-all hover:shadow-2xl hover:shadow-blue-50">
       <div class="mb-2">
         <span class="text-[10px] font-black text-[#1d4ed8] uppercase tracking-[0.25em] block mb-1">
@@ -133,14 +284,13 @@
         </span>
         <h2 class="text-lg font-black text-[#0a1f44]">Distribución de Fallas</h2>
         <p class="text-xs text-[#475569] mt-1 font-medium">
-          Dicta tus alianzas estratégicas para detectar oportunidades de alianzas estratégicas y monetización de datos.
+          Encuentra patrones en averías mecánicas.
         </p>
       </div>
-
       @if (isLoading()) {
-        <div class="shimmer w-full h-56 rounded-2xl mt-4"></div>
+        <div class="shimmer w-full h-[280px] rounded-2xl mt-4"></div>
       } @else if (kpi5().length === 0) {
-        <div class="flex flex-col items-center justify-center h-56 text-[#475569]">
+        <div class="flex flex-col items-center justify-center h-[280px] text-[#475569]">
           <i class='bx bx-pie-chart-alt-2 text-5xl text-gray-200 mb-3'></i>
           <p class="text-sm font-bold">Sin datos de incidencias</p>
         </div>
@@ -153,78 +303,79 @@
         </apx-chart>
       }
     </div>
-
-    <!-- KPI6: Tabla — Top Performers -->
-    <div class="lg:col-span-3 bg-white border border-[#e5e7eb] rounded-[2rem] p-6 card-border-glow
-                transition-all hover:shadow-2xl hover:shadow-blue-50 flex flex-col">
-      <div class="mb-5">
-        <span class="text-[10px] font-black text-[#1d4ed8] uppercase tracking-[0.25em] block mb-1">
-          Top Performers
-        </span>
-        <h2 class="text-lg font-black text-[#0a1f44]">Ranking Global de Sucursales</h2>
-        <p class="text-xs text-[#475569] mt-1 font-medium">
-          Score compuesto: rating, % completado y tasa de respuesta SOS.
-        </p>
-      </div>
-
-      @if (isLoading()) {
-        <div class="space-y-3">
-          @for (i of [1,2,3,4]; track i) {
-            <div class="shimmer w-full h-12 rounded-xl"></div>
-          }
-        </div>
-      } @else if (kpi6().length === 0) {
-        <div class="flex flex-col items-center justify-center flex-1 text-[#475569] py-12">
-          <i class='bx bx-trophy text-5xl text-gray-200 mb-3'></i>
-          <p class="text-sm font-bold">Sin datos de talleres</p>
-        </div>
-      } @else {
-        <div class="overflow-x-auto -mx-2">
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="border-b border-[#e5e7eb]">
-                <th class="text-left py-2 px-3 text-[10px] font-black text-[#475569] uppercase tracking-widest">#</th>
-                <th class="text-left py-2 px-3 text-[10px] font-black text-[#475569] uppercase tracking-widest">Sucursal</th>
-                <th class="text-center py-2 px-3 text-[10px] font-black text-[#475569] uppercase tracking-widest">Rating</th>
-                <th class="text-center py-2 px-3 text-[10px] font-black text-[#475569] uppercase tracking-widest">% Compl.</th>
-                <th class="text-center py-2 px-3 text-[10px] font-black text-[#475569] uppercase tracking-widest">Respuesta</th>
-                <th class="text-center py-2 px-3 text-[10px] font-black text-[#475569] uppercase tracking-widest">Δ Llegada</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (row of kpi6(); track row.sucursal_id; let i = $index) {
-                <tr class="border-b border-gray-50 hover:bg-[#eff6ff] transition-colors group">
-                  <td class="py-3 px-3">
-                    <span class="w-7 h-7 rounded-xl flex items-center justify-center text-xs font-black
-                                 {{ i === 0 ? 'bg-amber-100 text-amber-700' : i === 1 ? 'bg-gray-100 text-gray-600' : i === 2 ? 'bg-orange-100 text-orange-700' : 'bg-[#eff6ff] text-[#1d4ed8]' }}">
-                      {{ i + 1 }}
-                    </span>
-                  </td>
-                  <td class="py-3 px-3 font-bold text-[#0a1f44] truncate max-w-[140px]">{{ row.nombre }}</td>
-                  <td class="py-3 px-3 text-center">
-                    @if (row.rating_promedio != null) {
-                      <span class="flex items-center justify-center gap-1 font-bold text-[#0a1f44]">
-                        <i class='bx bxs-star text-amber-400 text-xs'></i> {{ fmt(row.rating_promedio) }}
-                      </span>
-                    } @else { <span class="text-gray-300 font-bold">—</span> }
-                  </td>
-                  <td class="py-3 px-3 text-center font-bold text-[#0a1f44]">{{ fmt(row.pct_completado) }}%</td>
-                  <td class="py-3 px-3 text-center font-bold text-[#0a1f44]">{{ fmt(row.tasa_respuesta_pct) }}%</td>
-                  <td class="py-3 px-3 text-center">
-                    <span class="px-2 py-1 rounded-lg text-xs font-black {{ deltaBadge(row.delta_puntualidad_min) }}">
-                      {{ row.delta_puntualidad_min != null ? (row.delta_puntualidad_min > 0 ? '+' : '') + fmt(row.delta_puntualidad_min) + ' m' : '—' }}
-                    </span>
-                  </td>
-                </tr>
-              }
-            </tbody>
-          </table>
-        </div>
-      }
-    </div>
   </div>
 
-  <!-- ── FILA 3: KPI 7 — Expansión Territorial (Mapa de Calor) ─────────── -->
+  <!-- ── FILA 5: Top Performers y Mapa (se mantienen igual que antes, ajustados a full width) ─────────────────────────── -->
+  <!-- KPI6: Tabla — Top Performers -->
+  <div class="bg-white border border-[#e5e7eb] rounded-[2rem] p-6 card-border-glow
+              transition-all hover:shadow-2xl hover:shadow-blue-50 flex flex-col">
+    <div class="mb-5">
+      <span class="text-[10px] font-black text-[#1d4ed8] uppercase tracking-[0.25em] block mb-1">
+        Top Performers
+      </span>
+      <h2 class="text-lg font-black text-[#0a1f44]">Ranking Global de Sucursales</h2>
+      <p class="text-xs text-[#475569] mt-1 font-medium">
+        Score compuesto: rating, % completado y tasa de respuesta SOS.
+      </p>
+    </div>
+
+    @if (isLoading()) {
+      <div class="space-y-3">
+        @for (i of [1,2,3,4]; track i) {
+          <div class="shimmer w-full h-12 rounded-xl"></div>
+        }
+      </div>
+    } @else if (kpi6().length === 0) {
+      <div class="flex flex-col items-center justify-center flex-1 text-[#475569] py-12">
+        <i class='bx bx-trophy text-5xl text-gray-200 mb-3'></i>
+        <p class="text-sm font-bold">Sin datos de talleres</p>
+      </div>
+    } @else {
+      <div class="overflow-x-auto -mx-2">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-[#e5e7eb]">
+              <th class="text-left py-2 px-3 text-[10px] font-black text-[#475569] uppercase tracking-widest">#</th>
+              <th class="text-left py-2 px-3 text-[10px] font-black text-[#475569] uppercase tracking-widest">Sucursal</th>
+              <th class="text-center py-2 px-3 text-[10px] font-black text-[#475569] uppercase tracking-widest">Rating</th>
+              <th class="text-center py-2 px-3 text-[10px] font-black text-[#475569] uppercase tracking-widest">% Compl.</th>
+              <th class="text-center py-2 px-3 text-[10px] font-black text-[#475569] uppercase tracking-widest">Respuesta</th>
+              <th class="text-center py-2 px-3 text-[10px] font-black text-[#475569] uppercase tracking-widest">Δ Llegada</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of kpi6(); track row.sucursal_id; let i = $index) {
+              <tr class="border-b border-gray-50 hover:bg-[#eff6ff] transition-colors group">
+                <td class="py-3 px-3">
+                  <span class="w-7 h-7 rounded-xl flex items-center justify-center text-xs font-black
+                               {{ i === 0 ? 'bg-amber-100 text-amber-700' : i === 1 ? 'bg-gray-100 text-gray-600' : i === 2 ? 'bg-orange-100 text-orange-700' : 'bg-[#eff6ff] text-[#1d4ed8]' }}">
+                    {{ i + 1 }}
+                  </span>
+                </td>
+                <td class="py-3 px-3 font-bold text-[#0a1f44] truncate max-w-[140px]">{{ row.nombre }}</td>
+                <td class="py-3 px-3 text-center">
+                  @if (row.rating_promedio != null) {
+                    <span class="flex items-center justify-center gap-1 font-bold text-[#0a1f44]">
+                      <i class='bx bxs-star text-amber-400 text-xs'></i> {{ fmt(row.rating_promedio) }}
+                    </span>
+                  } @else { <span class="text-gray-300 font-bold">—</span> }
+                </td>
+                <td class="py-3 px-3 text-center font-bold text-[#0a1f44]">{{ fmt(row.pct_completado) }}%</td>
+                <td class="py-3 px-3 text-center font-bold text-[#0a1f44]">{{ fmt(row.tasa_respuesta_pct) }}%</td>
+                <td class="py-3 px-3 text-center">
+                  <span class="px-2 py-1 rounded-lg text-xs font-black {{ deltaBadge(row.delta_puntualidad_min) }}">
+                    {{ row.delta_puntualidad_min != null ? (row.delta_puntualidad_min > 0 ? '+' : '') + fmt(row.delta_puntualidad_min) + ' m' : '—' }}
+                  </span>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </div>
+
+  <!-- KPI 7 — Expansión Territorial (Mapa de Calor) -->
   <div class="bg-white border border-[#e5e7eb] rounded-[2rem] p-6 card-border-glow
               transition-all hover:shadow-2xl hover:shadow-blue-50">
     <div class="mb-5">
@@ -233,10 +384,9 @@
       </span>
       <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
         <div>
-          <h2 class="text-lg font-black text-[#0a1f44]">Mapa de Calor de Emergencias</h2>
+          <h2 class="text-lg font-black text-[#0a1f44]">Mapa de Densidad de Emergencias</h2>
           <p class="text-xs text-[#475569] mt-1 font-medium">
-            Cada círculo = clúster de emergencias. Cuanto más grande y opaco, mayor densidad de incidentes.
-            Usa este mapa para decidir dónde abrir la próxima sucursal.
+            Clústers de emergencias para decidir dónde expandir cobertura.
           </p>
         </div>
         @if (kpi7().length > 0 && !isLoading()) {
