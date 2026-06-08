@@ -1,3 +1,4 @@
+// src/features/roles/cliente/presentation/screens/tracking_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -38,14 +39,21 @@ class _TrackingScreenState extends State<TrackingScreen>
   late final Map<String, dynamic>? _tecnico;
 
   void _onProviderChange() {
+    if (!mounted) return;
     final provider = context.read<EmergenciaProvider>();
     if (_lastFlowState != provider.flowState) {
       if (_lastFlowState != null &&
           provider.flowState == EmergenciaFlowState.arrived) {
-        _audioPlayer.play(AssetSource('sounds/notificacion-user.mp3'));
+        try {
+          _audioPlayer.play(AssetSource('sounds/notificacion-user.mp3'));
+        } catch (e) {
+          debugPrint('[TrackingScreen] Error playing audio: $e');
+        }
       }
       _lastFlowState = provider.flowState;
-      if (mounted) setState(() {}); // Rebuild bottom sheet for state change
+      // NO setState aquí — el Selector<EmergenciaFlowState> del bottom sheet
+      // ya se reconstruye cuando flowState cambia. setState reconstruía
+      // todo el body (mapa incluido), causando reset de zoom y bouncing.
     }
   }
 
@@ -60,48 +68,49 @@ class _TrackingScreenState extends State<TrackingScreen>
     )..forward();
 
     _audioPlayer.setReleaseMode(ReleaseMode.stop);
-    _audioPlayer.play(AssetSource('sounds/notificacion-user.mp3'));
+    // Audio deshabilitado en initState para evitar PlatformException
+    // durante la transición de pantalla. Se reproduce solo en onProviderChange.
+    // _audioPlayer.play(AssetSource('sounds/notificacion-user.mp3'));
 
-    // Cachear datos estáticos que NO cambian durante el tracking
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final provider = context.read<EmergenciaProvider>();
-      final asignacion = provider.asignacion;
-      final sucursal = asignacion?.sucursal;
+    // 1. Extraemos los datos INMEDIATAMENTE (Sin addPostFrameCallback)
+    final provider = context.read<EmergenciaProvider>();
+    final asignacion = provider.asignacion;
+    final sucursal = asignacion?.sucursal;
 
-      _tallerNombre = sucursal?['taller_nombre'] ?? 'Taller Asignado';
-      _telefono = sucursal?['telefono'] ?? '';
-      _tecnico = asignacion?.tecnicoAsignado;
-      _esAdmin = _tecnico?['es_admin'] == true;
-      _mecanicoNombre = _tecnico != null ? '${_tecnico['nombre']}' : 'Técnico';
+    // 2. Inicializamos las variables late
+    _tallerNombre = sucursal?['taller_nombre'] ?? 'Taller Asignado';
+    _telefono = sucursal?['telefono'] ?? '';
+    _tecnico = asignacion?.tecnicoAsignado;
+    _esAdmin = _tecnico?['es_admin'] == true;
+    _mecanicoNombre = _tecnico != null ? '${_tecnico['nombre']}' : 'Técnico';
 
-      _lastFlowState = provider.flowState;
-      provider.addListener(_onProviderChange);
+    _lastFlowState = provider.flowState;
+    provider.addListener(_onProviderChange);
 
-      _wsCallSub = provider.wsService.messageStream.listen((msg) {
-        if (msg['type'] == 'CALL_OFFER') {
-          if (!mounted) return;
-          final senderId = msg['sender_id'];
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => CallScreen(
-                wsService: provider.wsService,
-                contactName: _mecanicoNombre,
-                targetId: int.tryParse(senderId.toString()) ?? 0,
-                isIncoming: true,
-              ),
+    // 3. Suscripción al WS (con guard de mounted)
+    _wsCallSub = provider.wsService.messageStream.listen((msg) {
+      if (!mounted) return; // Guard temprano para todo el listener
+      if (msg['type'] == 'CALL_OFFER') {
+        final senderId = msg['sender_id'];
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => CallScreen(
+              wsService: provider.wsService,
+              contactName: _mecanicoNombre,
+              targetId: int.tryParse(senderId.toString()) ?? 0,
+              isIncoming: true,
             ),
-          );
-        }
-      });
+          ),
+        );
+      }
+    });
 
-      // Ya no usamos onServiceFinished para abrir reseña.
-      // SERVICIO_FINALIZADO ahora solo cambia el flowState a serviceFinished.
-      // La reseña se abre DESPUÉS del pago.
-      provider.onServiceFinished = null;
+    provider.onServiceFinished = null;
 
-      provider.onPaymentRequired = (Map<String, dynamic> pagoData) async {
-        debugPrint('[TrackingScreen] onPaymentRequired: $pagoData');
+    provider.onPaymentRequired = (Map<String, dynamic> pagoData) async {
+      debugPrint('[TrackingScreen] onPaymentRequired: $pagoData');
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
         if (!mounted) return;
 
         final result = await Navigator.push(
@@ -118,20 +127,18 @@ class _TrackingScreenState extends State<TrackingScreen>
 
         if (!mounted) return;
         if (result == true) {
-          // Pago exitoso → Mostrar reseña
           final sucursalId = provider.asignacion?.sucursal?['id'];
           if (sucursalId != null) {
             await ReviewModal.show(context, sucursalId);
           }
           if (!mounted) return;
-          // Primero navegar, luego resetear (evita el crash _elements.contains)
           Navigator.popUntil(context, (route) => route.isFirst);
           WidgetsBinding.instance.addPostFrameCallback((_) {
             provider.reset();
           });
         }
-      };
-    });
+      });
+    };
   }
 
   @override
@@ -147,7 +154,7 @@ class _TrackingScreenState extends State<TrackingScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
+    if (state == AppLifecycleState.resumed && mounted) {
       // Forzar reconexión del WebSocket al volver del background
       final provider = context.read<EmergenciaProvider>();
       provider.wsService.forceReconnect();
@@ -173,6 +180,7 @@ class _TrackingScreenState extends State<TrackingScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false, // Evita que el teclado redibuje el mapa
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,

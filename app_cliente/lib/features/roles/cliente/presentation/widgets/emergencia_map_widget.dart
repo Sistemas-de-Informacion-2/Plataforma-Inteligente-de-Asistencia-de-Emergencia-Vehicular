@@ -1,4 +1,4 @@
-import 'dart:ui';
+// src/features/roles/cliente/presentation/widgets/emergencia_map_widget.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -25,40 +25,23 @@ class _EmergenciaMapWidgetState extends State<EmergenciaMapWidget>
 
   static const LatLng _defaultLocation = LatLng(-17.7833, -63.1821);
 
-  // Animation handling for mechanic location
-  LatLng? _oldMechanicLoc;
-  late AnimationController _mechanicMoveController;
-  late Animation<double> _mechanicMoveAnimation;
-
-  final GlobalKey _mechanicMarkerKey = GlobalKey();
+  // ── GlobalKey SOLO en el marcador del usuario (para preservar su
+  //    AnimationController de pulso a través de rebuilds por cambio de posición)
   final GlobalKey _userMarkerKey = GlobalKey();
 
-  @override
-  void initState() {
-    super.initState();
-    _mechanicMoveController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1000), // Suave transición de 1 seg
-    );
-    _mechanicMoveAnimation = CurvedAnimation(
-      parent: _mechanicMoveController,
-      curve: Curves.linear,
-    );
-  }
-
+  // ── El marcador del mecánico ya NO necesita GlobalKey porque
+  //    _SmoothMechanicLayer gestiona su propio ciclo de vida.
   @override
   void dispose() {
     _mapController.dispose();
-    _mechanicMoveController.dispose();
     super.dispose();
   }
 
   @override
   void didUpdateWidget(covariant EmergenciaMapWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.userLocation != null &&
-        widget.userLocation != oldWidget.userLocation) {
-      _mapController.move(widget.userLocation!, 15.5);
+    if (widget.userLocation != null && widget.userLocation != oldWidget.userLocation) {
+      _mapController.move(widget.userLocation!, _mapController.camera.zoom);
     }
   }
 
@@ -98,7 +81,6 @@ class _EmergenciaMapWidgetState extends State<EmergenciaMapWidget>
             if (polylineCoords.isEmpty) return const SizedBox.shrink();
             return PolylineLayer(
               polylines: [
-                // Sombra inDrive (borde negro/oscuro)
                 Polyline(
                   points: polylineCoords,
                   color: Colors.black.withValues(alpha: 0.3),
@@ -106,7 +88,6 @@ class _EmergenciaMapWidgetState extends State<EmergenciaMapWidget>
                   strokeCap: StrokeCap.round,
                   strokeJoin: StrokeJoin.round,
                 ),
-                // Línea inDrive (blanca o primaria clara)
                 Polyline(
                   points: polylineCoords,
                   color: Colors.white,
@@ -127,47 +108,24 @@ class _EmergenciaMapWidgetState extends State<EmergenciaMapWidget>
                 point: widget.userLocation!,
                 width: 88,
                 height: 88,
+                // GlobalKey preserva la animación de pulso cuando cambia userLocation
                 child: _UserLocationMarker(key: _userMarkerKey),
               ),
             ],
           ),
 
-        // ── 4. MARCADOR DEL MECÁNICO (ANIMADO Y SIN FLICKER) ──────────────
+        // ── 4. MARCADOR DEL MECÁNICO — ANIMACIÓN SIN PARPADEO ─────────────
+        //
+        // FIX: Reemplazamos el Selector + TweenAnimationBuilder (que causaba
+        // el parpadeo) por _SmoothMechanicLayer, un StatefulWidget que:
+        //   a) Recibe la nueva posición vía didUpdateWidget (no recrea el widget)
+        //   b) Guarda _from como la posición interpolada actual
+        //   c) Anima suavemente de _from → _to con AnimatedBuilder
+        //   d) Pasa _MechanicMarker como child: (construido UNA sola vez,
+        //      su animación de entrada solo se ejecuta al primer montaje)
         Selector<EmergenciaProvider, LatLng?>(
           selector: (_, p) => p.mechanicLocation,
-          builder: (context, newLoc, _) {
-            if (newLoc == null) return const SizedBox.shrink();
-
-            if (_oldMechanicLoc != null && _oldMechanicLoc != newLoc) {
-              _mechanicMoveController.forward(from: 0.0);
-            }
-            final oldLoc = _oldMechanicLoc ?? newLoc;
-            _oldMechanicLoc = newLoc;
-
-            return AnimatedBuilder(
-              animation: _mechanicMoveAnimation,
-              builder: (context, child) {
-                // Interpolar coordenadas
-                final currentLat = oldLoc.latitude +
-                    (newLoc.latitude - oldLoc.latitude) *
-                        _mechanicMoveAnimation.value;
-                final currentLng = oldLoc.longitude +
-                    (newLoc.longitude - oldLoc.longitude) *
-                        _mechanicMoveAnimation.value;
-
-                return MarkerLayer(
-                  markers: [
-                    Marker(
-                      point: LatLng(currentLat, currentLng),
-                      width: 44,
-                      height: 44,
-                      child: _MechanicMarker(key: _mechanicMarkerKey),
-                    ),
-                  ],
-                );
-              },
-            );
-          },
+          builder: (_, loc, __) => _SmoothMechanicLayer(location: loc),
         ),
 
         const RichAttributionWidget(
@@ -181,6 +139,117 @@ class _EmergenciaMapWidgetState extends State<EmergenciaMapWidget>
     );
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// _SmoothMechanicLayer
+//
+// Gestiona la interpolación de posición del marcador del mecánico sin parpadeo.
+//
+// Por qué funciona:
+//   • El Selector rebuilds cuando llega nueva ubicación → devuelve una nueva
+//     instancia de _SmoothMechanicLayer con location distinto.
+//   • Flutter detecta el mismo tipo en la misma posición del árbol → llama
+//     didUpdateWidget en el State existente en lugar de recrearlo.
+//   • didUpdateWidget captura la posición animada actual como _from, pone
+//     newLoc como _to, y relanza el AnimationController desde 0.
+//   • AnimatedBuilder solo rebuilds MarkerLayer (no _MechanicMarker), así
+//     que el marcador NO se desmonta y su animación de entrada no se repite.
+// ─────────────────────────────────────────────────────────────────────────────
+class _SmoothMechanicLayer extends StatefulWidget {
+  final LatLng? location;
+  const _SmoothMechanicLayer({this.location});
+
+  @override
+  State<_SmoothMechanicLayer> createState() => _SmoothMechanicLayerState();
+}
+
+class _SmoothMechanicLayerState extends State<_SmoothMechanicLayer>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  LatLng _from = const LatLng(0, 0);
+  LatLng _to = const LatLng(0, 0);
+  bool _initialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+    if (widget.location != null) {
+      _from = widget.location!;
+      _to = widget.location!;
+      _initialized = true;
+      _ctrl.value = 1.0; // sin animación en el primer punto
+    }
+  }
+
+  @override
+  void didUpdateWidget(_SmoothMechanicLayer old) {
+    super.didUpdateWidget(old);
+    final newLoc = widget.location;
+    if (newLoc == null || newLoc == old.location) return;
+
+    if (!_initialized) {
+      // Primera ubicación recibida: aparece sin animación
+      _from = newLoc;
+      _to = newLoc;
+      _initialized = true;
+      _ctrl.value = 1.0;
+    } else {
+      // Ubicaciones siguientes: interpola desde donde está ahora
+      _from = _currentPos; // captura posición actual de la animación en curso
+      _to = newLoc;
+      _ctrl.forward(from: 0); // reinicia y arranca la transición
+    }
+  }
+
+  /// Posición interpolada actual según el valor del AnimationController.
+  LatLng get _currentPos {
+    final t = Curves.easeInOut.transform(_ctrl.value);
+    return LatLng(
+      _from.latitude + (_to.latitude - _from.latitude) * t,
+      _from.longitude + (_to.longitude - _from.longitude) * t,
+    );
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_initialized) return const SizedBox.shrink();
+
+    return AnimatedBuilder(
+      animation: _ctrl,
+      // child: se construye UNA sola vez y se reutiliza en cada frame.
+      // Esto garantiza que _MechanicMarkerState NO se recrea en cada tick
+      // y por ende su animación de entrada solo corre al primer montaje.
+      child: const _MechanicMarker(),
+      builder: (context, child) {
+        return MarkerLayer(
+          markers: [
+            Marker(
+              point: _currentPos,
+              width: 44,
+              height: 44,
+              child: child!,
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Marcadores (sin cambios en su lógica, solo se garantiza que se montan
+// una sola vez gracias al patrón corregido arriba)
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _UserLocationMarker extends StatefulWidget {
   const _UserLocationMarker({super.key});
@@ -216,16 +285,15 @@ class _UserLocationMarkerState extends State<_UserLocationMarker>
         return Stack(
           alignment: Alignment.center,
           children: [
-            // Onda expansiva
             Container(
               width: 88 * _animCtrl.value,
               height: 88 * _animCtrl.value,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppTheme.primaryColor.withValues(alpha: (1.0 - _animCtrl.value) * 0.4),
+                color: AppTheme.primaryColor
+                    .withValues(alpha: (1.0 - _animCtrl.value) * 0.4),
               ),
             ),
-            // Marcador central
             Container(
               width: 38,
               height: 38,
@@ -234,10 +302,15 @@ class _UserLocationMarkerState extends State<_UserLocationMarker>
                 shape: BoxShape.circle,
                 border: Border.all(color: Colors.white, width: 3),
                 boxShadow: [
-                  BoxShadow(color: AppTheme.primaryColor.withValues(alpha: 0.5), blurRadius: 8, offset: const Offset(0, 3)),
+                  BoxShadow(
+                    color: AppTheme.primaryColor.withValues(alpha: 0.5),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
                 ],
               ),
-              child: const Icon(Icons.person_rounded, color: Colors.white, size: 20),
+              child:
+                  const Icon(Icons.person_rounded, color: Colors.white, size: 20),
             ),
           ],
         );
@@ -247,7 +320,9 @@ class _UserLocationMarkerState extends State<_UserLocationMarker>
 }
 
 class _MechanicMarker extends StatefulWidget {
-  const _MechanicMarker({super.key});
+  // Sin GlobalKey: _SmoothMechanicLayerState ya garantiza que este widget
+  // vive en el árbol de forma estable (no se desmonta entre actualizaciones).
+  const _MechanicMarker();
 
   @override
   State<_MechanicMarker> createState() => _MechanicMarkerState();
@@ -262,6 +337,8 @@ class _MechanicMarkerState extends State<_MechanicMarker>
   @override
   void initState() {
     super.initState();
+    // Esta animación de entrada ahora solo corre UNA vez: cuando el mecánico
+    // aparece por primera vez. No se repite con cada actualización de posición.
     _entryController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 600),
@@ -301,46 +378,32 @@ class _MechanicMarkerState extends State<_MechanicMarker>
         clipBehavior: Clip.none,
         alignment: Alignment.center,
         children: [
-          // Icono estilo inDrive (Carro / Grúa en vista cenital si se tiene)
-          // Usaremos un estilo glassmorphism limpio
-          ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-              child: Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: AppTheme.surfaceColor,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: AppTheme.primaryColor,
-                    width: 1.5,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppTheme.primaryColor.withValues(alpha: 0.25),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.1),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: AppTheme.primaryColor,
+                width: 1.5,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.primaryColor.withValues(alpha: 0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
                 ),
-                child: const Center(
-                  child: Icon(
-                    Icons.car_repair_rounded,
-                    color: AppTheme.primaryColor,
-                    size: 20,
-                  ),
-                ),
+              ],
+            ),
+            child: const Center(
+              child: Icon(
+                Icons.car_repair_rounded,
+                color: AppTheme.primaryColor,
+                size: 20,
               ),
             ),
           ),
-          // Badge "En camino"
           Positioned(
             top: -3,
             right: -3,
@@ -354,8 +417,7 @@ class _MechanicMarkerState extends State<_MechanicMarker>
                 boxShadow: [
                   BoxShadow(
                     color: AppTheme.success.withValues(alpha: 0.4),
-                    blurRadius: 6,
-                    spreadRadius: 1,
+                    blurRadius: 4,
                   ),
                 ],
               ),

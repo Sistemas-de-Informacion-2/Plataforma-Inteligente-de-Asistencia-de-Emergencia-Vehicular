@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../../core/theme/app_theme.dart';
+import '../../../../../core/utils/offline_utils.dart';
 import '../providers/mecanico_provider.dart';
 import '../../domain/entities/asignacion_entity.dart';
 
@@ -306,7 +307,8 @@ class _SosCard extends ConsumerWidget {
                     key: const ValueKey('rejectForm'),
                     controller: rejectCtrl,
                     onCancel: () => onRejecting(false),
-                    onConfirm: () {
+                    onConfirm: () async {
+                      if (await OfflineUtils.checkOfflineAndShowDialog(context)) return;
                       if (rejectCtrl.text.trim().isEmpty) {
                         showSnack('Debes indicar un motivo de rechazo', error: true);
                         return;
@@ -320,10 +322,11 @@ class _SosCard extends ConsumerWidget {
                 : _ActionButtons(
                     key: const ValueKey('actionButtons'),
                     onReject: () => onRejecting(true),
-                    onAccept: () {
+                    onAccept: () async {
+                      if (await OfflineUtils.checkOfflineAndShowDialog(context)) return;
                       ref.read(mecanicoControllerProvider.notifier)
                           .acceptJob(asignacion.id);
-                      context.pop();
+                      if (context.mounted && Navigator.canPop(context)) context.pop();
                     },
                   ),
           ),
@@ -413,9 +416,10 @@ class _EnRutaCard extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(14)),
                 elevation: 0,
               ),
-              onPressed: () {
+              onPressed: () async {
+                if (await OfflineUtils.checkOfflineAndShowDialog(context)) return;
                 ref.read(mecanicoControllerProvider.notifier).arriveAtLocation();
-                context.pop();
+                if (context.mounted && Navigator.canPop(context)) context.pop();
               },
             ),
           ),
@@ -581,7 +585,8 @@ class _EnSitioCardState extends ConsumerState<_EnSitioCard> {
                     borderRadius: BorderRadius.circular(14)),
                 elevation: 0,
               ),
-              onPressed: () {
+              onPressed: () async {
+                if (await OfflineUtils.checkOfflineAndShowDialog(context)) return;
                 final montoStr = _montoController.text.trim();
                 if (montoStr.isEmpty) {
                   widget.showSnack('Por favor ingresa el monto cobrado', error: true);
@@ -593,7 +598,7 @@ class _EnSitioCardState extends ConsumerState<_EnSitioCard> {
                   return;
                 }
                 ref.read(mecanicoControllerProvider.notifier).finalizarTrabajo(monto);
-                context.pop();
+                if (context.mounted && Navigator.canPop(context)) context.pop();
               },
             ),
           ),

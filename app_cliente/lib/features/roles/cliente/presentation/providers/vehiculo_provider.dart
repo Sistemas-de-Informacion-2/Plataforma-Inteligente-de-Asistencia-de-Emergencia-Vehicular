@@ -1,6 +1,8 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import '../../../../../core/network/api_client.dart';
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../data/models/vehiculo.dart';
 
 class VehiculoProvider extends ChangeNotifier {
@@ -11,7 +13,24 @@ class VehiculoProvider extends ChangeNotifier {
   String errorMessage = '';
 
   VehiculoProvider() {
+    _loadCache();
     fetchVehiculos();
+  }
+
+  Future<void> _loadCache() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cache = prefs.getString('vehiculos_cache');
+      if (cache != null) {
+        final decoded = jsonDecode(cache);
+        if (decoded is List) {
+          vehiculos = decoded.map((item) => Vehiculo.fromJson(Map<String, dynamic>.from(item))).toList();
+          notifyListeners();
+        }
+      }
+    } catch (e) {
+      debugPrint('Error loading vehicles cache: $e');
+    }
   }
 
   Future<void> fetchVehiculos() async {
@@ -22,6 +41,9 @@ class VehiculoProvider extends ChangeNotifier {
     try {
       final response = await _apiClient.instance.get('/vehiculos/');
       if (response.statusCode == 200) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('vehiculos_cache', jsonEncode(response.data));
+
         vehiculos = (response.data as List)
             .map((item) => Vehiculo.fromJson(item))
             .toList();

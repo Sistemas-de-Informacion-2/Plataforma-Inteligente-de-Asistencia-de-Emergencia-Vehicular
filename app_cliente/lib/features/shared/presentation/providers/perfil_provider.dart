@@ -1,6 +1,8 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import '../../../../core/network/api_client.dart';
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../domain/entities/perfil.dart';
 
 class PerfilProvider extends ChangeNotifier {
@@ -11,7 +13,24 @@ class PerfilProvider extends ChangeNotifier {
   String errorMessage = '';
 
   PerfilProvider() {
+    _loadCache();
     fetchPerfil();
+  }
+
+  Future<void> _loadCache() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cache = prefs.getString('perfil_cache');
+      if (cache != null) {
+        final decoded = jsonDecode(cache);
+        if (decoded is Map) {
+          perfil = Perfil.fromJson(Map<String, dynamic>.from(decoded));
+          notifyListeners();
+        }
+      }
+    } catch (e) {
+      debugPrint('Error loading perfil cache: $e');
+    }
   }
 
   Future<void> fetchPerfil() async {
@@ -22,6 +41,8 @@ class PerfilProvider extends ChangeNotifier {
     try {
       final response = await _apiClient.instance.get('/usuarios/me');
       if (response.statusCode == 200) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('perfil_cache', jsonEncode(response.data));
         perfil = Perfil.fromJson(response.data);
       }
     } on DioException catch (e) {
@@ -60,6 +81,8 @@ class PerfilProvider extends ChangeNotifier {
       );
 
       if (response.statusCode == 200) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('perfil_cache', jsonEncode(response.data));
         perfil = Perfil.fromJson(response.data);
         isLoading = false;
         notifyListeners();

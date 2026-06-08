@@ -11,7 +11,7 @@ plugins {
 android {
     namespace = "com.emergencias.fixo"
     compileSdk = 36
-    ndkVersion = "27.0.12077973"
+    ndkVersion = "28.2.13676358"
 
     compileOptions {
         isCoreLibraryDesugaringEnabled = true
@@ -39,6 +39,13 @@ android {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
+        }
+        debug {
+            packaging {
+                jniLibs {
+                    keepDebugSymbols += setOf("**/*.so")
+                }
+            }
         }
     }
 

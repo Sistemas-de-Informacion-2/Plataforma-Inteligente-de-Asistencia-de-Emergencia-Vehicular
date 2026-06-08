@@ -19,6 +19,7 @@ from app.models.admin import Admin
 from app.models.asignacion import Asignacion
 from app.models.orden_trabajo import OrdenTrabajo, EstadoOrden
 from app.models.pago import Pago, EstadoPago, TipoPago
+from app.models.solicitud_emergencia import SolicitudEmergencia
 from app.models.taller import Sucursal, Taller
 
 logger = logging.getLogger(__name__)
@@ -75,6 +76,8 @@ class PagoService:
         stmt = (
             select(Asignacion)
             .where(Asignacion.solicitud_id == solicitud_id)
+            .order_by(Asignacion.id.desc())
+            .limit(1)
             .options(selectinload(Asignacion.sucursal))
         )
         result = await self.session.execute(stmt)

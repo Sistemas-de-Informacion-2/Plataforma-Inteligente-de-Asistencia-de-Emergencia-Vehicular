@@ -1,13 +1,17 @@
+// src/features/roles/cliente/presentation/screens/inicio_screen.dart
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:lottie/lottie.dart';
 import '../../../../../core/theme/app_theme.dart';
+import '../../../../../core/widgets/offline_banner.dart';
+import '../../../../../core/utils/offline_utils.dart';
 
 import '../providers/vehiculo_provider.dart';
 import '../providers/emergencia_provider.dart';
 import '../providers/inicio_provider.dart';
+import '../../../../shared/presentation/providers/perfil_provider.dart';
 import 'tracking_screen.dart';
 import 'radar_espera_screen.dart';
 
@@ -28,6 +32,8 @@ class InicioScreen extends StatefulWidget {
 class _InicioScreenState extends State<InicioScreen> with SingleTickerProviderStateMixin {
   EmergenciaProvider? _emProvider;
   late AnimationController _entranceController;
+
+  EmergenciaFlowState? _lastProcessedState;
 
   @override
   void initState() {
@@ -58,8 +64,12 @@ class _InicioScreenState extends State<InicioScreen> with SingleTickerProviderSt
 
   void _onEmergenciaStateChanged() {
     if (!mounted || _emProvider == null) return;
-
+    
     final flowState = _emProvider!.flowState;
+
+    if (_lastProcessedState == flowState) return;
+    _lastProcessedState = flowState;
+    
     if (flowState == EmergenciaFlowState.waitingForBids) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (ModalRoute.of(context)?.settings.name != '/radar') {
@@ -172,6 +182,17 @@ class _InicioScreenState extends State<InicioScreen> with SingleTickerProviderSt
   // ── Send SOS ───────────────────────────────────────────────
   Future<void> _enviarSOS() async {
     HapticFeedback.heavyImpact();
+    
+    // Offline check
+    if (await OfflineUtils.checkOfflineAndShowDialog(
+      context,
+      customMessage: 'Debes conectarte a una red para poder solicitar asistencia. Tu solicitud se guardará automáticamente.',
+    )) {
+      return;
+    }
+
+    if (!mounted) return;
+
     final formProvider = context.read<InicioProvider>();
     final emProvider = context.read<EmergenciaProvider>();
 
@@ -271,6 +292,22 @@ class _InicioScreenState extends State<InicioScreen> with SingleTickerProviderSt
               userLocation: inicioProvider.userLocation,
             ),
           ),
+
+          // ── OFFLINE BANNER ───────────────────────────────
+        // Banner Offline
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          child: OfflineBanner(
+            onOnline: () {
+              if (mounted) {
+                context.read<PerfilProvider>().fetchPerfil();
+                context.read<VehiculoProvider>().fetchVehiculos();
+              }
+            },
+          ),
+        ),
 
           // ── 2. GRADIENT OVERLAYS (Mejor legibilidad y estética) ──────────
           Positioned(

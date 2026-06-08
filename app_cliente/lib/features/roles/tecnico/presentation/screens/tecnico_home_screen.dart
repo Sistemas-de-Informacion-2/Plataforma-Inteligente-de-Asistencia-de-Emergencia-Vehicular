@@ -9,6 +9,8 @@ import '../providers/mecanico_provider.dart';
 import '../widgets/mechanic_map_widget.dart';
 import '../widgets/mechanic_drawer_widget.dart';
 import '../../../../shared/call/presentation/screens/call_screen.dart';
+import '../../../../../core/utils/offline_utils.dart';
+import '../../../../../core/widgets/offline_banner.dart';
 
 class TecnicoHomeScreen extends ConsumerStatefulWidget {
   const TecnicoHomeScreen({super.key});
@@ -95,6 +97,14 @@ class _TecnicoHomeScreenState extends ConsumerState<TecnicoHomeScreen>
         children: [
           // Capa Fondo: Mapa Animado
           const MechanicMapWidget(),
+
+          // ── OFFLINE BANNER ───────────────────────────────
+          const Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: OfflineBanner(),
+          ),
 
           // Capa Superior: Top Bar Flotante
           SafeArea(
@@ -277,7 +287,8 @@ class _TecnicoHomeScreenState extends ConsumerState<TecnicoHomeScreen>
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                         elevation: 0,
                       ),
-                      onPressed: () {
+                      onPressed: () async {
+                        if (await OfflineUtils.checkOfflineAndShowDialog(context)) return;
                         ref.read(mecanicoControllerProvider.notifier).arriveAtLocation();
                       },
                     ),
@@ -405,19 +416,27 @@ class _TecnicoHomeScreenState extends ConsumerState<TecnicoHomeScreen>
                                     );
                                     return;
                                   }
-                                  _audioPlayer.stop();
-                                  ref.read(mecanicoControllerProvider.notifier).rejectJob(asignacion.id, rejectReasonController.text);
-                                  Navigator.of(ctx).pop();
-                                  _isDialogShowing = false;
+                                  OfflineUtils.checkOfflineAndShowDialog(context).then((isOffline) {
+                                    if (isOffline) return;
+                                    _audioPlayer.stop();
+                                    ref.read(mecanicoControllerProvider.notifier).rejectJob(asignacion.id, rejectReasonController.text);
+                                    if (ctx.mounted && Navigator.canPop(ctx)) {
+                                      Navigator.of(ctx).pop();
+                                    }
+                                    _isDialogShowing = false;
+                                  });
                                 }
                               )
                             : _buildAcceptRejectButtons(
                                 ctx, asignacion.id,
                                 onReject: () => setStateDialog(() => isRejecting = true),
-                                onAccept: () {
+                                onAccept: () async {
+                                  if (await OfflineUtils.checkOfflineAndShowDialog(context)) return;
                                   _audioPlayer.stop();
                                   ref.read(mecanicoControllerProvider.notifier).acceptJob(asignacion.id);
-                                  Navigator.of(ctx).pop();
+                                  if (ctx.mounted && Navigator.canPop(ctx)) {
+                                    Navigator.of(ctx).pop();
+                                  }
                                   _isDialogShowing = false;
                                 }
                               ),

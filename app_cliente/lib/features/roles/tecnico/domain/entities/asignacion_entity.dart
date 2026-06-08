@@ -44,4 +44,36 @@ class AsignacionEntity {
       clienteId: solicitudMap['cliente_id'],
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'solicitudId': solicitudId,
+      'estado': estado,
+      'problemaDetectado': problemaDetectado,
+      'clienteNombre': clienteNombre,
+      'vehiculoInfo': vehiculoInfo,
+      'distanciaKm': distanciaKm,
+      'latitud': latitud,
+      'longitud': longitud,
+      'motivoRechazo': motivoRechazo,
+      'clienteId': clienteId,
+    };
+  }
+
+  factory AsignacionEntity.fromJson(Map<String, dynamic> json) {
+    return AsignacionEntity(
+      id: json['id'],
+      solicitudId: json['solicitudId'],
+      estado: json['estado'],
+      problemaDetectado: json['problemaDetectado'],
+      clienteNombre: json['clienteNombre'],
+      vehiculoInfo: json['vehiculoInfo'],
+      distanciaKm: json['distanciaKm']?.toDouble(),
+      latitud: json['latitud']?.toDouble(),
+      longitud: json['longitud']?.toDouble(),
+      motivoRechazo: json['motivoRechazo'],
+      clienteId: json['clienteId'],
+    );
+  }
 }
