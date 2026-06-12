@@ -1,5 +1,5 @@
 class Environment {
-  static const String devBaseUrl = 'http://192.168.0.32:8000/api/v1';
+  static const String devBaseUrl = 'http://192.168.72.94:8000/api/v1';
   static const String prodBaseUrl = 'https://tu-api-prod.com/api/v1'; 
 
   // Determinar el ambiente actual (puede cambiarse a gusto o por variables de entorno)

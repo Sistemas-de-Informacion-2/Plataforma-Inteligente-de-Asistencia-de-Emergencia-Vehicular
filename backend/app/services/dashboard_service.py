@@ -536,8 +536,8 @@ class DashboardService:
             JOIN diagnosticos_ia diag  ON diag.solicitud_id  = sol.id
             JOIN pujas puja            ON puja.solicitud_id  = sol.id
                                      AND puja.estado         = 'ACEPTADA'
-            JOIN ordenes_trabajo ord   ON ord.solicitud_id   = sol.id
-            JOIN detalles_orden det    ON det.orden_id       = ord.id
+            LEFT JOIN ordenes_trabajo ord   ON ord.solicitud_id   = sol.id
+            LEFT JOIN detalles_orden det    ON det.orden_id       = ord.id
             WHERE sol.es_eliminado = FALSE
               {df}{tf}
             GROUP BY sol.id, diag.costo_estimado_ia, puja.precio_estimado
@@ -812,7 +812,7 @@ class DashboardService:
             JOIN usuarios u ON u.id = e.usuario_id
             JOIN sucursales su ON su.id = e.sucursal_id
             JOIN asignaciones a ON a.empleado_id = e.id AND a.estado = 'COMPLETADA'
-            JOIN solicitudes_emergencia sol ON sol.id = a.solicitud_id AND sol.fecha_finalizacion IS NOT NULL
+            JOIN solicitudes_emergencia sol ON sol.id = a.solicitud_id
             WHERE su.taller_id = :taller_id {df}
             GROUP BY e.id, u.nombre
             ORDER BY (COALESCE(AVG(EXTRACT(EPOCH FROM (a.fecha_llegada - a.fecha_aceptacion)) / 60), 0) + 

@@ -189,7 +189,11 @@ class _SmoothMechanicLayerState extends State<_SmoothMechanicLayer>
   void didUpdateWidget(_SmoothMechanicLayer old) {
     super.didUpdateWidget(old);
     final newLoc = widget.location;
-    if (newLoc == null || newLoc == old.location) return;
+    if (newLoc == null) {
+      _initialized = false;
+      return;
+    }
+    if (newLoc == old.location) return;
 
     if (!_initialized) {
       // Primera ubicación recibida: aparece sin animación
@@ -222,7 +226,7 @@ class _SmoothMechanicLayerState extends State<_SmoothMechanicLayer>
 
   @override
   Widget build(BuildContext context) {
-    if (!_initialized) return const SizedBox.shrink();
+    if (!_initialized || widget.location == null) return const SizedBox.shrink();
 
     return AnimatedBuilder(
       animation: _ctrl,

@@ -13,6 +13,7 @@ Modelo 'Uber para Mecánicos Inverso':
 """
 import logging
 from typing import Any
+from datetime import datetime, timezone
 
 from geoalchemy2.elements import WKTElement
 from sqlalchemy import select
@@ -380,6 +381,7 @@ class SolicitudService:
         else:
             # Auto-asignación de Admin: Salta directamente a EN_CAMINO
             asignacion.estado = EstadoAsignacion.ACEPTADA
+            asignacion.fecha_aceptacion = datetime.now(timezone.utc)
             await self.session.flush()
             await self.session.refresh(asignacion)
 
@@ -480,6 +482,7 @@ class SolicitudService:
         if aceptar:
             # ── ACEPTAR ──
             asignacion.estado = EstadoAsignacion.ACEPTADA
+            asignacion.fecha_aceptacion = datetime.now(timezone.utc)
             solicitud.estado = EstadoSolicitud.EN_CAMINO
             await self.session.flush()
             await self.session.refresh(asignacion)
@@ -613,6 +616,7 @@ class SolicitudService:
             )
 
         asignacion.estado = EstadoAsignacion.EN_SITIO
+        asignacion.fecha_llegada = datetime.now(timezone.utc)
         asignacion.solicitud.estado = EstadoSolicitud.EN_SITIO
         await self.session.flush()
         await self.session.refresh(asignacion)
@@ -701,14 +705,14 @@ class SolicitudService:
             if admin_uid != usuario_id:
                 raise ValueError("Esta asignación le pertenece a la sucursal y tú no eres el administrador.")
 
-        if asignacion.estado != EstadoAsignacion.EN_SITIO:
+        if asignacion.estado != EstadoAsignacion.EN_SITIO or asignacion.fecha_llegada is None:
             raise ValueError(
-                f"No puedes finalizar en estado {asignacion.estado.value}. "
-                f"Debe estar en EN_SITIO."
+                "Debe marcar su llegada al sitio antes de poder finalizar el servicio."
             )
 
         asignacion.estado = EstadoAsignacion.COMPLETADA
         asignacion.solicitud.estado = EstadoSolicitud.FINALIZADO
+        asignacion.solicitud.fecha_finalizacion = datetime.now(timezone.utc)
         await self.session.flush()
         await self.session.refresh(asignacion)
 
