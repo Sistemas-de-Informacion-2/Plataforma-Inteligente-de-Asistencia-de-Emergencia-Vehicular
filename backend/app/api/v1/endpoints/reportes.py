@@ -14,6 +14,9 @@ Tres flujos:
 """
 from datetime import datetime
 from typing import Optional
+import os
+import httpx
+from pydantic import BaseModel
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
@@ -27,6 +30,7 @@ from app.models.taller import Taller
 from app.models.usuario import Usuario
 from app.schemas.reportes import ReporteIARequest, ReporteManualRequest
 from app.services.reporte_service import ReporteService
+from app.core.config import get_settings
 
 router = APIRouter()
 
@@ -243,3 +247,57 @@ async def reporte_ia(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
 
     return _streaming(buf, ext, nombre)
+
+
+# ── Endpoint 4: Token Embebido para ReportIQ ─────────────────────────────────
+
+class TokenReportIQResponse(BaseModel):
+    token_reportiq: str
+
+@router.get(
+    "/token-reportiq",
+    response_model=TokenReportIQResponse,
+    summary="[SA / TA] Obtener Token embebido para ReportIQ",
+    description="Llama al backend de ReportIQ usando la API KEY para generar un JWT de corta duración."
+)
+async def obtener_token_reportiq(
+    taller_id: Optional[int] = Depends(_resolve_taller_id),
+):
+    settings = get_settings()
+    api_key = settings.reportiq_api_key
+    if not api_key:
+        raise HTTPException(status_code=500, detail="REPORTIQ_API_KEY no configurada en el backend.")
+        
+    data_source_id = settings.reportiq_data_source_id
+    if not data_source_id:
+        raise HTTPException(status_code=500, detail="REPORTIQ_DATA_SOURCE_ID no configurada en el backend.")
+    reportiq_api_url = settings.reportiq_api_url
+    if not reportiq_api_url:
+        raise HTTPException(status_code=500, detail="REPORTIQ_API_URL no configurada en el backend.")
+    tenant_val = str(taller_id) if taller_id is not None else "*"
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            respuesta = await client.post(
+                f"{reportiq_api_url.rstrip('/')}/v1/embed-tokens",
+                headers={"Authorization": f"Bearer {api_key}"},
+                json={
+                    "data_source_id": data_source_id,
+                    "tenant_value": tenant_val
+                },
+                timeout=5.0
+            )
+            if respuesta.status_code != 200:
+                raise HTTPException(
+                    status_code=respuesta.status_code,
+                    detail=f"ReportIQ Error ({respuesta.status_code}): {respuesta.text}"
+                )
+            data = respuesta.json()
+            token = data.get("token") or data.get("embed_token")
+            if not token:
+                raise HTTPException(status_code=500, detail="ReportIQ no devolvió token válido.")
+            return {"token_reportiq": token}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error conectando con ReportIQ: {e}")

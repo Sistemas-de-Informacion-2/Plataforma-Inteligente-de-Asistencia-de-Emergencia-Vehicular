@@ -42,6 +42,11 @@ class Settings(BaseSettings):
     STRIPE_SECRET_KEY: Optional[str] = None
     STRIPE_PUBLICABLE: Optional[str] = None
 
+    # ── ReportIQ ──────────────────────────────────────────────
+    reportiq_api_url: Optional[str] = None
+    reportiq_api_key: Optional[str] = None
+    reportiq_data_source_id: Optional[str] = None
+
 
 @lru_cache
 def get_settings() -> Settings:

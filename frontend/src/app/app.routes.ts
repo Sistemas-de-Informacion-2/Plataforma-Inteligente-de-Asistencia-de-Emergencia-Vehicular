@@ -37,6 +37,7 @@ export const routes: Routes = [
       { path: 'finanzas', loadComponent: () => import('./pages/finanzas/finanzas').then(m => m.Finanzas) },
       { path: 'dashboard', loadComponent: () => import('./pages/sucursales/ta-dashboard/ta-dashboard.component').then(m => m.TaDashboardComponent) },
       { path: 'reportes', loadComponent: () => import('./pages/sucursales/ta-reportes/ta-reportes.component').then(m => m.TaReportesComponent) },
+      { path: 'reportes-ia', loadComponent: () => import('./pages/reportes-ia/reportes-ia.component').then(m => m.ReportesIaComponent) },
     ]
   },
 
@@ -52,6 +53,7 @@ export const routes: Routes = [
       { path: 'roles', loadComponent: () => import('./pages/super-admin/sa-roles/sa-roles.component').then(m => m.SaRolesComponent) },
       { path: 'dashboard', loadComponent: () => import('./pages/super-admin/sa-dashboard/sa-dashboard.component').then(m => m.SaDashboardComponent) },
       { path: 'reportes', loadComponent: () => import('./pages/super-admin/sa-reportes/sa-reportes.component').then(m => m.SaReportesComponent) },
+      { path: 'reportes-ia', loadComponent: () => import('./pages/reportes-ia/reportes-ia.component').then(m => m.ReportesIaComponent) },
     ]
   },
 
